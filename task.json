@@ -61,7 +61,7 @@
         "Add IPC command to check pipe server status",
         "Test: use multiple simple clients to send JSON events concurrently and verify frontend updates"
       ],
-      "passes": false,
+      "passes": true,
       "priority": "high",
       "dependencies": [1],
       "files": ["src-tauri/src/pipe_server.rs", "src-tauri/src/lib.rs", "src-tauri/Cargo.toml"],
@@ -124,7 +124,7 @@
         "Wire up session click in Overlay.tsx to call focus command",
         "Test: click session in overlay, corresponding terminal window comes to front"
       ],
-      "passes": false,
+      "passes": true,
       "priority": "low",
       "dependencies": [1],
       "files": ["src-tauri/src/window_focus.rs", "src-tauri/src/commands.rs", "frontend/src/components/Overlay.tsx"],

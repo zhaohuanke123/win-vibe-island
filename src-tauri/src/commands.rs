@@ -2,6 +2,7 @@ use crate::overlay::{self, OverlayConfig};
 use crate::events::{self, SessionStart, StateChange, SessionEnd};
 use crate::mock::{self, DemoConfig};
 use crate::pipe_server;
+use crate::window_focus::{self, FocusResult};
 use tauri::AppHandle;
 use serde::Serialize;
 
@@ -119,6 +120,7 @@ pub fn get_demo_config_status() -> DemoStatus {
     }
 }
 
+// Pipe server commands
 #[tauri::command]
 pub fn get_pipe_server_status() -> pipe_server::PipeServerStatus {
     pipe_server::get_pipe_server_status()
@@ -132,4 +134,14 @@ pub fn start_pipe_server(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn stop_pipe_server() -> Result<(), String> {
     pipe_server::stop_pipe_server()
+}
+
+// Window focus command
+/// Focus the window belonging to the session with the given PID.
+///
+/// This brings the agent's terminal/editor window to the foreground.
+/// Returns the result indicating success, flash-only (focus blocked), or not found.
+#[tauri::command]
+pub fn focus_session_window(session_pid: u32) -> FocusResult {
+    window_focus::focus_window_by_pid(session_pid)
 }

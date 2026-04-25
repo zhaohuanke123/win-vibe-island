@@ -3,6 +3,7 @@ mod commands;
 mod events;
 mod mock;
 mod pipe_server;
+mod window_focus;
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -90,6 +91,7 @@ pub fn run() {
             commands::get_pipe_server_status,
             commands::start_pipe_server,
             commands::stop_pipe_server,
+            commands::focus_session_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
