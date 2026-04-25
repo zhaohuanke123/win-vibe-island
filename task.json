@@ -206,7 +206,7 @@
         "Test full end-to-end flow with demo mode in browser",
         "Verify all features work on Windows 10 and Windows 11"
       ],
-      "passes": false,
+      "passes": true,
       "priority": "medium",
       "dependencies": [2, 5, 7],
       "files": ["frontend/src/"],
