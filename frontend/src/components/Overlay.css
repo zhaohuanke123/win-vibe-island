@@ -19,10 +19,15 @@
   border-radius: 6px;
   cursor: pointer;
   backdrop-filter: blur(8px);
+  transition: background 200ms ease, border-radius 200ms ease;
 }
 
 .overlay__bar:hover {
   background: rgba(30, 30, 30, 0.95);
+}
+
+.overlay--expanded .overlay__bar {
+  border-radius: 6px 6px 0 0;
 }
 
 .overlay__label {
@@ -40,14 +45,29 @@
   color: #9ca3af;
   font-size: 11px;
   text-transform: uppercase;
+  transition: color 200ms ease;
 }
 
+/* Panel with smooth expand/collapse animation */
 .overlay__panel {
-  margin-top: 4px;
+  margin-top: 0;
   padding: 4px;
   background: rgba(17, 17, 17, 0.9);
-  border-radius: 6px;
+  border-radius: 0 0 6px 6px;
   backdrop-filter: blur(8px);
+  animation: slideDown 300ms ease-out;
+  transform-origin: top center;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scaleY(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
 }
 
 .overlay__session {
@@ -57,10 +77,15 @@
   padding: 6px 8px;
   border-radius: 4px;
   cursor: pointer;
+  transition: background 200ms ease, transform 150ms ease;
 }
 
 .overlay__session:hover {
   background: rgba(55, 55, 55, 0.8);
+}
+
+.overlay__session:active {
+  transform: scale(0.98);
 }
 
 .overlay__session--active {
@@ -71,6 +96,68 @@
   padding: 12px 8px;
   text-align: center;
   color: #6b7280;
+  animation: fadeIn 300ms ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Error state */
+.overlay__error {
+  padding: 12px;
+  margin: 4px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+  color: #f87171;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: shake 0.4s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.overlay__error-icon {
+  font-size: 14px;
+}
+
+/* Loading state */
+.overlay__loading {
+  padding: 12px 8px;
+  text-align: center;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.overlay__spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(156, 163, 175, 0.3);
+  border-radius: 50%;
+  border-top-color: #9ca3af;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Demo controls */
@@ -78,6 +165,7 @@
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  animation: fadeIn 300ms ease-out;
 }
 
 .overlay__demo-header {
@@ -103,6 +191,12 @@
   color: #e5e7eb;
   font-size: 12px;
   cursor: pointer;
+  transition: background 200ms ease, border-color 200ms ease;
+}
+
+.overlay__speed-select:hover:not(:disabled) {
+  background: rgba(70, 70, 70, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .overlay__speed-select:disabled {
@@ -118,11 +212,15 @@
   color: white;
   font-size: 12px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 200ms ease, transform 150ms ease, box-shadow 200ms ease;
 }
 
 .overlay__demo-btn:hover {
   background: rgba(59, 130, 246, 1);
+}
+
+.overlay__demo-btn:active {
+  transform: scale(0.96);
 }
 
 .overlay__demo-btn--stop {
@@ -131,4 +229,18 @@
 
 .overlay__demo-btn--stop:hover {
   background: rgba(239, 68, 68, 1);
+}
+
+/* Session state change animation */
+.overlay__session--state-change {
+  animation: highlight 400ms ease-out;
+}
+
+@keyframes highlight {
+  0% {
+    background: rgba(59, 130, 246, 0.4);
+  }
+  100% {
+    background: rgba(59, 130, 246, 0.2);
+  }
 }

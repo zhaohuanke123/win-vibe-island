@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { StatusDot } from "./StatusDot";
@@ -34,6 +34,8 @@ export function Overlay() {
   const [expanded, setExpanded] = useState(false);
   const [demoRunning, setDemoRunning] = useState(false);
   const [selectedSpeed, setSelectedSpeed] = useState(1); // Normal
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Listen for approval_request events from the backend
   // Also auto-expand when approval request comes in
@@ -61,11 +63,13 @@ export function Overlay() {
   }, [sessions, setApprovalRequest]);
 
   // Handle session click: set as active and focus the corresponding window
-  const handleSessionClick = async (session: Session) => {
+  const handleSessionClick = useCallback(async (session: Session) => {
     setActiveSession(session.id);
+    setError(null);
 
     // Focus the window belonging to this session's process
     if (session.pid) {
+      setIsLoading(true);
       try {
         const result = await invoke<FocusResult>("focus_session_window", {
           sessionPid: session.pid,
@@ -73,9 +77,12 @@ export function Overlay() {
         console.log("Focus result:", result, "for session:", session.label);
       } catch (e) {
         console.error("Failed to focus session window:", e);
+        setError(`Failed to focus window: ${e}`);
+      } finally {
+        setIsLoading(false);
       }
     }
-  };
+  }, [setActiveSession]);
 
   useEffect(() => {
     if (sessions.length > 0 && !activeSessionId) {
@@ -91,6 +98,8 @@ export function Overlay() {
   }, []);
 
   const toggleDemo = async () => {
+    setError(null);
+    setIsLoading(true);
     try {
       if (demoRunning) {
         await invoke("toggle_demo_mode", { start: false });
@@ -108,6 +117,9 @@ export function Overlay() {
       }
     } catch (e) {
       console.error("Failed to toggle demo mode:", e);
+      setError(`Demo mode error: ${e}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -115,9 +127,14 @@ export function Overlay() {
     clearApprovalRequest();
   };
 
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
   return (
     <div className={`overlay ${expanded ? "overlay--expanded" : ""}`}>
       <div className="overlay__bar" onClick={() => setExpanded(!expanded)}>
+        {isLoading && <span className="overlay__spinner" />}
         {active ? (
           <>
             <StatusDot state={active.state} />
@@ -131,6 +148,14 @@ export function Overlay() {
 
       {expanded && (
         <div className="overlay__panel">
+          {/* Error display */}
+          {error && (
+            <div className="overlay__error" onClick={clearError}>
+              <span className="overlay__error-icon">!</span>
+              <span>{error}</span>
+            </div>
+          )}
+
           {/* Approval Panel - shows when there's an approval request */}
           {/* Using key to reset component state when a new request arrives */}
           {approvalRequest && (
@@ -151,7 +176,7 @@ export function Overlay() {
               <span>{s.label}</span>
             </div>
           ))}
-          {sessions.length === 0 && (
+          {sessions.length === 0 && !error && (
             <div className="overlay__empty">Waiting for agent sessions...</div>
           )}
 
@@ -173,8 +198,9 @@ export function Overlay() {
                 <button
                   className={`overlay__demo-btn ${demoRunning ? "overlay__demo-btn--stop" : ""}`}
                   onClick={toggleDemo}
+                  disabled={isLoading}
                 >
-                  {demoRunning ? "Stop" : "Start"}
+                  {isLoading ? <span className="overlay__spinner" /> : (demoRunning ? "Stop" : "Start")}
                 </button>
               </div>
             </div>
