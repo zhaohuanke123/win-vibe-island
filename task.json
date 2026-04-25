@@ -81,7 +81,7 @@
         "Add IPC commands: start_process_watcher, stop_process_watcher, get_detected_processes",
         "Test: start a known agent process, verify detection in overlay"
       ],
-      "passes": false,
+      "passes": true,
       "priority": "medium",
       "dependencies": [1],
       "files": ["src-tauri/src/process_watcher.rs", "src-tauri/src/lib.rs", "src-tauri/Cargo.toml"],

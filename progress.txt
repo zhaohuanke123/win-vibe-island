@@ -3,7 +3,28 @@
 ## Project Status
 - **Started:** 2026-04-25
 - **Current Phase:** Phase 2 - Core Features
-- **Completed Tasks:** 4 / 10
+- **Completed Tasks:** 5 / 10
+
+---
+
+## [2026-04-25] - Batch 3: Task #4
+
+### Task #4: Process Watcher - Agent Detection via Process Polling
+- Executor: completed
+- Verifier: PASS
+
+### Files Changed:
+- `src-tauri/src/process_watcher.rs` (new) - Process enumeration with CreateToolhelp32Snapshot
+- `src-tauri/src/lib.rs` - Added process_watcher module and IPC commands
+- `src-tauri/src/commands.rs` - Added 5 IPC commands for process watcher
+- `src-tauri/Cargo.toml` - Added Win32_System_Diagnostics_ToolHelp feature
+
+### Implementation Notes:
+- Detects known agents: claude.exe, codex.exe, aider.exe, cursor.exe, copilot-agent.exe
+- Uses CreateToolhelp32Snapshot for process enumeration
+- Thread-safe state with parking_lot::Mutex and AtomicBool
+- Configurable poll interval (default 5s)
+- Emits process_detected and process_terminated Tauri events
 
 ---
 
