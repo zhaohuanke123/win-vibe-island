@@ -101,7 +101,7 @@
         "Add keyboard shortcuts for quick approval (Enter) and rejection (Escape)",
         "Test: trigger mock approval event via demo mode, verify panel shows and buttons respond"
       ],
-      "passes": false,
+      "passes": true,
       "priority": "medium",
       "dependencies": [2],
       "files": ["frontend/src/components/ApprovalPanel.tsx", "frontend/src/components/Overlay.tsx", "src-tauri/src/commands.rs"],
@@ -144,7 +144,7 @@
         "Test on 150% and 200% scaling",
         "Verify overlay snaps to correct positions after DPI change"
       ],
-      "passes": false,
+      "passes": true,
       "priority": "medium",
       "dependencies": [1],
       "files": ["src-tauri/src/overlay.rs", "src-tauri/src/lib.rs"],
@@ -165,7 +165,7 @@
         "Test: load SDK in a Node.js script, verify events appear in Vibe Island overlay",
         "Create installation tarball for local testing: npm pack"
       ],
-      "passes": false,
+      "passes": true,
       "priority": "low",
       "dependencies": [3],
       "files": ["agent-sdk/node/"],
@@ -185,7 +185,7 @@
         "Test: run SDK in a Python script, verify events appear in Vibe Island overlay",
         "Create distribution package: python -m build"
       ],
-      "passes": false,
+      "passes": true,
       "priority": "low",
       "dependencies": [3],
       "files": ["agent-sdk/python/"],

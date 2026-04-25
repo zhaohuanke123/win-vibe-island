@@ -3,7 +3,78 @@
 ## Project Status
 - **Started:** 2026-04-25
 - **Current Phase:** Phase 2 - Core Features
-- **Completed Tasks:** 5 / 10
+- **Completed Tasks:** 9 / 10
+
+---
+
+## [2026-04-26] - Batch 4: Tasks #5, #7, #8, #9 (Parallel)
+
+### Task #5: Frontend - Approval Panel Component
+- Executor: completed
+- Verifier: PASS
+
+### Files Changed:
+- `frontend/src/components/ApprovalPanel.tsx` (new) - Approval/reject UI
+- `frontend/src/components/ApprovalPanel.css` (new) - Glassmorphism styling
+- `frontend/src/store/sessions.ts` - Added ApprovalRequest type
+- `frontend/src/components/Overlay.tsx` - Integrated ApprovalPanel
+- `src-tauri/src/commands.rs` - Added submit_approval_response command
+- `src-tauri/src/events.rs` - Added ApprovalResponse struct
+
+### Implementation Notes:
+- Displays session label, action description, risk level
+- Approve/Reject buttons with loading states
+- Keyboard shortcuts: Enter (approve), Escape (reject)
+- Auto-expand overlay on approval request
+
+### Task #7: DPI & Multi-Monitor Support
+- Executor: completed
+- Verifier: PASS
+
+### Files Changed:
+- `src-tauri/src/overlay.rs` - DPI scaling functions
+- `src-tauri/src/commands.rs` - DPI IPC commands
+- `src-tauri/src/lib.rs` - DPI awareness at startup
+- `src-tauri/Cargo.toml` - Added Win32_UI_HiDpi feature
+
+### Implementation Notes:
+- GetDpiForWindow and GetScaleFactorForMonitor wrappers
+- Scale overlay dimensions based on DPI
+- Per-monitor DPI awareness v2
+- IPC commands: get_dpi_scale, get_dpi_scale_at_position, update_overlay_with_dpi
+
+### Task #8: Agent SDK - Node.js
+- Executor: completed
+- Verifier: PASS
+
+### Files Changed:
+- `agent-sdk/node/package.json` - NPM package config
+- `agent-sdk/node/src/index.ts` - VibeIslandClient class
+- `agent-sdk/node/src/client.ts` - Named Pipe client with auto-reconnect
+- `agent-sdk/node/src/types.ts` - TypeScript event types
+- `agent-sdk/node/README.md` - API documentation
+
+### Implementation Notes:
+- Named Pipe connection to \\.\pipe\VibeIsland
+- Auto-reconnect with exponential backoff
+- API: connect, startSession, setState, endSession
+
+### Task #9: Agent SDK - Python
+- Executor: completed
+- Verifier: PASS
+
+### Files Changed:
+- `agent-sdk/python/pyproject.toml` - pip package config
+- `agent-sdk/python/src/vibe_island_sdk/__init__.py` - Main exports
+- `agent-sdk/python/src/vibe_island_sdk/client.py` - Named Pipe client
+- `agent-sdk/python/src/vibe_island_sdk/types.py` - Type definitions
+- `agent-sdk/python/README.md` - API documentation
+
+### Implementation Notes:
+- Named Pipe connection using pywin32
+- Auto-reconnect support
+- API: connect, session_start, set_state, session_end
+- Python 3.8+ compatible
 
 ---
 
