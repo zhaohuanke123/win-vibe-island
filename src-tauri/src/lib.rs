@@ -14,6 +14,14 @@ use tauri::{
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Enable DPI awareness at startup (Windows only)
+    #[cfg(target_os = "windows")]
+    {
+        if let Err(e) = overlay::enable_dpi_awareness() {
+            log::warn!("Failed to enable DPI awareness: {}", e);
+        }
+    }
+
     tauri::Builder::default()
         .setup(|app| {
             // Initialize log plugin in debug mode
@@ -99,6 +107,10 @@ pub fn run() {
             commands::get_detected_processes,
             commands::set_process_watcher_config,
             commands::submit_approval_response,
+            commands::get_dpi_scale,
+            commands::get_dpi_scale_at_position,
+            commands::update_overlay_with_dpi,
+            commands::enable_dpi_awareness,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

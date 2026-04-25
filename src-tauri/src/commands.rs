@@ -1,4 +1,4 @@
-use crate::overlay::{self, OverlayConfig};
+use crate::overlay::{self, OverlayConfig, DpiScale};
 use crate::events::{self, SessionStart, StateChange, SessionEnd};
 use crate::mock::{self, DemoConfig};
 use crate::pipe_server;
@@ -190,4 +190,54 @@ pub fn submit_approval_response(
         session_id,
         approved,
     })
+}
+
+// DPI-related commands
+/// Get the DPI scale factor for a window
+#[tauri::command]
+pub fn get_dpi_scale(hwnd_str: String) -> Result<DpiScale, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let hwnd: windows::Win32::Foundation::HWND = parse_hwnd(&hwnd_str)?;
+        overlay::get_dpi_scale_for_window(hwnd)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = hwnd_str;
+        overlay::get_dpi_scale_for_window()
+    }
+}
+
+/// Get the DPI scale factor for the monitor at a specific point
+#[tauri::command]
+pub fn get_dpi_scale_at_position(x: i32, y: i32) -> DpiScale {
+    overlay::get_dpi_scale_at_point(x, y)
+}
+
+/// Update overlay position with explicit DPI scale
+#[tauri::command]
+pub fn update_overlay_with_dpi(
+    hwnd_str: String,
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    dpi_scale: DpiScale,
+) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let hwnd: windows::Win32::Foundation::HWND = parse_hwnd(&hwnd_str)?;
+        overlay::update_overlay_position_with_dpi(hwnd, x, y, width, height, dpi_scale)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (hwnd_str, x, y, width, height, dpi_scale);
+        overlay::update_overlay_position_with_dpi(0, 0, 0, 0, 1.0)
+    }
+}
+
+/// Enable DPI awareness for the application (should be called at startup)
+#[tauri::command]
+pub fn enable_dpi_awareness() -> Result<(), String> {
+    overlay::enable_dpi_awareness()
 }
