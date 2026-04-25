@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { StatusDot } from "./StatusDot";
+import { ApprovalPanel } from "./ApprovalPanel";
 import { useSessionsStore } from "../store/sessions";
 import type { Session } from "../store/sessions";
 import "./Overlay.css";
@@ -26,12 +28,37 @@ const SPEED_OPTIONS: { label: string; delay: number }[] = [
 type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored";
 
 export function Overlay() {
-  const { sessions, activeSessionId, setActiveSession } = useSessionsStore();
+  const { sessions, activeSessionId, setActiveSession, approvalRequest, setApprovalRequest, clearApprovalRequest } = useSessionsStore();
   const active = sessions.find((s) => s.id === activeSessionId);
 
   const [expanded, setExpanded] = useState(false);
   const [demoRunning, setDemoRunning] = useState(false);
   const [selectedSpeed, setSelectedSpeed] = useState(1); // Normal
+
+  // Listen for approval_request events from the backend
+  // Also auto-expand when approval request comes in
+  useEffect(() => {
+    const unlisten: Promise<UnlistenFn> = listen<{ session_id: string; action: string; risk_level: string }>(
+      "approval_request",
+      (event) => {
+        const { session_id, action, risk_level } = event.payload;
+        const session = sessions.find((s) => s.id === session_id);
+        setApprovalRequest({
+          sessionId: session_id,
+          sessionLabel: session?.label ?? "Unknown Session",
+          action,
+          riskLevel: risk_level as "low" | "medium" | "high",
+          timestamp: Date.now(),
+        });
+        // Auto-expand when approval request comes in
+        setExpanded(true);
+      }
+    );
+
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [sessions, setApprovalRequest]);
 
   // Handle session click: set as active and focus the corresponding window
   const handleSessionClick = async (session: Session) => {
@@ -84,6 +111,10 @@ export function Overlay() {
     }
   };
 
+  const handleApprovalHandled = () => {
+    clearApprovalRequest();
+  };
+
   return (
     <div className={`overlay ${expanded ? "overlay--expanded" : ""}`}>
       <div className="overlay__bar" onClick={() => setExpanded(!expanded)}>
@@ -100,6 +131,16 @@ export function Overlay() {
 
       {expanded && (
         <div className="overlay__panel">
+          {/* Approval Panel - shows when there's an approval request */}
+          {/* Using key to reset component state when a new request arrives */}
+          {approvalRequest && (
+            <ApprovalPanel
+              key={approvalRequest.timestamp}
+              request={approvalRequest}
+              onApprovalHandled={handleApprovalHandled}
+            />
+          )}
+
           {sessions.map((s) => (
             <div
               key={s.id}

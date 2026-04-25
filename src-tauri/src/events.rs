@@ -27,6 +27,12 @@ pub struct ApprovalRequest {
     pub risk_level: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct ApprovalResponse {
+    pub session_id: String,
+    pub approved: bool,
+}
+
 pub fn emit_session_start(app: &AppHandle, event: SessionStart) -> Result<(), String> {
     app.emit("session_start", &event)
         .map_err(|e| format!("Failed to emit session_start: {}", e))
@@ -46,4 +52,9 @@ pub fn emit_state_change(app: &AppHandle, event: StateChange) -> Result<(), Stri
 pub fn emit_approval_request(app: &AppHandle, event: ApprovalRequest) -> Result<(), String> {
     app.emit("approval_request", &event)
         .map_err(|e| format!("Failed to emit approval_request: {}", e))
+}
+
+pub fn emit_approval_response(app: &AppHandle, event: ApprovalResponse) -> Result<(), String> {
+    app.emit("approval_response", &event)
+        .map_err(|e| format!("Failed to emit approval_response: {}", e))
 }

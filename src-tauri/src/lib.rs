@@ -98,6 +98,7 @@ pub fn run() {
             commands::get_process_watcher_status,
             commands::get_detected_processes,
             commands::set_process_watcher_config,
+            commands::submit_approval_response,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

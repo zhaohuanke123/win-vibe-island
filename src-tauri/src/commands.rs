@@ -174,3 +174,20 @@ pub fn set_process_watcher_config(
 ) -> Result<(), String> {
     process_watcher::set_process_watcher_config(config)
 }
+
+// Approval response command
+/// Submit an approval response for a pending approval request.
+///
+/// This is called from the frontend when the user approves or rejects an action.
+/// The response is emitted as an event that can be listened to by the agent process.
+#[tauri::command]
+pub fn submit_approval_response(
+    app: AppHandle,
+    session_id: String,
+    approved: bool,
+) -> Result<(), String> {
+    events::emit_approval_response(&app, events::ApprovalResponse {
+        session_id,
+        approved,
+    })
+}
