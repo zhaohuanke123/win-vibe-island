@@ -2,8 +2,28 @@
 
 ## Project Status
 - **Started:** 2026-04-25
-- **Current Phase:** Phase 1 - Mock Mode
-- **Completed Tasks:** 1 / 10
+- **Current Phase:** Phase 2 - Core Features
+- **Completed Tasks:** 2 / 10
+
+---
+
+## [2026-04-25] - Task #2: Demo/Mock Mode - Simulated Agent Events
+
+### Executor: completed
+### Verifier: PASS
+
+### Files Changed:
+- `src-tauri/src/mock.rs` - Demo event generator with thread-based simulation
+- `src-tauri/src/lib.rs` - Added mock module and IPC commands
+- `src-tauri/src/commands.rs` - Added toggle_demo_mode, set_demo_config, get_demo_config_status
+- `frontend/src/components/Overlay.tsx` - Demo controls UI (dev mode only)
+- `frontend/src/components/Overlay.css` - Demo button styles
+
+### Implementation Notes:
+- Demo mode runs in background thread, cycles sessions through states
+- Configurable speed: Fast (0.5s), Normal (1s), Slow (2s), Very Slow (5s)
+- UI hidden in production via `import.meta.env.DEV`
+- Sessions auto-spawn and cycle: idle → running → approval → done → remove
 
 ---
 

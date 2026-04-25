@@ -1,6 +1,7 @@
 mod overlay;
 mod commands;
 mod events;
+mod mock;
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -73,6 +74,9 @@ pub fn run() {
             commands::update_overlay,
             commands::destroy_overlay,
             commands::emit_test_event,
+            commands::toggle_demo_mode,
+            commands::set_demo_config,
+            commands::get_demo_config_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

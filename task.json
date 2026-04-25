@@ -39,7 +39,7 @@
         "Add a demo toggle button in frontend Overlay.tsx (dev mode only, hidden in production)",
         "Test: clicking demo toggle creates sessions that cycle through states in the overlay UI"
       ],
-      "passes": false,
+      "passes": true,
       "priority": "high",
       "dependencies": [1],
       "files": ["src-tauri/src/mock.rs", "src-tauri/src/lib.rs", "src-tauri/src/commands.rs", "frontend/src/components/Overlay.tsx"],

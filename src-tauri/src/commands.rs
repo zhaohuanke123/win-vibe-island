@@ -1,6 +1,8 @@
 use crate::overlay::{self, OverlayConfig};
 use crate::events::{self, SessionStart, StateChange, SessionEnd};
+use crate::mock::{self, DemoConfig};
 use tauri::AppHandle;
+use serde::Serialize;
 
 #[tauri::command]
 pub fn create_overlay(config: OverlayConfig) -> Result<String, String> {
@@ -85,5 +87,33 @@ pub fn emit_test_event(app: AppHandle, event_type: String, session_id: String) -
             events::emit_session_end(&app, SessionEnd { session_id })
         }
         _ => Err(format!("Unknown event type: {}", event_type)),
+    }
+}
+
+#[tauri::command]
+pub fn toggle_demo_mode(app: AppHandle, start: bool) -> Result<(), String> {
+    if start {
+        mock::start_demo_mode(app)
+    } else {
+        mock::stop_demo_mode()
+    }
+}
+
+#[tauri::command]
+pub fn set_demo_config(config: DemoConfig) -> Result<(), String> {
+    mock::set_demo_config(config)
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DemoStatus {
+    pub running: bool,
+    pub config: DemoConfig,
+}
+
+#[tauri::command]
+pub fn get_demo_config_status() -> DemoStatus {
+    DemoStatus {
+        running: mock::is_demo_running(),
+        config: mock::get_demo_config(),
     }
 }
