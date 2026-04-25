@@ -3,6 +3,7 @@ mod commands;
 mod events;
 mod mock;
 mod pipe_server;
+mod process_watcher;
 mod window_focus;
 
 use tauri::{
@@ -92,6 +93,11 @@ pub fn run() {
             commands::start_pipe_server,
             commands::stop_pipe_server,
             commands::focus_session_window,
+            commands::start_process_watcher,
+            commands::stop_process_watcher,
+            commands::get_process_watcher_status,
+            commands::get_detected_processes,
+            commands::set_process_watcher_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

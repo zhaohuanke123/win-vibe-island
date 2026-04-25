@@ -2,6 +2,7 @@ use crate::overlay::{self, OverlayConfig};
 use crate::events::{self, SessionStart, StateChange, SessionEnd};
 use crate::mock::{self, DemoConfig};
 use crate::pipe_server;
+use crate::process_watcher;
 use crate::window_focus::{self, FocusResult};
 use tauri::AppHandle;
 use serde::Serialize;
@@ -144,4 +145,32 @@ pub fn stop_pipe_server() -> Result<(), String> {
 #[tauri::command]
 pub fn focus_session_window(session_pid: u32) -> FocusResult {
     window_focus::focus_window_by_pid(session_pid)
+}
+
+// Process watcher commands
+#[tauri::command]
+pub fn start_process_watcher(app: AppHandle) -> Result<(), String> {
+    process_watcher::start_process_watcher(app)
+}
+
+#[tauri::command]
+pub fn stop_process_watcher() -> Result<(), String> {
+    process_watcher::stop_process_watcher()
+}
+
+#[tauri::command]
+pub fn get_process_watcher_status() -> process_watcher::ProcessWatcherStatus {
+    process_watcher::get_process_watcher_status()
+}
+
+#[tauri::command]
+pub fn get_detected_processes() -> Vec<process_watcher::ProcessInfo> {
+    process_watcher::get_detected_processes()
+}
+
+#[tauri::command]
+pub fn set_process_watcher_config(
+    config: process_watcher::ProcessWatcherConfig,
+) -> Result<(), String> {
+    process_watcher::set_process_watcher_config(config)
 }
