@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { StatusDot } from "./StatusDot";
 import { useSessionsStore } from "../store/sessions";
+import type { Session } from "../store/sessions";
 import "./Overlay.css";
 
 interface DemoConfig {
@@ -22,6 +23,8 @@ const SPEED_OPTIONS: { label: string; delay: number }[] = [
   { label: "Very Slow", delay: 5000 },
 ];
 
+type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored";
+
 export function Overlay() {
   const { sessions, activeSessionId, setActiveSession } = useSessionsStore();
   const active = sessions.find((s) => s.id === activeSessionId);
@@ -29,6 +32,23 @@ export function Overlay() {
   const [expanded, setExpanded] = useState(false);
   const [demoRunning, setDemoRunning] = useState(false);
   const [selectedSpeed, setSelectedSpeed] = useState(1); // Normal
+
+  // Handle session click: set as active and focus the corresponding window
+  const handleSessionClick = async (session: Session) => {
+    setActiveSession(session.id);
+
+    // Focus the window belonging to this session's process
+    if (session.pid) {
+      try {
+        const result = await invoke<FocusResult>("focus_session_window", {
+          sessionPid: session.pid,
+        });
+        console.log("Focus result:", result, "for session:", session.label);
+      } catch (e) {
+        console.error("Failed to focus session window:", e);
+      }
+    }
+  };
 
   useEffect(() => {
     if (sessions.length > 0 && !activeSessionId) {
@@ -84,7 +104,7 @@ export function Overlay() {
             <div
               key={s.id}
               className={`overlay__session ${s.id === activeSessionId ? "overlay__session--active" : ""}`}
-              onClick={() => setActiveSession(s.id)}
+              onClick={() => handleSessionClick(s)}
             >
               <StatusDot state={s.state} />
               <span>{s.label}</span>
