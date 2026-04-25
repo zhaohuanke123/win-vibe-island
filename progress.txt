@@ -1,0 +1,69 @@
+# Vibe Island (氛围岛) - Development Progress Log
+
+## Project Status
+- **Started:** 2026-04-25
+- **Current Phase:** Phase 1 - Mock Mode
+- **Completed Tasks:** 1 / 10
+
+---
+
+## [2026-04-25] - Task #1: Core Infrastructure: System Tray + Event Bridge
+
+### Executor: completed
+### Verifier: PASS (compilation verified)
+
+### Files Changed:
+- `src-tauri/Cargo.toml` - Added tray-icon feature
+- `src-tauri/tauri.conf.json` - Configured tray icon and window settings
+- `src-tauri/capabilities/default.json` - Added event permissions
+- `src-tauri/src/lib.rs` - System tray setup with menu
+- `src-tauri/src/events.rs` - Event types and emission functions
+- `src-tauri/src/commands.rs` - Added emit_test_event command
+- `frontend/package.json` - Added @tauri-apps/api
+- `frontend/src/hooks/useAgentEvents.ts` - React hook for Tauri events
+- `frontend/src/App.tsx` - Wired up useAgentEvents hook
+
+### Implementation Notes:
+- System tray with Show/Hide and Quit menu items
+- Left-click on tray icon shows window
+- Event types: SessionStart, SessionEnd, StateChange, ApprovalRequest
+- Frontend hook listens to all events and dispatches to Zustand store
+
+---
+
+## Task Changes Log
+
+### 2026-04-25 - Task Restructuring
+
+**Changes based on code review feedback:**
+
+1. **Merged Task 1 + 2** → New Task 1 "Core Infrastructure: System Tray + Event Bridge"
+   - Reason: Both are foundational skeleton - can't demo anything without both
+   - Priority: critical
+
+2. **Task 2 (Mock Mode) priority raised** → high
+   - Reason: Blocks Task 5 (Approval Panel) and Task 10 (UI Polish)
+   - Enables parallel frontend/backend development
+
+3. **Task 3 (Named Pipe)** - Added concurrent connection handling step
+   - Added: "Use tokio::spawn for each connection to handle multiple concurrent clients"
+
+4. **Task 6 (Window Focus)** - Added fallback strategies for SetForegroundWindow
+   - Windows 10/11 blocks focus stealing; added FlashWindowEx fallback
+
+5. **New Task 7: DPI & Multi-Monitor Support**
+   - Was missing from original task list but flagged as MID risk in architecture
+   - Priority: medium, depends on Task 1
+
+6. **Task 8/9 (Agent SDK)** - Added distribution/publishing steps
+   - Node: npm pack for local testing, npm publish config
+   - Python: python -m build for distribution
+
+## Execution Order
+
+```
+[Task 1] → [Task 2] → [Task 3 + 5] → [Task 4 + 6 + 7] → [Task 8 + 9] → [Task 10]
+  骨架        Mock        通道+UI         后端功能           SDK           收尾
+```
+
+---

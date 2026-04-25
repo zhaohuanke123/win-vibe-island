@@ -1,0 +1,216 @@
+{
+  "project": "Vibe Island (氛围岛)",
+  "description": "Windows desktop overlay app that monitors AI coding agent sessions (Claude Code, Codex) and displays their state as a floating overlay. Built with Tauri 2.0 (Rust + React).",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Core Infrastructure: System Tray + Event Bridge",
+      "description": "Combined Phase 0 task: Add system tray with context menu AND establish Tauri event communication. These are foundational - without both, no other feature can be demoed or tested.",
+      "steps": [
+        "Add tauri-plugin-tray dependency to Cargo.toml",
+        "Configure tray icon in tauri.conf.json",
+        "Create tray icon asset (16x16 .ico)",
+        "Implement tray setup in lib.rs with context menu items (Show/Hide, Start/Stop monitoring, Quit)",
+        "Add tauri::AppHandle to Tauri managed state",
+        "Create Rust event types in new events.rs module: SessionStart, SessionEnd, StateChange",
+        "Implement event emission functions in events.rs",
+        "Create useAgentEvents React hook that listens to Tauri events via @tauri-apps/api/event",
+        "Wire up the hook in App.tsx to dispatch to Zustand store",
+        "Handle Show/Hide toggle to control overlay visibility via tray",
+        "Handle Quit to gracefully shut down the app",
+        "Test: tray icon appears, right-click shows menu, emit test event from backend, verify frontend store updates"
+      ],
+      "passes": true,
+      "priority": "critical",
+      "dependencies": [],
+      "files": ["src-tauri/src/lib.rs", "src-tauri/src/events.rs", "src-tauri/src/commands.rs", "src-tauri/tauri.conf.json", "frontend/src/hooks/useAgentEvents.ts", "frontend/src/App.tsx"],
+      "conflict_groups": ["core-infra"]
+    },
+    {
+      "id": 2,
+      "title": "Demo/Mock Mode - Simulated Agent Events",
+      "description": "Create a mock event source that simulates an agent session lifecycle (idle -> running -> approval -> done). This enables full UI testing without real agent processes. CRITICAL for parallel development - blocks Task 5 (Approval Panel) and Task 9 (UI Polish).",
+      "steps": [
+        "Create src-tauri/src/mock.rs with a demo event generator",
+        "Simulate session lifecycle: create session, cycle through states, remove session",
+        "Implement configurable timing for state transitions (config via frontend)",
+        "Add Tauri IPC command toggle_demo_mode to start/stop mock",
+        "Add IPC command set_demo_config to control simulation speed",
+        "Add a demo toggle button in frontend Overlay.tsx (dev mode only, hidden in production)",
+        "Test: clicking demo toggle creates sessions that cycle through states in the overlay UI"
+      ],
+      "passes": false,
+      "priority": "high",
+      "dependencies": [1],
+      "files": ["src-tauri/src/mock.rs", "src-tauri/src/lib.rs", "src-tauri/src/commands.rs", "frontend/src/components/Overlay.tsx"],
+      "conflict_groups": ["mock"]
+    },
+    {
+      "id": 3,
+      "title": "Named Pipe Server Foundation",
+      "description": "Implement async Named Pipe server (\\\\.\\pipe\\VibeIsland) for receiving agent events. This is the primary communication channel for the Agent SDK to push session state.",
+      "steps": [
+        "Add tokio dependency to Cargo.toml",
+        "Create src-tauri/src/pipe_server.rs with async pipe listener",
+        "Define AgentEvent struct: { session_id, state, payload } with serde",
+        "Implement pipe connection accept loop with JSON message parsing",
+        "CRITICAL: Use tokio::spawn for each connection to handle multiple concurrent clients (Claude Code + Codex running simultaneously)",
+        "Implement connection cleanup on client disconnect",
+        "Forward parsed events to Tauri event system via AppHandle",
+        "Start pipe server in Tauri setup hook",
+        "Add IPC command to check pipe server status",
+        "Test: use multiple simple clients to send JSON events concurrently and verify frontend updates"
+      ],
+      "passes": false,
+      "priority": "high",
+      "dependencies": [1],
+      "files": ["src-tauri/src/pipe_server.rs", "src-tauri/src/lib.rs", "src-tauri/Cargo.toml"],
+      "conflict_groups": ["backend-pipe"]
+    },
+    {
+      "id": 4,
+      "title": "Process Watcher - Agent Detection via Process Polling",
+      "description": "Enumerate running processes to detect known AI coding agents (Claude Code, Codex CLI) and track their lifecycle. This serves as a fallback state detection mechanism.",
+      "steps": [
+        "Add windows Win32_System_Threading feature to windows crate",
+        "Create src-tauri/src/process_watcher.rs",
+        "Implement process enumeration using EnumProcesses / CreateToolhelp32Snapshot",
+        "Match processes by known agent binary names (claude, codex, etc.)",
+        "Track process start/stop events, emit as Tauri events",
+        "Poll on a configurable interval (default: 5s)",
+        "Add IPC commands: start_process_watcher, stop_process_watcher, get_detected_processes",
+        "Test: start a known agent process, verify detection in overlay"
+      ],
+      "passes": false,
+      "priority": "medium",
+      "dependencies": [1],
+      "files": ["src-tauri/src/process_watcher.rs", "src-tauri/src/lib.rs", "src-tauri/Cargo.toml"],
+      "conflict_groups": ["backend-process"]
+    },
+    {
+      "id": 5,
+      "title": "Frontend - Approval Panel Component",
+      "description": "Create an ApprovalPanel component that displays approval requests from agents with action buttons. When an agent needs user approval, this panel shows the details and allows approve/reject.",
+      "steps": [
+        "Create frontend/src/components/ApprovalPanel.tsx",
+        "Display approval request details (session label, action description, risk level)",
+        "Add Approve and Reject action buttons with loading states",
+        "Emit approval response back to backend via Tauri invoke",
+        "Add IPC command in commands.rs to handle approval responses",
+        "Style the panel to match existing overlay design (glassmorphism, animations)",
+        "Add keyboard shortcuts for quick approval (Enter) and rejection (Escape)",
+        "Test: trigger mock approval event via demo mode, verify panel shows and buttons respond"
+      ],
+      "passes": false,
+      "priority": "medium",
+      "dependencies": [2],
+      "files": ["frontend/src/components/ApprovalPanel.tsx", "frontend/src/components/Overlay.tsx", "src-tauri/src/commands.rs"],
+      "conflict_groups": ["frontend-ui"]
+    },
+    {
+      "id": 6,
+      "title": "Window Focus Management",
+      "description": "Implement cross-application window focus. Allow users to click a session in the overlay to bring the corresponding agent terminal/editor window to the foreground.",
+      "steps": [
+        "Add required Win32 features (Win32_UI_WindowsAndMessaging, Win32_System_Threading)",
+        "Create src-tauri/src/window_focus.rs",
+        "Implement find_window_by_pid using EnumWindows + GetWindowThreadProcessId",
+        "Implement focus_window with fallback strategy:",
+        "  - Primary: SetForegroundWindow directly",
+        "  - Fallback 1: AttachThreadInput + SetForegroundWindow (steal focus)",
+        "  - Fallback 2: FlashWindowEx to flash taskbar if focus steal blocked by Windows 10/11",
+        "  - Fallback 3: ShowWindow(SW_RESTORE) if window is minimized",
+        "Add IPC command focus_session_window(session_pid) in commands.rs",
+        "Wire up session click in Overlay.tsx to call focus command",
+        "Test: click session in overlay, corresponding terminal window comes to front"
+      ],
+      "passes": false,
+      "priority": "low",
+      "dependencies": [1],
+      "files": ["src-tauri/src/window_focus.rs", "src-tauri/src/commands.rs", "frontend/src/components/Overlay.tsx"],
+      "conflict_groups": ["backend-focus"]
+    },
+    {
+      "id": 7,
+      "title": "DPI & Multi-Monitor Support",
+      "description": "Handle per-monitor DPI scaling and multi-monitor setups. Overlay position calculation must work correctly across displays with different DPIs. Without this, overlay appears offset on high-DPI or multi-monitor configurations.",
+      "steps": [
+        "Add Win32_UI_HiDpi features to windows crate",
+        "Implement GetDpiForWindow and GetScaleFactorForMonitor wrappers",
+        "Store DPI scale factor with each overlay position",
+        "Update overlay position calculation to account for DPI",
+        "Handle monitor change events (WM_DPICHANGED, WM_DISPLAYCHANGE)",
+        "Test on multi-monitor setup with different DPIs",
+        "Test on 150% and 200% scaling",
+        "Verify overlay snaps to correct positions after DPI change"
+      ],
+      "passes": false,
+      "priority": "medium",
+      "dependencies": [1],
+      "files": ["src-tauri/src/overlay.rs", "src-tauri/src/lib.rs"],
+      "conflict_groups": ["backend-overlay"]
+    },
+    {
+      "id": 8,
+      "title": "Agent SDK - Node.js (Claude Code)",
+      "description": "Create a lightweight Node.js SDK that injects into Claude Code sessions and communicates with Vibe Island via Named Pipe. Publishes session lifecycle events.",
+      "steps": [
+        "Create agent-sdk/node/ directory with package.json",
+        "Implement Named Pipe client using net.connect to \\\\\\.\\pipe\\VibeIsland",
+        "Define event types matching backend AgentEvent schema",
+        "Hook into Claude Code lifecycle: session start, state changes, session end",
+        "Add TypeScript type definitions",
+        "Add README with usage instructions and API documentation",
+        "Add npm publish configuration (package.json scripts, .npmignore)",
+        "Test: load SDK in a Node.js script, verify events appear in Vibe Island overlay",
+        "Create installation tarball for local testing: npm pack"
+      ],
+      "passes": false,
+      "priority": "low",
+      "dependencies": [3],
+      "files": ["agent-sdk/node/"],
+      "conflict_groups": ["sdk-node"]
+    },
+    {
+      "id": 9,
+      "title": "Agent SDK - Python (Codex CLI)",
+      "description": "Create a lightweight Python SDK for Codex CLI that communicates with Vibe Island via Named Pipe. Mirrors the Node.js SDK functionality.",
+      "steps": [
+        "Create agent-sdk/python/ directory with pyproject.toml",
+        "Implement Named Pipe client using win32pipe / ctypes",
+        "Define event types matching backend AgentEvent schema",
+        "Hook into Codex CLI lifecycle events",
+        "Add README with usage instructions and API documentation",
+        "Add pip install configuration (setup.py or pyproject.toml)",
+        "Test: run SDK in a Python script, verify events appear in Vibe Island overlay",
+        "Create distribution package: python -m build"
+      ],
+      "passes": false,
+      "priority": "low",
+      "dependencies": [3],
+      "files": ["agent-sdk/python/"],
+      "conflict_groups": ["sdk-python"]
+    },
+    {
+      "id": 10,
+      "title": "UI Polish and Production Readiness",
+      "description": "Polish the entire overlay UI with smooth transitions, proper animations, error states, and ensure production build works correctly.",
+      "steps": [
+        "Add CSS transitions for panel expand/collapse animation",
+        "Add smooth state change animations (color transitions on StatusDot)",
+        "Add error/loading states in the overlay UI",
+        "Ensure transparent background works correctly in WebView2",
+        "Verify overlay click-through toggle works smoothly",
+        "Run npm run lint && npm run build - no errors",
+        "Run cargo tauri build - production build succeeds",
+        "Test full end-to-end flow with demo mode in browser",
+        "Verify all features work on Windows 10 and Windows 11"
+      ],
+      "passes": false,
+      "priority": "medium",
+      "dependencies": [2, 5, 7],
+      "files": ["frontend/src/"],
+      "conflict_groups": ["frontend-polish"]
+    }
+  ]
+}
