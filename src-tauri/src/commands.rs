@@ -1,6 +1,7 @@
 use crate::overlay::{self, OverlayConfig};
 use crate::events::{self, SessionStart, StateChange, SessionEnd};
 use crate::mock::{self, DemoConfig};
+use crate::pipe_server;
 use tauri::AppHandle;
 use serde::Serialize;
 
@@ -116,4 +117,19 @@ pub fn get_demo_config_status() -> DemoStatus {
         running: mock::is_demo_running(),
         config: mock::get_demo_config(),
     }
+}
+
+#[tauri::command]
+pub fn get_pipe_server_status() -> pipe_server::PipeServerStatus {
+    pipe_server::get_pipe_server_status()
+}
+
+#[tauri::command]
+pub fn start_pipe_server(app: AppHandle) -> Result<(), String> {
+    pipe_server::start_pipe_server(app)
+}
+
+#[tauri::command]
+pub fn stop_pipe_server() -> Result<(), String> {
+    pipe_server::stop_pipe_server()
 }

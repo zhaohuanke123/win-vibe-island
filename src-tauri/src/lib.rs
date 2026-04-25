@@ -2,6 +2,7 @@ mod overlay;
 mod commands;
 mod events;
 mod mock;
+mod pipe_server;
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -20,6 +21,15 @@ pub fn run() {
                         .level(log::LevelFilter::Info)
                         .build(),
                 )?;
+            }
+
+            // Start the named pipe server for receiving agent events
+            #[cfg(target_os = "windows")]
+            {
+                match pipe_server::start_pipe_server(app.handle().clone()) {
+                    Ok(()) => log::info!("Named pipe server started successfully"),
+                    Err(e) => log::error!("Failed to start named pipe server: {}", e),
+                }
             }
 
             // Create tray menu items
@@ -77,6 +87,9 @@ pub fn run() {
             commands::toggle_demo_mode,
             commands::set_demo_config,
             commands::get_demo_config_status,
+            commands::get_pipe_server_status,
+            commands::start_pipe_server,
+            commands::stop_pipe_server,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
