@@ -211,6 +211,92 @@
       "dependencies": [2, 5, 7],
       "files": ["frontend/src/"],
       "conflict_groups": ["frontend-polish"]
+    },
+    {
+      "id": 11,
+      "title": "Claude Code Integration - Real Agent Detection",
+      "description": "Integrate with real Claude Code sessions. Detect when Claude Code is running, capture its state changes, and display in the overlay. This moves from demo mode to production-ready integration.",
+      "steps": [
+        "Test Process Watcher detection of claude.exe / claude-code process",
+        "Hook into Claude Code's Named Pipe communication",
+        "Parse Claude Code output for state indicators (Working, Waiting for input, Complete)",
+        "Map Claude Code states to overlay states (idle, running, approval, done)",
+        "Test with real Claude Code session",
+        "Handle multiple concurrent Claude Code sessions"
+      ],
+      "passes": false,
+      "priority": "critical",
+      "dependencies": [3, 4],
+      "files": ["src-tauri/src/process_watcher.rs", "src-tauri/src/pipe_server.rs", "frontend/src/components/Overlay.tsx"],
+      "conflict_groups": ["integration"]
+    },
+    {
+      "id": 12,
+      "title": "Agent SDK Integration Test",
+      "description": "Test the Node.js and Python SDKs with real Claude Code / Codex sessions. Ensure events are correctly sent and received.",
+      "steps": [
+        "Create test script for Node.js SDK that simulates Claude Code session",
+        "Create test script for Python SDK that simulates Codex session",
+        "Verify events appear in Vibe Island overlay",
+        "Test auto-reconnect functionality",
+        "Document usage examples"
+      ],
+      "passes": false,
+      "priority": "high",
+      "dependencies": [8, 9, 11],
+      "files": ["agent-sdk/node/", "agent-sdk/python/"],
+      "conflict_groups": ["sdk-test"]
+    },
+    {
+      "id": 13,
+      "title": "PTY Hook - ConPTY Output Parsing",
+      "description": "Implement ConPTY output parsing to detect agent state changes from terminal output. This is a fallback when Named Pipe is not available.",
+      "steps": [
+        "Research Windows ConPTY API (CreatePseudoConsole, ResizePseudoConsole)",
+        "Implement PTY output capture mechanism",
+        "Define output parsing rules for Claude Code and Codex",
+        "Merge PTY events with Named Pipe events (priority: Pipe > PTY > Poll)",
+        "Add IPC commands to control PTY monitoring"
+      ],
+      "passes": false,
+      "priority": "medium",
+      "dependencies": [11],
+      "files": ["src-tauri/src/pty_hook.rs", "src-tauri/src/lib.rs", "src-tauri/src/commands.rs"],
+      "conflict_groups": ["backend-pty"]
+    },
+    {
+      "id": 14,
+      "title": "Diff Viewer - Approval Panel Enhancement",
+      "description": "Add code diff preview to the Approval Panel, showing what changes the agent is proposing before user approves.",
+      "steps": [
+        "Add diff field to ApprovalRequest type",
+        "Create DiffViewer component with +/- line highlighting",
+        "Add syntax highlighting (optional)",
+        "Style: red background for deletions, green for additions",
+        "Test with mock approval events containing diff data"
+      ],
+      "passes": false,
+      "priority": "medium",
+      "dependencies": [5],
+      "files": ["frontend/src/components/DiffViewer.tsx", "frontend/src/components/ApprovalPanel.tsx"],
+      "conflict_groups": ["frontend-diff"]
+    },
+    {
+      "id": 15,
+      "title": "Production Build and Distribution",
+      "description": "Prepare for production release: build installer, test on clean Windows machines, create release documentation.",
+      "steps": [
+        "Run cargo tauri build - verify production build succeeds",
+        "Test installer on Windows 10 and Windows 11",
+        "Create user documentation (README with screenshots)",
+        "Add version number and update mechanism",
+        "Create GitHub release with installer"
+      ],
+      "passes": false,
+      "priority": "low",
+      "dependencies": [11, 12],
+      "files": ["README.md", "src-tauri/tauri.conf.json"],
+      "conflict_groups": ["release"]
     }
   ]
 }
