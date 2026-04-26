@@ -19,11 +19,11 @@
 - **Priority:** High
 - **Dependencies:** Task 8 ✓, Task 9 ✓, Task 11
 
-### Task 13: ETW Console Output Monitoring (Fallback)
+### Task 13: Console Output Monitoring (Fallback)
 - **Status:** Blocked by Task 11
 - **Priority:** Medium
 - **Dependencies:** Task 11
-- **Note:** Changed from ConPTY to ETW - ConPTY requires owning the PTY, not viable for external processes
+- **Note:** Requires feasibility spike - ETW Console-Host provider reliability varies across Windows versions. Test with logman/xperf first, consider ReadConsoleOutput API as alternative.
 
 ### Task 14: Diff Viewer - Approval Panel Enhancement
 - **Status:** Ready to start

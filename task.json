@@ -249,21 +249,22 @@
     },
     {
       "id": 13,
-      "title": "ETW Console Output Monitoring (Fallback)",
-      "description": "Implement ETW (Event Tracing for Windows) to monitor console output events as a fallback when Named Pipe is not available. This is more feasible than ConPTY hooking for external processes.",
+      "title": "Console Output Monitoring (Fallback)",
+      "description": "Implement console output monitoring as a fallback when Named Pipe is not available. Requires feasibility spike first to determine viable approach.",
       "steps": [
-        "Research ETW API for console output events subscription",
-        "Implement ETW provider/consumer for Claude Code process",
+        "SPIKE: Test ETW Microsoft-Windows-Console-Host provider with logman/xperf - verify can capture claude.exe stdout text",
+        "SPIKE: Alternative - test ReadConsoleOutput API or console buffer polling",
+        "Based on spike results, choose implementation approach (ETW / ReadConsoleOutput / other)",
+        "Implement chosen approach for Claude Code process",
         "Define output parsing rules for Claude Code and Codex",
-        "Merge ETW events with Named Pipe events (priority: Pipe > ETW > Poll)",
-        "Add IPC commands to control ETW monitoring",
-        "Note: ConPTY is not viable for external processes - it requires owning the PTY"
+        "Merge console events with Named Pipe events (priority: Pipe > Console > Poll)",
+        "Add IPC commands to control monitoring"
       ],
       "passes": false,
       "priority": "medium",
       "dependencies": [11],
-      "files": ["src-tauri/src/etw_monitor.rs", "src-tauri/src/lib.rs", "src-tauri/src/commands.rs"],
-      "conflict_groups": ["backend-etw"]
+      "files": ["src-tauri/src/console_monitor.rs", "src-tauri/src/lib.rs", "src-tauri/src/commands.rs"],
+      "conflict_groups": ["backend-console"]
     },
     {
       "id": 14,
