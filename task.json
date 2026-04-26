@@ -243,7 +243,7 @@
         "Include troubleshooting section",
         "Test documentation with fresh Claude Code installation"
       ],
-      "passes": false,
+      "passes": true,
       "priority": "high",
       "dependencies": [11],
       "files": ["README.md", "docs/hooks-setup.md"],
