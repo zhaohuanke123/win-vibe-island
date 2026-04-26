@@ -272,10 +272,10 @@
         "Add version number and update mechanism",
         "Create GitHub release with signed installer"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "low",
       "dependencies": [10, 11, 12],
-      "files": ["README.md", "src-tauri/tauri.conf.json"]
+      "files": ["README.md", "src-tauri/tauri.conf.json", "CHANGELOG.md", "docs/release-process.md"]
     },
     {
       "id": 16,
