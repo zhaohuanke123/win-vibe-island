@@ -4,7 +4,7 @@ use crate::mock::{self, DemoConfig};
 use crate::pipe_server;
 use crate::process_watcher;
 use crate::window_focus::{self, FocusResult};
-use tauri::AppHandle;
+use tauri::{AppHandle, WebviewWindow, Size, PhysicalSize};
 use serde::Serialize;
 
 #[tauri::command]
@@ -240,4 +240,12 @@ pub fn update_overlay_with_dpi(
 #[tauri::command]
 pub fn enable_dpi_awareness() -> Result<(), String> {
     overlay::enable_dpi_awareness()
+}
+
+/// Set the main window size (used for dynamic resize when panel expands/collapses)
+#[tauri::command]
+pub fn set_window_size(window: WebviewWindow, width: u32, height: u32) -> Result<(), String> {
+    window
+        .set_size(Size::Physical(PhysicalSize { width, height }))
+        .map_err(|e| e.to_string())
 }

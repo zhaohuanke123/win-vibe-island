@@ -1,7 +1,8 @@
 .overlay {
   position: fixed;
   top: 8px;
-  right: 8px;
+  left: 50%;
+  transform: translateX(-50%);
   min-width: 200px;
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 13px;

@@ -97,6 +97,19 @@ export function Overlay() {
       .catch(() => {});
   }, []);
 
+  // Dynamic window resize when panel expands/collapses
+  useEffect(() => {
+    const resizeWindow = async () => {
+      try {
+        const height = expanded ? 400 : 60;
+        await invoke("set_window_size", { width: 320, height });
+      } catch (e) {
+        console.error("Failed to resize window:", e);
+      }
+    };
+    resizeWindow();
+  }, [expanded]);
+
   const toggleDemo = async () => {
     setError(null);
     setIsLoading(true);

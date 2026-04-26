@@ -9,7 +9,7 @@ mod window_focus;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager,
+    Manager, Position, PhysicalPosition,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -31,6 +31,18 @@ pub fn run() {
                         .level(log::LevelFilter::Info)
                         .build(),
                 )?;
+            }
+
+            // Position the main window at the top-center of the screen (Dynamic Island style)
+            if let Some(window) = app.get_webview_window("main") {
+                if let Ok(Some(monitor)) = window.primary_monitor() {
+                    let screen_width = monitor.size().width as i32;
+                    let window_width = 320;
+
+                    // Center horizontally at top of screen
+                    let x = (screen_width - window_width) / 2;
+                    let _ = window.set_position(Position::Physical(PhysicalPosition { x, y: 0 }));
+                }
             }
 
             // Start the named pipe server for receiving agent events
@@ -111,6 +123,7 @@ pub fn run() {
             commands::get_dpi_scale_at_position,
             commands::update_overlay_with_dpi,
             commands::enable_dpi_awareness,
+            commands::set_window_size,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

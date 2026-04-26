@@ -5,9 +5,9 @@
   "identifier": "com.vibeisland.app",
   "build": {
     "frontendDist": "../frontend/dist",
-    "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm --prefix ../frontend run dev",
-    "beforeBuildCommand": "npm --prefix ../frontend run build"
+    "devUrl": "http://localhost:5186",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "cd ../frontend && npm run build"
   },
   "app": {
     "windows": [
@@ -15,7 +15,7 @@
         "label": "main",
         "title": "Vibe Island",
         "width": 320,
-        "height": 400,
+        "height": 60,
         "resizable": false,
         "decorations": false,
         "transparent": true,
