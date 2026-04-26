@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { DiffViewer, type DiffData } from "./DiffViewer";
 import "./ApprovalPanel.css";
 
 export interface ApprovalRequest {
@@ -8,6 +9,7 @@ export interface ApprovalRequest {
   action: string;
   riskLevel: "low" | "medium" | "high";
   timestamp: number;
+  diff?: DiffData;
 }
 
 interface ApprovalPanelProps {
@@ -112,6 +114,14 @@ export function ApprovalPanel({ request, onApprovalHandled }: ApprovalPanelProps
       <div className="approval-panel__action">
         {request.action}
       </div>
+
+      {request.diff && (
+        <DiffViewer
+          oldContent={request.diff.oldContent}
+          newContent={request.diff.newContent}
+          fileName={request.diff.fileName}
+        />
+      )}
 
       <div className="approval-panel__footer">
         <span className={`approval-panel__risk ${getRiskLevelClass()}`}>

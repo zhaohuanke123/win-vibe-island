@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { useSessionsStore } from "../store/sessions";
-import type { AgentState } from "../store/sessions";
+import type { AgentState, DiffData } from "../store/sessions";
 
 interface SessionStartEvent {
   session_id: string;
@@ -47,7 +47,7 @@ interface HookEvent {
 }
 
 export function useAgentEvents() {
-  const { addSession, removeSession, updateSessionState } = useSessionsStore();
+  const { addSession, removeSession, updateSessionState, setApprovalRequest } = useSessionsStore();
 
   useEffect(() => {
     const unlisteners: UnlistenFn[] = [];
@@ -113,6 +113,37 @@ export function useAgentEvents() {
           case "pre_tool_use": {
             // Tool is about to be executed - set state to running
             updateSessionState(session_id, "running");
+
+            // Check if this is a Write or Edit tool with diff-able content
+            const toolName = data.tool_name as string;
+            const toolInput = data.tool_input as Record<string, unknown>;
+
+            if (toolName === "Write" || toolName === "Edit") {
+              const filePath = toolInput.file_path as string | undefined;
+              const newContent = toolInput.content as string | undefined;
+              const oldContent = (toolInput.old_string as string) || "";
+
+              if (filePath && newContent !== undefined) {
+                // Create diff data for approval preview
+                const diff: DiffData = {
+                  fileName: filePath.split("/").pop() || filePath,
+                  oldContent,
+                  newContent: toolName === "Edit"
+                    ? oldContent + newContent
+                    : newContent,
+                };
+
+                // Set approval request with diff
+                setApprovalRequest({
+                  sessionId: session_id,
+                  sessionLabel: `Claude Code - ${toolName}`,
+                  action: `${toolName} ${filePath}`,
+                  riskLevel: toolName === "Write" ? "medium" : "low",
+                  timestamp: Date.now(),
+                  diff,
+                });
+              }
+            }
             break;
           }
           case "notification": {
@@ -138,5 +169,5 @@ export function useAgentEvents() {
     return () => {
       unlisteners.forEach((unlisten) => unlisten());
     };
-  }, [addSession, removeSession, updateSessionState]);
+  }, [addSession, removeSession, updateSessionState, setApprovalRequest]);
 }

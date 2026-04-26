@@ -9,12 +9,19 @@ export interface Session {
   pid?: number;
 }
 
+export interface DiffData {
+  fileName: string;
+  oldContent: string;
+  newContent: string;
+}
+
 export interface ApprovalRequest {
   sessionId: string;
   sessionLabel: string;
   action: string;
   riskLevel: "low" | "medium" | "high";
   timestamp: number;
+  diff?: DiffData;
 }
 
 interface SessionsStore {

@@ -1,0 +1,118 @@
+.diff-viewer {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  margin: 8px 0;
+  overflow: hidden;
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
+  font-size: 11px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.diff-viewer__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.diff-viewer__file-icon {
+  font-size: 12px;
+}
+
+.diff-viewer__file-name {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+}
+
+.diff-viewer__content {
+  padding: 4px 0;
+}
+
+.diff-viewer__line {
+  display: flex;
+  align-items: flex-start;
+  padding: 1px 0;
+  min-height: 18px;
+  line-height: 16px;
+}
+
+.diff-viewer__line--remove {
+  background: rgba(255, 80, 80, 0.15);
+}
+
+.diff-viewer__line--add {
+  background: rgba(80, 255, 120, 0.15);
+}
+
+.diff-viewer__line--context {
+  background: transparent;
+}
+
+.diff-viewer__line-num {
+  width: 28px;
+  min-width: 28px;
+  padding: 0 4px;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.1);
+  user-select: none;
+}
+
+.diff-viewer__line-num--new {
+  width: 28px;
+  min-width: 28px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.diff-viewer__line-prefix {
+  width: 12px;
+  min-width: 12px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.diff-viewer__line--remove .diff-viewer__line-prefix {
+  color: #ff6b6b;
+}
+
+.diff-viewer__line--add .diff-viewer__line-prefix {
+  color: #69db7c;
+}
+
+.diff-viewer__line-content {
+  flex: 1;
+  padding: 0 8px;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.diff-viewer__line--remove .diff-viewer__line-content {
+  color: rgba(255, 180, 180, 0.9);
+}
+
+.diff-viewer__line--add .diff-viewer__line-content {
+  color: rgba(180, 255, 200, 0.9);
+}
+
+/* Scrollbar styling */
+.diff-viewer::-webkit-scrollbar {
+  width: 6px;
+}
+
+.diff-viewer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.diff-viewer::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.diff-viewer::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
