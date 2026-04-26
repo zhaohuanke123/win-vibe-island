@@ -4,6 +4,7 @@ use crate::mock::{self, DemoConfig};
 use crate::pipe_server;
 use crate::process_watcher;
 use crate::window_focus::{self, FocusResult};
+use crate::hook_server;
 use tauri::{AppHandle, WebviewWindow, Size, PhysicalSize};
 use serde::Serialize;
 
@@ -248,4 +249,23 @@ pub fn set_window_size(window: WebviewWindow, width: u32, height: u32) -> Result
     window
         .set_size(Size::Physical(PhysicalSize { width, height }))
         .map_err(|e| e.to_string())
+}
+
+// Hook server commands
+/// Get the status of the HTTP hook server
+#[tauri::command]
+pub fn get_hook_server_status() -> hook_server::HookServerStatus {
+    hook_server::get_hook_server_status()
+}
+
+/// Start the HTTP hook server
+#[tauri::command]
+pub fn start_hook_server(app: AppHandle) -> Result<(), String> {
+    hook_server::start_hook_server(app)
+}
+
+/// Stop the HTTP hook server
+#[tauri::command]
+pub fn stop_hook_server() -> Result<(), String> {
+    hook_server::stop_hook_server()
 }

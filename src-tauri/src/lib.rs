@@ -5,6 +5,7 @@ mod mock;
 mod pipe_server;
 mod process_watcher;
 mod window_focus;
+mod hook_server;
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -52,6 +53,12 @@ pub fn run() {
                     Ok(()) => log::info!("Named pipe server started successfully"),
                     Err(e) => log::error!("Failed to start named pipe server: {}", e),
                 }
+            }
+
+            // Start the HTTP hook server for Claude Code integration
+            match hook_server::start_hook_server(app.handle().clone()) {
+                Ok(()) => log::info!("Hook server started on port 7878"),
+                Err(e) => log::error!("Failed to start hook server: {}", e),
             }
 
             // Create tray menu items
@@ -124,6 +131,9 @@ pub fn run() {
             commands::update_overlay_with_dpi,
             commands::enable_dpi_awareness,
             commands::set_window_size,
+            commands::get_hook_server_status,
+            commands::start_hook_server,
+            commands::stop_hook_server,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

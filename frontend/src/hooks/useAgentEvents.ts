@@ -39,6 +39,13 @@ interface ProcessTerminatedEvent {
   agent_type: string | null;
 }
 
+// Claude Code Hook events
+interface HookEvent {
+  hook_type: "pre_tool_use" | "notification" | "stop";
+  session_id: string;
+  data: Record<string, unknown>;
+}
+
 export function useAgentEvents() {
   const { addSession, removeSession, updateSessionState } = useSessionsStore();
 
@@ -97,6 +104,33 @@ export function useAgentEvents() {
         removeSession(sessionId);
       });
       unlisteners.push(unlistenProcessTerminated);
+
+      // Listen for claude_hook events from HTTP Hook Server
+      const unlistenHook = await listen<HookEvent>("claude_hook", (event) => {
+        const { hook_type, session_id, data } = event.payload;
+
+        switch (hook_type) {
+          case "pre_tool_use": {
+            // Tool is about to be executed - set state to running
+            updateSessionState(session_id, "running");
+            break;
+          }
+          case "notification": {
+            // Claude needs attention - check if it's an approval request
+            const notificationType = (data as Record<string, unknown>).notification_type as string | undefined;
+            if (notificationType === "approval_required") {
+              updateSessionState(session_id, "approval");
+            }
+            break;
+          }
+          case "stop": {
+            // Claude finished - set state to done
+            updateSessionState(session_id, "done");
+            break;
+          }
+        }
+      });
+      unlisteners.push(unlistenHook);
     };
 
     setupListeners();

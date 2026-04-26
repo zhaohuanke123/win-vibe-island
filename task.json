@@ -226,7 +226,7 @@
         "Test with real Claude Code session",
         "Handle multiple concurrent Claude Code sessions"
       ],
-      "passes": false,
+      "passes": true,
       "priority": "critical",
       "dependencies": [4],
       "files": ["src-tauri/src/hook_server.rs", "src-tauri/src/lib.rs", "frontend/src/hooks/useAgentEvents.ts"],
