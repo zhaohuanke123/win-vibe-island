@@ -296,7 +296,7 @@
         "Add version number and update mechanism",
         "Create GitHub release with signed installer"
       ],
-      "passes": false,
+      "passes": true,
       "priority": "low",
       "dependencies": [10, 11, 12],
       "files": ["README.md", "src-tauri/tauri.conf.json"],

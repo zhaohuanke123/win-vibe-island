@@ -1,6 +1,12 @@
 import { useMemo } from "react";
 import "./DiffViewer.css";
 
+export interface DiffData {
+  fileName: string;
+  oldContent: string;
+  newContent: string;
+}
+
 export interface DiffLine {
   type: "add" | "remove" | "context";
   content: string;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { DiffViewer, type DiffData } from "./DiffViewer";
+import { DiffViewer } from "./DiffViewer";
+import type { DiffData } from "../store/sessions";
 import "./ApprovalPanel.css";
 
 export interface ApprovalRequest {
