@@ -12,27 +12,29 @@
 ### Task 11: Claude Code Integration - Real Agent Detection
 - **Status:** Ready to start
 - **Priority:** Critical
-- **Dependencies:** Task 3 ✓, Task 4 ✓
+- **Dependencies:** Task 3 ✓, Task 4 ✓ (Named Pipe + Process Watcher)
 
 ### Task 12: Agent SDK Integration Test
 - **Status:** Blocked by Task 11
 - **Priority:** High
 - **Dependencies:** Task 8 ✓, Task 9 ✓, Task 11
 
-### Task 13: PTY Hook - ConPTY Output Parsing
+### Task 13: ETW Console Output Monitoring (Fallback)
 - **Status:** Blocked by Task 11
 - **Priority:** Medium
 - **Dependencies:** Task 11
+- **Note:** Changed from ConPTY to ETW - ConPTY requires owning the PTY, not viable for external processes
 
 ### Task 14: Diff Viewer - Approval Panel Enhancement
 - **Status:** Ready to start
 - **Priority:** Medium
-- **Dependencies:** Task 5 ✓
+- **Dependencies:** Task 5 ✓ (Approval Panel)
 
 ### Task 15: Production Build and Distribution
-- **Status:** Blocked by Task 11, Task 12
+- **Status:** Blocked by Task 10 ✓, Task 11, Task 12
 - **Priority:** Low
-- **Dependencies:** Task 11, Task 12
+- **Dependencies:** Task 10 ✓, Task 11, Task 12
+- **Note:** Added code signing step to avoid SmartScreen warnings
 
 ---
 

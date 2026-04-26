@@ -218,7 +218,7 @@
       "description": "Integrate with real Claude Code sessions. Detect when Claude Code is running, capture its state changes, and display in the overlay. This moves from demo mode to production-ready integration.",
       "steps": [
         "Test Process Watcher detection of claude.exe / claude-code process",
-        "Hook into Claude Code's Named Pipe communication",
+        "Hook into Claude Code's Named Pipe communication via Agent SDK",
         "Parse Claude Code output for state indicators (Working, Waiting for input, Complete)",
         "Map Claude Code states to overlay states (idle, running, approval, done)",
         "Test with real Claude Code session",
@@ -249,20 +249,21 @@
     },
     {
       "id": 13,
-      "title": "PTY Hook - ConPTY Output Parsing",
-      "description": "Implement ConPTY output parsing to detect agent state changes from terminal output. This is a fallback when Named Pipe is not available.",
+      "title": "ETW Console Output Monitoring (Fallback)",
+      "description": "Implement ETW (Event Tracing for Windows) to monitor console output events as a fallback when Named Pipe is not available. This is more feasible than ConPTY hooking for external processes.",
       "steps": [
-        "Research Windows ConPTY API (CreatePseudoConsole, ResizePseudoConsole)",
-        "Implement PTY output capture mechanism",
+        "Research ETW API for console output events subscription",
+        "Implement ETW provider/consumer for Claude Code process",
         "Define output parsing rules for Claude Code and Codex",
-        "Merge PTY events with Named Pipe events (priority: Pipe > PTY > Poll)",
-        "Add IPC commands to control PTY monitoring"
+        "Merge ETW events with Named Pipe events (priority: Pipe > ETW > Poll)",
+        "Add IPC commands to control ETW monitoring",
+        "Note: ConPTY is not viable for external processes - it requires owning the PTY"
       ],
       "passes": false,
       "priority": "medium",
       "dependencies": [11],
-      "files": ["src-tauri/src/pty_hook.rs", "src-tauri/src/lib.rs", "src-tauri/src/commands.rs"],
-      "conflict_groups": ["backend-pty"]
+      "files": ["src-tauri/src/etw_monitor.rs", "src-tauri/src/lib.rs", "src-tauri/src/commands.rs"],
+      "conflict_groups": ["backend-etw"]
     },
     {
       "id": 14,
@@ -284,17 +285,19 @@
     {
       "id": 15,
       "title": "Production Build and Distribution",
-      "description": "Prepare for production release: build installer, test on clean Windows machines, create release documentation.",
+      "description": "Prepare for production release: build installer, configure code signing, test on clean Windows machines, create release documentation.",
       "steps": [
         "Run cargo tauri build - verify production build succeeds",
+        "Apply EV code signing certificate with signtool",
+        "Verify SmartScreen does not show warning after signing",
         "Test installer on Windows 10 and Windows 11",
         "Create user documentation (README with screenshots)",
         "Add version number and update mechanism",
-        "Create GitHub release with installer"
+        "Create GitHub release with signed installer"
       ],
       "passes": false,
       "priority": "low",
-      "dependencies": [11, 12],
+      "dependencies": [10, 11, 12],
       "files": ["README.md", "src-tauri/tauri.conf.json"],
       "conflict_groups": ["release"]
     }
