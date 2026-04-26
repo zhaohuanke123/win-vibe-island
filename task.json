@@ -214,72 +214,72 @@
     },
     {
       "id": 11,
-      "title": "Claude Code Integration - Real Agent Detection",
-      "description": "Integrate with real Claude Code sessions. Detect when Claude Code is running, capture its state changes, and display in the overlay. This moves from demo mode to production-ready integration.",
+      "title": "Claude Code Integration via HTTP Hooks",
+      "description": "Integrate with Claude Code using its native Hooks system. Claude Code supports HTTP hooks that POST JSON to a local server on lifecycle events (PreToolUse, Notification, Stop). This is the official, zero-SDK integration path.",
       "steps": [
-        "Test Process Watcher detection of claude.exe / claude-code process",
-        "Hook into Claude Code's Named Pipe communication via Agent SDK",
-        "Parse Claude Code output for state indicators (Working, Waiting for input, Complete)",
-        "Map Claude Code states to overlay states (idle, running, approval, done)",
+        "Implement HTTP server in Rust (tokio + axum or warp) on port 7878",
+        "Handle POST /hooks/pre-tool-use - capture tool use events, enable approval flow",
+        "Handle POST /hooks/notification - capture Claude notifications (covers 'needs attention' state)",
+        "Handle POST /hooks/stop - capture session end events",
+        "Map hook events to overlay states (idle, running, approval, done)",
+        "Create .claude/settings.json example for users",
         "Test with real Claude Code session",
         "Handle multiple concurrent Claude Code sessions"
       ],
       "passes": false,
       "priority": "critical",
-      "dependencies": [3, 4],
-      "files": ["src-tauri/src/process_watcher.rs", "src-tauri/src/pipe_server.rs", "frontend/src/components/Overlay.tsx"],
+      "dependencies": [4],
+      "files": ["src-tauri/src/hook_server.rs", "src-tauri/src/lib.rs", "frontend/src/hooks/useAgentEvents.ts"],
       "conflict_groups": ["integration"]
     },
     {
       "id": 12,
-      "title": "Agent SDK Integration Test",
-      "description": "Test the Node.js and Python SDKs with real Claude Code / Codex sessions. Ensure events are correctly sent and received.",
+      "title": "Claude Code Hook Configuration Guide",
+      "description": "Create user documentation for configuring Claude Code hooks. Users only need to add a few lines to .claude/settings.json - no SDK installation required.",
       "steps": [
-        "Create test script for Node.js SDK that simulates Claude Code session",
-        "Create test script for Python SDK that simulates Codex session",
-        "Verify events appear in Vibe Island overlay",
-        "Test auto-reconnect functionality",
-        "Document usage examples"
+        "Document hook configuration in README.md",
+        "Create example .claude/settings.json with all hook endpoints",
+        "Add setup instructions for first-time users",
+        "Include troubleshooting section",
+        "Test documentation with fresh Claude Code installation"
       ],
       "passes": false,
       "priority": "high",
-      "dependencies": [8, 9, 11],
-      "files": ["agent-sdk/node/", "agent-sdk/python/"],
-      "conflict_groups": ["sdk-test"]
+      "dependencies": [11],
+      "files": ["README.md", "docs/hooks-setup.md"],
+      "conflict_groups": ["docs"]
     },
     {
       "id": 13,
-      "title": "Console Output Monitoring (Fallback)",
-      "description": "Implement console output monitoring as a fallback when Named Pipe is not available. Requires feasibility spike first to determine viable approach.",
+      "title": "Named Pipe SDK Support (Optional Fallback)",
+      "description": "Maintain Named Pipe + Agent SDK as an optional fallback for non-Claude Code agents (Codex CLI, custom tools). HTTP Hooks are the primary integration for Claude Code, but Named Pipe remains useful for other tools.",
       "steps": [
-        "SPIKE: Test ETW Microsoft-Windows-Console-Host provider with logman/xperf - verify can capture claude.exe stdout text",
-        "SPIKE: Alternative - test ReadConsoleOutput API or console buffer polling",
-        "Based on spike results, choose implementation approach (ETW / ReadConsoleOutput / other)",
-        "Implement chosen approach for Claude Code process",
-        "Define output parsing rules for Claude Code and Codex",
-        "Merge console events with Named Pipe events (priority: Pipe > Console > Poll)",
-        "Add IPC commands to control monitoring"
+        "Keep existing Named Pipe server running on \\\\.\\pipe\\VibeIsland",
+        "Document Agent SDK usage for non-Claude Code tools",
+        "Test with custom Node.js/Python scripts",
+        "Note: Claude Code users should prefer HTTP Hooks (Task 11)"
       ],
-      "passes": false,
-      "priority": "medium",
-      "dependencies": [11],
-      "files": ["src-tauri/src/console_monitor.rs", "src-tauri/src/lib.rs", "src-tauri/src/commands.rs"],
-      "conflict_groups": ["backend-console"]
+      "passes": true,
+      "priority": "low",
+      "dependencies": [3],
+      "files": ["agent-sdk/node/", "agent-sdk/python/"],
+      "conflict_groups": ["sdk-fallback"]
     },
     {
       "id": 14,
       "title": "Diff Viewer - Approval Panel Enhancement",
-      "description": "Add code diff preview to the Approval Panel, showing what changes the agent is proposing before user approves.",
+      "description": "Add code diff preview to the Approval Panel, showing what changes the agent is proposing before user approves. Uses PreToolUse hook data for real tool preview.",
       "steps": [
         "Add diff field to ApprovalRequest type",
         "Create DiffViewer component with +/- line highlighting",
         "Add syntax highlighting (optional)",
         "Style: red background for deletions, green for additions",
+        "Integrate with PreToolUse hook data for real-time diff preview",
         "Test with mock approval events containing diff data"
       ],
       "passes": false,
       "priority": "medium",
-      "dependencies": [5],
+      "dependencies": [5, 11],
       "files": ["frontend/src/components/DiffViewer.tsx", "frontend/src/components/ApprovalPanel.tsx"],
       "conflict_groups": ["frontend-diff"]
     },
