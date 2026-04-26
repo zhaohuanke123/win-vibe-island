@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { StatusDot } from "./StatusDot";
@@ -37,6 +37,7 @@ export function Overlay() {
   const [selectedSpeed, setSelectedSpeed] = useState(1); // Normal
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   // Listen for approval_request events from the backend
   // Also auto-expand when approval request comes in
@@ -103,18 +104,29 @@ export function Overlay() {
       .catch(() => {});
   }, []);
 
-  // Dynamic window resize when panel expands/collapses
+  // Dynamic window resize based on content size
   useEffect(() => {
     const resizeWindow = async () => {
       try {
-        const height = expanded ? 400 : 60;
-        await invoke("set_window_size", { width: 320, height });
+        if (overlayRef.current) {
+          const rect = overlayRef.current.getBoundingClientRect();
+          const width = Math.max(200, Math.min(400, rect.width + 16));
+          const height = Math.max(60, rect.height + 8);
+          await invoke("set_window_size", { width, height });
+        } else {
+          // Fallback sizes
+          const height = expanded ? 400 : 60;
+          await invoke("set_window_size", { width: 320, height });
+        }
       } catch (e) {
         console.error("Failed to resize window:", e);
       }
     };
-    resizeWindow();
-  }, [expanded]);
+
+    // Resize after a brief delay to allow content to render
+    const timer = setTimeout(resizeWindow, 50);
+    return () => clearTimeout(timer);
+  }, [expanded, sessions, approvalRequest]);
 
   const toggleDemo = async () => {
     setError(null);
@@ -170,7 +182,7 @@ export function Overlay() {
   }, []);
 
   return (
-    <div className={`overlay ${expanded ? "overlay--expanded" : ""}`}>
+    <div ref={overlayRef} className={`overlay ${expanded ? "overlay--expanded" : ""}`}>
       <div className="overlay__bar" onClick={() => setExpanded(!expanded)}>
         {isLoading && <span className="overlay__spinner" />}
         {active ? (

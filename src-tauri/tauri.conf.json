@@ -14,8 +14,8 @@
       {
         "label": "main",
         "title": "Vibe Island",
-        "width": 320,
-        "height": 60,
+        "width": 240,
+        "height": 48,
         "resizable": false,
         "decorations": false,
         "transparent": true,

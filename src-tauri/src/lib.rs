@@ -38,11 +38,12 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 if let Ok(Some(monitor)) = window.primary_monitor() {
                     let screen_width = monitor.size().width as i32;
-                    let window_width = 320;
+                    // Use a smaller initial width that fits the content
+                    let window_width = 240;
 
                     // Center horizontally at top of screen
                     let x = (screen_width - window_width) / 2;
-                    let _ = window.set_position(Position::Physical(PhysicalPosition { x, y: 0 }));
+                    let _ = window.set_position(Position::Physical(PhysicalPosition { x, y: 8 }));
                 }
             }
 
