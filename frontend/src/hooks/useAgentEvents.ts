@@ -47,7 +47,7 @@ interface HookEvent {
 }
 
 export function useAgentEvents() {
-  const { addSession, removeSession, updateSessionState, setApprovalRequest } = useSessionsStore();
+  const { addSession, removeSession, updateSessionState, updateSessionInfo, setApprovalRequest } = useSessionsStore();
 
   useEffect(() => {
     const unlisteners: UnlistenFn[] = [];
@@ -111,15 +111,19 @@ export function useAgentEvents() {
 
         switch (hook_type) {
           case "pre_tool_use": {
-            // Tool is about to be executed - set state to running
-            updateSessionState(session_id, "running");
-
-            // Check if this is a Write or Edit tool with diff-able content
             const toolName = data.tool_name as string;
             const toolInput = data.tool_input as Record<string, unknown>;
+            const filePath = toolInput.file_path as string | undefined;
 
+            // Update session with tool info
+            updateSessionInfo(session_id, {
+              state: "running",
+              toolName,
+              filePath,
+            });
+
+            // Check if this is a Write or Edit tool with diff-able content
             if (toolName === "Write" || toolName === "Edit") {
-              const filePath = toolInput.file_path as string | undefined;
               const newContent = toolInput.content as string | undefined;
               const oldContent = (toolInput.old_string as string) || "";
 
@@ -169,5 +173,5 @@ export function useAgentEvents() {
     return () => {
       unlisteners.forEach((unlisten) => unlisten());
     };
-  }, [addSession, removeSession, updateSessionState, setApprovalRequest]);
+  }, [addSession, removeSession, updateSessionState, updateSessionInfo, setApprovalRequest]);
 }

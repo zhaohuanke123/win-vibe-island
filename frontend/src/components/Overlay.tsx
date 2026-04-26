@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { StatusDot } from "./StatusDot";
@@ -27,6 +27,15 @@ const SPEED_OPTIONS: { label: string; delay: number }[] = [
 
 type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored";
 
+// Format timestamp to relative time
+function formatTime(timestamp: number): string {
+  const now = Date.now();
+  const diff = now - timestamp;
+  if (diff < 60000) return "just now";
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  return `${Math.floor(diff / 3600000)}h ago`;
+}
+
 export function Overlay() {
   const { sessions, activeSessionId, setActiveSession, approvalRequest, setApprovalRequest, clearApprovalRequest } = useSessionsStore();
   const active = sessions.find((s) => s.id === activeSessionId);
@@ -37,7 +46,6 @@ export function Overlay() {
   const [selectedSpeed, setSelectedSpeed] = useState(1); // Normal
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
 
   // Listen for approval_request events from the backend
   // Also auto-expand when approval request comes in
@@ -104,29 +112,50 @@ export function Overlay() {
       .catch(() => {});
   }, []);
 
-  // Dynamic window resize based on content size
+  // Dynamic window resize based on expanded state
   useEffect(() => {
     const resizeWindow = async () => {
       try {
-        if (overlayRef.current) {
-          const rect = overlayRef.current.getBoundingClientRect();
-          const width = Math.max(200, Math.min(400, rect.width + 16));
-          const height = Math.max(60, rect.height + 8);
-          await invoke("set_window_size", { width, height });
-        } else {
-          // Fallback sizes
-          const height = expanded ? 400 : 60;
-          await invoke("set_window_size", { width: 320, height });
-        }
+        // Calculate expected size based on state
+        const sessionCount = sessions.length;
+        const hasApproval = approvalRequest !== null;
+        const isDev = import.meta.env.DEV;
+
+        // Base sizes - more accurate
+        const barHeight = 36;
+        const panelPadding = 8;
+        const sessionItemHeight = 48; // Increased for more info
+        const approvalPanelHeight = hasApproval ? 140 : 0;
+        const demoControlsHeight = isDev ? 120 : 0;
+        const emptyStateHeight = sessionCount === 0 ? 50 : 0;
+        const headerHeight = 24; // "Sessions" header
+
+        // Max visible sessions before scroll
+        const maxVisibleSessions = 4;
+        const visibleSessions = Math.min(sessionCount, maxVisibleSessions);
+        const scrollHint = sessionCount > maxVisibleSessions ? 20 : 0;
+
+        // Calculate panel height
+        const panelContentHeight = Math.max(
+          headerHeight + visibleSessions * sessionItemHeight + scrollHint + approvalPanelHeight + demoControlsHeight,
+          emptyStateHeight
+        );
+        const panelHeight = expanded ? panelPadding + panelContentHeight : 0;
+
+        // Total height with margin
+        const totalHeight = barHeight + panelHeight + 8;
+
+        // Width
+        const width = expanded ? 320 : 260;
+
+        await invoke("set_window_size", { width, height: totalHeight });
       } catch (e) {
         console.error("Failed to resize window:", e);
       }
     };
 
-    // Resize after a brief delay to allow content to render
-    const timer = setTimeout(resizeWindow, 50);
-    return () => clearTimeout(timer);
-  }, [expanded, sessions, approvalRequest]);
+    resizeWindow();
+  }, [expanded, sessions.length, approvalRequest]);
 
   const toggleDemo = async () => {
     setError(null);
@@ -182,7 +211,7 @@ export function Overlay() {
   }, []);
 
   return (
-    <div ref={overlayRef} className={`overlay ${expanded ? "overlay--expanded" : ""}`}>
+    <div className={`overlay ${expanded ? "overlay--expanded" : ""}`}>
       <div className="overlay__bar" onClick={() => setExpanded(!expanded)}>
         {isLoading && <span className="overlay__spinner" />}
         {active ? (
@@ -207,7 +236,6 @@ export function Overlay() {
           )}
 
           {/* Approval Panel - shows when there's an approval request */}
-          {/* Using key to reset component state when a new request arrives */}
           {approvalRequest && (
             <ApprovalPanel
               key={approvalRequest.timestamp}
@@ -216,19 +244,46 @@ export function Overlay() {
             />
           )}
 
-          {sessions.map((s) => (
-            <div
-              key={s.id}
-              className={`overlay__session ${s.id === activeSessionId ? "overlay__session--active" : ""}`}
-              onClick={() => handleSessionClick(s)}
-            >
-              <StatusDot state={s.state} />
-              <span>{s.label}</span>
+          {/* Sessions header */}
+          {sessions.length > 0 && (
+            <div className="overlay__sessions-header">
+              Sessions ({sessions.length})
             </div>
-          ))}
-          {sessions.length === 0 && !error && (
-            <div className="overlay__empty">Waiting for agent sessions...</div>
           )}
+
+          {/* Scrollable session list */}
+          <div className="overlay__sessions-list">
+            {sessions.map((s) => (
+              <div
+                key={s.id}
+                className={`overlay__session ${s.id === activeSessionId ? "overlay__session--active" : ""}`}
+                onClick={() => handleSessionClick(s)}
+              >
+                <div className="overlay__session-row">
+                  <StatusDot state={s.state} />
+                  <span className="overlay__session-label">{s.label}</span>
+                </div>
+                {/* Show tool info */}
+                {s.toolName && (
+                  <div className="overlay__session-info">
+                    <span className="overlay__session-tool">{s.toolName}</span>
+                    {s.filePath && (
+                      <span className="overlay__session-file">{s.filePath.split("/").pop()}</span>
+                    )}
+                  </div>
+                )}
+                {/* Show time */}
+                {s.lastActivity && (
+                  <div className="overlay__session-time">
+                    {formatTime(s.lastActivity)}
+                  </div>
+                )}
+              </div>
+            ))}
+            {sessions.length === 0 && !error && (
+              <div className="overlay__empty">Waiting for agent sessions...</div>
+            )}
+          </div>
 
           {/* Demo controls - only visible in dev mode */}
           {import.meta.env.DEV && (

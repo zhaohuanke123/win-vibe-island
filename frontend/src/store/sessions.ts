@@ -7,6 +7,10 @@ export interface Session {
   label: string;
   state: AgentState;
   pid?: number;
+  // Additional task info
+  toolName?: string;
+  filePath?: string;
+  lastActivity?: number;
 }
 
 export interface DiffData {
@@ -32,6 +36,7 @@ interface SessionsStore {
   addSession: (session: Session) => void;
   removeSession: (id: string) => void;
   updateSessionState: (id: string, state: AgentState) => void;
+  updateSessionInfo: (id: string, info: Partial<Session>) => void;
   setActiveSession: (id: string | null) => void;
   setApprovalRequest: (request: ApprovalRequest | null) => void;
   clearApprovalRequest: () => void;
@@ -54,7 +59,14 @@ export const useSessionsStore = create<SessionsStore>((set) => ({
   updateSessionState: (id, state) =>
     set((s) => ({
       sessions: s.sessions.map((ses) =>
-        ses.id === id ? { ...ses, state } : ses
+        ses.id === id ? { ...ses, state, lastActivity: Date.now() } : ses
+      ),
+    })),
+
+  updateSessionInfo: (id, info) =>
+    set((s) => ({
+      sessions: s.sessions.map((ses) =>
+        ses.id === id ? { ...ses, ...info, lastActivity: Date.now() } : ses
       ),
     })),
 

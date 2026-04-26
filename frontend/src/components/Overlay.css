@@ -1,18 +1,12 @@
 .overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 13px;
   color: #e5e7eb;
-  z-index: 99999;
   user-select: none;
-  /* Make the container background fully transparent */
+  /* Transparent background - window shows through */
   background: transparent;
 }
 
@@ -20,17 +14,16 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 8px 14px;
   margin-top: 8px;
-  background: rgba(17, 17, 17, 0.9);
-  border-radius: 6px;
+  background: rgba(17, 17, 17, 0.95);
+  border-radius: 8px;
   cursor: pointer;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
   transition: background 200ms ease, border-radius 200ms ease;
-  /* Size to content, not full window */
   width: fit-content;
   min-width: 200px;
-  max-width: 400px;
+  max-width: 320px;
 }
 
 .overlay__bar:hover {
@@ -61,16 +54,49 @@
 
 /* Panel with smooth expand/collapse animation */
 .overlay__panel {
-  padding: 4px;
-  background: rgba(17, 17, 17, 0.9);
-  border-radius: 0 0 6px 6px;
-  backdrop-filter: blur(8px);
+  padding: 8px;
+  background: rgba(17, 17, 17, 0.95);
+  border-radius: 0 0 8px 8px;
+  backdrop-filter: blur(12px);
   animation: slideDown 300ms ease-out;
   transform-origin: top center;
-  /* Size to content */
-  width: fit-content;
-  min-width: 200px;
-  max-width: 400px;
+  width: 100%;
+  max-width: 320px;
+}
+
+/* Sessions header */
+.overlay__sessions-header {
+  font-size: 11px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  margin-bottom: 4px;
+}
+
+/* Scrollable session list */
+.overlay__sessions-list {
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Scrollbar styling */
+.overlay__sessions-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.overlay__sessions-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overlay__sessions-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.overlay__sessions-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 @keyframes slideDown {
@@ -86,10 +112,10 @@
 
 .overlay__session {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 4px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 200ms ease, transform 150ms ease;
 }
@@ -104,6 +130,49 @@
 
 .overlay__session--active {
   background: rgba(59, 130, 246, 0.2);
+}
+
+.overlay__session-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.overlay__session-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.overlay__session-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #9ca3af;
+  padding-left: 16px;
+}
+
+.overlay__session-tool {
+  background: rgba(59, 130, 246, 0.3);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.overlay__session-file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 150px;
+}
+
+.overlay__session-time {
+  font-size: 10px;
+  color: #6b7280;
+  padding-left: 16px;
 }
 
 .overlay__empty {
