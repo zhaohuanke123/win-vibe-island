@@ -19,6 +19,26 @@ interface StateChangeEvent {
   state: string;
 }
 
+// Process Watcher events
+interface ProcessInfo {
+  pid: number;
+  name: string;
+  command_line: string | null;
+  detected_at: number;
+  is_agent: boolean;
+  agent_type: string | null;
+}
+
+interface ProcessDetectedEvent {
+  process: ProcessInfo;
+}
+
+interface ProcessTerminatedEvent {
+  pid: number;
+  name: string;
+  agent_type: string | null;
+}
+
 export function useAgentEvents() {
   const { addSession, removeSession, updateSessionState } = useSessionsStore();
 
@@ -53,6 +73,30 @@ export function useAgentEvents() {
         updateSessionState(session_id, validState);
       });
       unlisteners.push(unlistenState);
+
+      // Listen for process_detected events from Process Watcher
+      const unlistenProcessDetected = await listen<ProcessDetectedEvent>("process_detected", (event) => {
+        const { process } = event.payload;
+        if (process.is_agent && process.agent_type) {
+          // Create a session from the detected process
+          const sessionId = `process-${process.pid}`;
+          addSession({
+            id: sessionId,
+            label: `${process.agent_type} (PID: ${process.pid})`,
+            state: "idle" as AgentState,
+            pid: process.pid,
+          });
+        }
+      });
+      unlisteners.push(unlistenProcessDetected);
+
+      // Listen for process_terminated events
+      const unlistenProcessTerminated = await listen<ProcessTerminatedEvent>("process_terminated", (event) => {
+        const { pid } = event.payload;
+        const sessionId = `process-${pid}`;
+        removeSession(sessionId);
+      });
+      unlisteners.push(unlistenProcessTerminated);
     };
 
     setupListeners();

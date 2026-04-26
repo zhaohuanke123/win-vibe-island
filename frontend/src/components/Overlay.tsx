@@ -33,6 +33,7 @@ export function Overlay() {
 
   const [expanded, setExpanded] = useState(false);
   const [demoRunning, setDemoRunning] = useState(false);
+  const [processWatcherRunning, setProcessWatcherRunning] = useState(false);
   const [selectedSpeed, setSelectedSpeed] = useState(1); // Normal
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +96,11 @@ export function Overlay() {
     invoke<DemoStatus>("get_demo_config_status")
       .then((status) => setDemoRunning(status.running))
       .catch(() => {});
+
+    // Check process watcher status
+    invoke<{ running: boolean }>("get_process_watcher_status")
+      .then((status) => setProcessWatcherRunning(status.running))
+      .catch(() => {});
   }, []);
 
   // Dynamic window resize when panel expands/collapses
@@ -131,6 +137,25 @@ export function Overlay() {
     } catch (e) {
       console.error("Failed to toggle demo mode:", e);
       setError(`Demo mode error: ${e}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleProcessWatcher = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      if (processWatcherRunning) {
+        await invoke("stop_process_watcher");
+        setProcessWatcherRunning(false);
+      } else {
+        await invoke("start_process_watcher");
+        setProcessWatcherRunning(true);
+      }
+    } catch (e) {
+      console.error("Failed to toggle process watcher:", e);
+      setError(`Process watcher error: ${e}`);
     } finally {
       setIsLoading(false);
     }
@@ -214,6 +239,19 @@ export function Overlay() {
                   disabled={isLoading}
                 >
                   {isLoading ? <span className="overlay__spinner" /> : (demoRunning ? "Stop" : "Start")}
+                </button>
+              </div>
+
+              {/* Process Watcher controls */}
+              <div className="overlay__demo-header" style={{ marginTop: "8px" }}>Process Watcher</div>
+              <div className="overlay__demo-row">
+                <button
+                  className={`overlay__demo-btn ${processWatcherRunning ? "overlay__demo-btn--stop" : ""}`}
+                  onClick={toggleProcessWatcher}
+                  disabled={isLoading}
+                  style={{ width: "100%" }}
+                >
+                  {isLoading ? <span className="overlay__spinner" /> : (processWatcherRunning ? "Stop Watching" : "Start Watching")}
                 </button>
               </div>
             </div>
