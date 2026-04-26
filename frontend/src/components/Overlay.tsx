@@ -7,24 +7,6 @@ import { useSessionsStore } from "../store/sessions";
 import type { Session } from "../store/sessions";
 import "./Overlay.css";
 
-interface DemoConfig {
-  transition_delay_ms: number;
-  session_count: number;
-  session_spawn_delay_ms: number;
-}
-
-interface DemoStatus {
-  running: boolean;
-  config: DemoConfig;
-}
-
-const SPEED_OPTIONS: { label: string; delay: number }[] = [
-  { label: "Fast", delay: 500 },
-  { label: "Normal", delay: 1000 },
-  { label: "Slow", delay: 2000 },
-  { label: "Very Slow", delay: 5000 },
-];
-
 type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored";
 
 // Format timestamp to relative time
@@ -41,26 +23,30 @@ export function Overlay() {
   const active = sessions.find((s) => s.id === activeSessionId);
 
   const [expanded, setExpanded] = useState(false);
-  const [demoRunning, setDemoRunning] = useState(false);
-  const [processWatcherRunning, setProcessWatcherRunning] = useState(false);
-  const [selectedSpeed, setSelectedSpeed] = useState(1); // Normal
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Listen for approval_request events from the backend
   // Also auto-expand when approval request comes in
   useEffect(() => {
-    const unlisten: Promise<UnlistenFn> = listen<{ session_id: string; action: string; risk_level: string }>(
+    const unlisten: Promise<UnlistenFn> = listen<{ session_id: string; tool_use_id: string; tool_name?: string; action: string; risk_level: "low" | "medium" | "high"; diff?: { fileName: string; oldContent: string; newContent: string } }>(
       "approval_request",
       (event) => {
-        const { session_id, action, risk_level } = event.payload;
+        const { session_id, tool_use_id, tool_name, action, risk_level, diff } = event.payload;
         const session = sessions.find((s) => s.id === session_id);
         setApprovalRequest({
+          toolUseId: tool_use_id,
           sessionId: session_id,
           sessionLabel: session?.label ?? "Unknown Session",
+          toolName: tool_name,
           action,
-          riskLevel: risk_level as "low" | "medium" | "high",
+          riskLevel: risk_level,
           timestamp: Date.now(),
+          diff: diff ? {
+            fileName: diff.fileName,
+            oldContent: diff.oldContent,
+            newContent: diff.newContent,
+          } : undefined,
         });
         // Auto-expand when approval request comes in
         setExpanded(true);
@@ -100,35 +86,28 @@ export function Overlay() {
     }
   }, [sessions, activeSessionId, setActiveSession]);
 
-  // Check demo status on mount
-  useEffect(() => {
-    invoke<DemoStatus>("get_demo_config_status")
-      .then((status) => setDemoRunning(status.running))
-      .catch(() => {});
-
-    // Check process watcher status
-    invoke<{ running: boolean }>("get_process_watcher_status")
-      .then((status) => setProcessWatcherRunning(status.running))
-      .catch(() => {});
-  }, []);
-
   // Dynamic window resize based on expanded state
   useEffect(() => {
     const resizeWindow = async () => {
       try {
-        // Calculate expected size based on state
         const sessionCount = sessions.length;
         const hasApproval = approvalRequest !== null;
-        const isDev = import.meta.env.DEV;
+        const hasDiff = approvalRequest?.diff !== undefined;
 
-        // Base sizes - more accurate
-        const barHeight = 36;
-        const panelPadding = 8;
-        const sessionItemHeight = 48; // Increased for more info
-        const approvalPanelHeight = hasApproval ? 140 : 0;
-        const demoControlsHeight = isDev ? 120 : 0;
+        // Base sizes - match CSS exactly
+        // Bar: margin-top(8) + padding(8+8) + content(20-24px line-height) = ~48-56px
+        const barHeight = 56;
+        const panelPadding = 16; // Panel padding (8px * 2)
+        const sessionItemHeight = 52;
         const emptyStateHeight = sessionCount === 0 ? 50 : 0;
-        const headerHeight = 24; // "Sessions" header
+        const headerHeight = 24;
+
+        // Approval panel height calculation
+        // Base: ~180px (header + session + action + footer + shortcuts + margins)
+        // With diff: add ~220px (diff viewer max-height + margins)
+        const approvalPanelBase = 180;
+        const approvalPanelDiff = hasDiff ? 220 : 0;
+        const approvalPanelHeight = hasApproval ? approvalPanelBase + approvalPanelDiff : 0;
 
         // Max visible sessions before scroll
         const maxVisibleSessions = 4;
@@ -137,16 +116,16 @@ export function Overlay() {
 
         // Calculate panel height
         const panelContentHeight = Math.max(
-          headerHeight + visibleSessions * sessionItemHeight + scrollHint + approvalPanelHeight + demoControlsHeight,
+          headerHeight + visibleSessions * sessionItemHeight + scrollHint + approvalPanelHeight,
           emptyStateHeight
         );
         const panelHeight = expanded ? panelPadding + panelContentHeight : 0;
 
-        // Total height with margin
-        const totalHeight = barHeight + panelHeight + 8;
+        // Total height
+        const totalHeight = barHeight + panelHeight;
 
-        // Width
-        const width = expanded ? 320 : 260;
+        // Width - bar max-width is 320px, panel max-width is 320px
+        const width = expanded ? 336 : 320;
 
         await invoke("set_window_size", { width, height: totalHeight });
       } catch (e) {
@@ -156,51 +135,6 @@ export function Overlay() {
 
     resizeWindow();
   }, [expanded, sessions.length, approvalRequest]);
-
-  const toggleDemo = async () => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      if (demoRunning) {
-        await invoke("toggle_demo_mode", { start: false });
-        setDemoRunning(false);
-      } else {
-        // Set speed before starting
-        const config: DemoConfig = {
-          transition_delay_ms: SPEED_OPTIONS[selectedSpeed].delay,
-          session_count: 0,
-          session_spawn_delay_ms: SPEED_OPTIONS[selectedSpeed].delay * 2,
-        };
-        await invoke("set_demo_config", { config });
-        await invoke("toggle_demo_mode", { start: true });
-        setDemoRunning(true);
-      }
-    } catch (e) {
-      console.error("Failed to toggle demo mode:", e);
-      setError(`Demo mode error: ${e}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const toggleProcessWatcher = async () => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      if (processWatcherRunning) {
-        await invoke("stop_process_watcher");
-        setProcessWatcherRunning(false);
-      } else {
-        await invoke("start_process_watcher");
-        setProcessWatcherRunning(true);
-      }
-    } catch (e) {
-      console.error("Failed to toggle process watcher:", e);
-      setError(`Process watcher error: ${e}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleApprovalHandled = () => {
     clearApprovalRequest();
@@ -284,45 +218,6 @@ export function Overlay() {
               <div className="overlay__empty">Waiting for agent sessions...</div>
             )}
           </div>
-
-          {/* Demo controls - only visible in dev mode */}
-          {import.meta.env.DEV && (
-            <div className="overlay__demo-controls">
-              <div className="overlay__demo-header">Demo Mode</div>
-              <div className="overlay__demo-row">
-                <select
-                  className="overlay__speed-select"
-                  value={selectedSpeed}
-                  onChange={(e) => setSelectedSpeed(Number(e.target.value))}
-                  disabled={demoRunning}
-                >
-                  {SPEED_OPTIONS.map((opt, i) => (
-                    <option key={i} value={i}>{opt.label}</option>
-                  ))}
-                </select>
-                <button
-                  className={`overlay__demo-btn ${demoRunning ? "overlay__demo-btn--stop" : ""}`}
-                  onClick={toggleDemo}
-                  disabled={isLoading}
-                >
-                  {isLoading ? <span className="overlay__spinner" /> : (demoRunning ? "Stop" : "Start")}
-                </button>
-              </div>
-
-              {/* Process Watcher controls */}
-              <div className="overlay__demo-header" style={{ marginTop: "8px" }}>Process Watcher</div>
-              <div className="overlay__demo-row">
-                <button
-                  className={`overlay__demo-btn ${processWatcherRunning ? "overlay__demo-btn--stop" : ""}`}
-                  onClick={toggleProcessWatcher}
-                  disabled={isLoading}
-                  style={{ width: "100%" }}
-                >
-                  {isLoading ? <span className="overlay__spinner" /> : (processWatcherRunning ? "Stop Watching" : "Start Watching")}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>

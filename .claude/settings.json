@@ -1,6 +1,7 @@
 {
   "enabledPlugins": {
     "rust-analyzer-lsp@claude-plugins-official": true,
+    "coding-workflow@vanko-skill": true,
     "interactive-learning@vanko-skill": true
   }
 }

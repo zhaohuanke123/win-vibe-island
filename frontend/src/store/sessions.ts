@@ -20,8 +20,10 @@ export interface DiffData {
 }
 
 export interface ApprovalRequest {
+  toolUseId: string;
   sessionId: string;
   sessionLabel: string;
+  toolName?: string;
   action: string;
   riskLevel: "low" | "medium" | "high";
   timestamp: number;

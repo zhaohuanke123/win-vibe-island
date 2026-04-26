@@ -4,9 +4,13 @@
 //! This module implements an HTTP server on port 7878 to receive these hooks.
 //!
 //! Supported hooks:
-//! - PreToolUse: Before Claude executes any tool (enables approval flow)
+//! - SessionStart: When a new session begins or resumes
+//! - PreToolUse: Before Claude executes any tool
+//! - PostToolUse: After a tool completes
 //! - Notification: When Claude needs user attention
 //! - Stop: When Claude finishes a response
+//! - UserPromptSubmit: When user submits a prompt
+//! - PermissionRequest: When Claude needs permission to execute a tool
 
 use axum::{
     extract::State,
@@ -16,64 +20,95 @@ use axum::{
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
+use tokio::sync::oneshot;
 
 /// Default port for the hook server
 pub const HOOK_SERVER_PORT: u16 = 7878;
+
+/// Default timeout for approval requests (30 seconds)
+const APPROVAL_TIMEOUT_SECS: u64 = 30;
+
+/// Response to a permission request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionDecision {
+    /// The behavior: "allow" or "deny"
+    pub behavior: String,
+    /// Optional message to display
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    /// Optional updated input for the tool
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_input: Option<serde_json::Value>,
+}
+
+/// Pending approval request with response channel
+struct PendingApproval {
+    /// The tool use ID for correlation
+    tool_use_id: String,
+    /// Session ID
+    session_id: String,
+    /// Tool name
+    tool_name: String,
+    /// Tool input
+    tool_input: serde_json::Value,
+    /// Channel to send the response
+    response_tx: oneshot::Sender<PermissionDecision>,
+    /// Timestamp when the request was created
+    created_at: std::time::Instant,
+}
 
 /// Hook server state
 struct HookServerState {
     running: Mutex<bool>,
     app_handle: AppHandle,
+    /// Pending approval requests keyed by tool_use_id
+    pending_approvals: Mutex<HashMap<String, PendingApproval>>,
 }
 
-/// PreToolUse hook payload from Claude Code
+/// Generic hook payload - captures all fields from Claude Code hooks
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PreToolUsePayload {
-    /// The tool being invoked (e.g., "Write", "Edit", "Bash")
-    pub tool_name: String,
-    /// Tool-specific input
-    pub tool_input: serde_json::Value,
-    /// Session/transcript ID
-    #[serde(default)]
+pub struct HookPayload {
+    // Core identifiers
+    pub session_id: Option<String>,
     pub transcript_path: Option<String>,
-    /// The prompt that led to this tool use
-    #[serde(default)]
+    pub cwd: Option<String>,
+    pub hook_event_name: Option<String>,
+
+    // SessionStart specific
+    pub source: Option<String>,  // startup, resume, clear, compact
+    pub model: Option<String>,
+    pub agent_type: Option<String>,
+    pub agent_id: Option<String>,
+
+    // Tool-related
+    pub tool_name: Option<String>,
+    pub tool_input: Option<serde_json::Value>,
+    pub tool_response: Option<serde_json::Value>,
+    pub tool_use_id: Option<String>,
+
+    // UserPromptSubmit
     pub prompt: Option<String>,
-}
+    pub permission_mode: Option<String>,
 
-/// Notification hook payload from Claude Code
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NotificationPayload {
-    /// Notification message
-    pub message: String,
-    /// Notification type (e.g., "approval_required", "error", "info")
-    #[serde(default)]
-    pub notification_type: Option<String>,
-    /// Session/transcript ID
-    #[serde(default)]
-    pub transcript_path: Option<String>,
-}
-
-/// Stop hook payload from Claude Code
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StopPayload {
-    /// Reason for stopping (e.g., "end_turn", "max_tokens")
-    #[serde(default)]
+    // Stop
     pub reason: Option<String>,
-    /// Session/transcript ID
-    #[serde(default)]
-    pub transcript_path: Option<String>,
-}
 
-/// Event emitted to frontend when a hook is received
-#[derive(Debug, Clone, Serialize)]
-pub struct HookEvent {
-    pub hook_type: String,
-    pub session_id: String,
-    pub data: serde_json::Value,
+    // Notification
+    pub notification_type: Option<String>,
+    pub message: Option<String>,
+
+    // PermissionRequest
+    pub permission_suggestions: Option<Vec<serde_json::Value>>,
+
+    // PostToolUseFailure
+    pub error: Option<String>,
+    pub is_interrupt: Option<bool>,
+    pub duration_ms: Option<u64>,
 }
 
 /// Status of the hook server
@@ -97,6 +132,7 @@ pub fn start_hook_server(app: AppHandle) -> Result<(), String> {
     let state = Arc::new(HookServerState {
         running: Mutex::new(true),
         app_handle: app.clone(),
+        pending_approvals: Mutex::new(HashMap::new()),
     });
     *state_guard = Some(state.clone());
     drop(state_guard);
@@ -139,9 +175,13 @@ async fn run_hook_server(state: Arc<HookServerState>) -> Result<(), String> {
     let app_handle = state.app_handle.clone();
 
     let app = Router::new()
+        .route("/hooks/session-start", post(handle_session_start))
         .route("/hooks/pre-tool-use", post(handle_pre_tool_use))
+        .route("/hooks/post-tool-use", post(handle_post_tool_use))
         .route("/hooks/notification", post(handle_notification))
         .route("/hooks/stop", post(handle_stop))
+        .route("/hooks/user-prompt-submit", post(handle_user_prompt_submit))
+        .route("/hooks/permission-request", post(handle_permission_request))
         .route("/hooks/ping", post(handle_ping))
         .with_state(app_handle);
 
@@ -159,87 +199,190 @@ async fn run_hook_server(state: Arc<HookServerState>) -> Result<(), String> {
     Ok(())
 }
 
-/// Handle PreToolUse hook - triggered before Claude executes any tool
-async fn handle_pre_tool_use(
+/// Extract session ID from payload, with fallback
+fn get_session_id(payload: &HookPayload) -> String {
+    // Use session_id if available (preferred)
+    if let Some(ref sid) = payload.session_id {
+        return sid.clone();
+    }
+    // Fallback to transcript_path
+    if let Some(ref path) = payload.transcript_path {
+        // Extract just the filename or use the whole path
+        return path.clone();
+    }
+    // Last resort: generate a temporary ID (should not happen in normal use)
+    format!("unknown-{}", chrono_timestamp())
+}
+
+/// Extract a human-readable label for the session
+fn get_session_label(payload: &HookPayload) -> String {
+    // Use cwd as the label (project name)
+    if let Some(ref cwd) = payload.cwd {
+        // Extract just the folder name
+        if let Some(name) = cwd.split('/').next_back() {
+            return name.to_string();
+        }
+        return cwd.clone();
+    }
+    "Claude Code".to_string()
+}
+
+/// Handle SessionStart hook - triggered when a new session begins
+async fn handle_session_start(
     State(app_handle): State<AppHandle>,
-    Json(payload): Json<PreToolUsePayload>,
+    Json(payload): Json<HookPayload>,
 ) -> Result<StatusCode, StatusCode> {
     log::info!(
-        "PreToolUse hook received: tool={}, input={:?}",
-        payload.tool_name,
-        payload.tool_input
+        "SessionStart hook received: session_id={:?}, source={:?}, cwd={:?}",
+        payload.session_id,
+        payload.source,
+        payload.cwd
     );
 
-    // Generate session ID from transcript path or use default
-    let session_id = payload
-        .transcript_path
-        .clone()
-        .unwrap_or_else(|| format!("claude-{}", chrono_timestamp()));
+    let session_id = get_session_id(&payload);
+    let label = get_session_label(&payload);
 
-    // Emit event to frontend
-    let event = HookEvent {
-        hook_type: "pre_tool_use".to_string(),
-        session_id: session_id.clone(),
-        data: serde_json::to_value(&payload).unwrap_or(serde_json::json!({})),
-    };
-
-    if let Err(e) = app_handle.emit("claude_hook", &event) {
-        log::error!("Failed to emit PreToolUse event: {}", e);
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    }
-
-    // Also emit a session_start event if this is a new session
+    // Emit session_start event to frontend
     let _ = app_handle.emit(
         "session_start",
         &serde_json::json!({
             "session_id": session_id,
-            "label": format!("Claude Code - {}", payload.tool_name),
-            "tool_name": payload.tool_name,
+            "label": label,
+            "cwd": payload.cwd,
+            "source": payload.source,
+            "model": payload.model,
+            "agent_type": payload.agent_type,
         }),
     );
 
-    // Return 200 to allow the tool to proceed
-    // Return 403 to reject the tool (for approval flow)
+    // Also emit initial state
+    let _ = app_handle.emit(
+        "state_change",
+        &serde_json::json!({
+            "session_id": session_id,
+            "state": "idle",
+        }),
+    );
+
+    Ok(StatusCode::OK)
+}
+
+/// Handle PreToolUse hook - triggered before Claude executes any tool
+async fn handle_pre_tool_use(
+    State(app_handle): State<AppHandle>,
+    Json(payload): Json<HookPayload>,
+) -> Result<StatusCode, StatusCode> {
+    log::info!(
+        "PreToolUse hook received: session_id={:?}, tool={:?}",
+        payload.session_id,
+        payload.tool_name
+    );
+
+    let session_id = get_session_id(&payload);
+
+    // Emit state_change to running
+    let _ = app_handle.emit(
+        "state_change",
+        &serde_json::json!({
+            "session_id": session_id,
+            "state": "running",
+            "tool_name": payload.tool_name,
+            "tool_input": payload.tool_input,
+        }),
+    );
+
+    // Extract file path if present
+    let file_path = payload.tool_input.as_ref().and_then(|input| {
+        input.get("file_path").and_then(|v| v.as_str()).map(|s| s.to_string())
+    });
+
+    if let Some(ref tool_name) = payload.tool_name {
+        let _ = app_handle.emit(
+            "tool_use",
+            &serde_json::json!({
+                "session_id": session_id,
+                "tool_name": tool_name,
+                "file_path": file_path,
+            }),
+        );
+    }
+
+    Ok(StatusCode::OK)
+}
+
+/// Handle PostToolUse hook - triggered after a tool completes
+async fn handle_post_tool_use(
+    State(app_handle): State<AppHandle>,
+    Json(payload): Json<HookPayload>,
+) -> Result<StatusCode, StatusCode> {
+    log::info!(
+        "PostToolUse hook received: session_id={:?}, tool={:?}",
+        payload.session_id,
+        payload.tool_name
+    );
+
+    let session_id = get_session_id(&payload);
+
+    // Emit tool_complete event
+    let _ = app_handle.emit(
+        "tool_complete",
+        &serde_json::json!({
+            "session_id": session_id,
+            "tool_name": payload.tool_name,
+            "duration_ms": payload.duration_ms,
+        }),
+    );
+
     Ok(StatusCode::OK)
 }
 
 /// Handle Notification hook - triggered when Claude needs user attention
 async fn handle_notification(
     State(app_handle): State<AppHandle>,
-    Json(payload): Json<NotificationPayload>,
+    Json(payload): Json<HookPayload>,
 ) -> Result<StatusCode, StatusCode> {
     log::info!(
-        "Notification hook received: type={:?}, message={}",
-        payload.notification_type,
-        payload.message
+        "Notification hook received: session_id={:?}, type={:?}",
+        payload.session_id,
+        payload.notification_type
     );
 
-    let session_id = payload
-        .transcript_path
-        .clone()
-        .unwrap_or_else(|| format!("claude-{}", chrono_timestamp()));
+    let session_id = get_session_id(&payload);
 
-    // Emit event to frontend
-    let event = HookEvent {
-        hook_type: "notification".to_string(),
-        session_id: session_id.clone(),
-        data: serde_json::to_value(&payload).unwrap_or(serde_json::json!({})),
-    };
-
-    if let Err(e) = app_handle.emit("claude_hook", &event) {
-        log::error!("Failed to emit Notification event: {}", e);
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    }
-
-    // If this is an approval notification, emit state_change
-    if payload.notification_type.as_deref() == Some("approval_required") {
-        let _ = app_handle.emit(
-            "state_change",
-            &serde_json::json!({
-                "session_id": session_id,
-                "state": "approval",
-            }),
-        );
+    // Handle different notification types
+    match payload.notification_type.as_deref() {
+        Some("permission_prompt") => {
+            // Claude is waiting for permission
+            let _ = app_handle.emit(
+                "state_change",
+                &serde_json::json!({
+                    "session_id": session_id,
+                    "state": "approval",
+                    "message": payload.message,
+                }),
+            );
+        }
+        Some("idle_prompt") => {
+            // Claude is idle, waiting for input
+            let _ = app_handle.emit(
+                "state_change",
+                &serde_json::json!({
+                    "session_id": session_id,
+                    "state": "idle",
+                }),
+            );
+        }
+        _ => {
+            // Generic notification
+            let _ = app_handle.emit(
+                "notification",
+                &serde_json::json!({
+                    "session_id": session_id,
+                    "message": payload.message,
+                    "notification_type": payload.notification_type,
+                }),
+            );
+        }
     }
 
     Ok(StatusCode::OK)
@@ -248,37 +391,317 @@ async fn handle_notification(
 /// Handle Stop hook - triggered when Claude finishes a response
 async fn handle_stop(
     State(app_handle): State<AppHandle>,
-    Json(payload): Json<StopPayload>,
+    Json(payload): Json<HookPayload>,
 ) -> Result<StatusCode, StatusCode> {
-    log::info!("Stop hook received: reason={:?}", payload.reason);
+    log::info!(
+        "Stop hook received: session_id={:?}, reason={:?}",
+        payload.session_id,
+        payload.reason
+    );
 
-    let session_id = payload
-        .transcript_path
-        .clone()
-        .unwrap_or_else(|| format!("claude-{}", chrono_timestamp()));
+    let session_id = get_session_id(&payload);
 
-    // Emit event to frontend
-    let event = HookEvent {
-        hook_type: "stop".to_string(),
-        session_id: session_id.clone(),
-        data: serde_json::to_value(&payload).unwrap_or(serde_json::json!({})),
-    };
-
-    if let Err(e) = app_handle.emit("claude_hook", &event) {
-        log::error!("Failed to emit Stop event: {}", e);
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    }
-
-    // Emit state_change to done
+    // Emit state_change to done/idle
     let _ = app_handle.emit(
         "state_change",
         &serde_json::json!({
             "session_id": session_id,
             "state": "done",
+            "reason": payload.reason,
         }),
     );
 
     Ok(StatusCode::OK)
+}
+
+/// Handle UserPromptSubmit hook - triggered when user submits a prompt
+async fn handle_user_prompt_submit(
+    State(app_handle): State<AppHandle>,
+    Json(payload): Json<HookPayload>,
+) -> Result<StatusCode, StatusCode> {
+    log::info!(
+        "UserPromptSubmit hook received: session_id={:?}",
+        payload.session_id
+    );
+
+    let session_id = get_session_id(&payload);
+
+    // Emit state_change to running
+    let _ = app_handle.emit(
+        "state_change",
+        &serde_json::json!({
+            "session_id": session_id,
+            "state": "running",
+            "prompt": payload.prompt,
+        }),
+    );
+
+    Ok(StatusCode::OK)
+}
+
+/// Handle PermissionRequest hook - triggered when Claude needs permission to execute a tool
+/// This handler BLOCKS until the user responds or times out.
+async fn handle_permission_request(
+    State(app_handle): State<AppHandle>,
+    Json(payload): Json<HookPayload>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    log::info!(
+        "PermissionRequest hook received: session_id={:?}, tool={:?}, tool_use_id={:?}",
+        payload.session_id,
+        payload.tool_name,
+        payload.tool_use_id
+    );
+
+    let session_id = get_session_id(&payload);
+    let tool_use_id = payload.tool_use_id.clone().unwrap_or_else(|| format!("auto-{}", chrono_timestamp()));
+    let tool_name = payload.tool_name.clone().unwrap_or_else(|| "unknown".to_string());
+    let tool_input = payload.tool_input.clone().unwrap_or(serde_json::json!({}));
+
+    // Determine risk level based on tool name and input
+    let risk_level = determine_risk_level(&tool_name, &tool_input);
+
+    // Extract action description from tool input
+    let action = format_tool_action(&tool_name, &tool_input);
+
+    // Extract diff data if present (for Write/Edit tools)
+    let diff = extract_diff_data(&tool_name, &tool_input);
+
+    // Create a oneshot channel for the response
+    let (response_tx, response_rx) = oneshot::channel::<PermissionDecision>();
+
+    // Store the pending approval
+    {
+        let state_guard = HOOK_SERVER_STATE.lock();
+        if let Some(ref state) = *state_guard {
+            let mut pending = state.pending_approvals.lock();
+            pending.insert(tool_use_id.clone(), PendingApproval {
+                tool_use_id: tool_use_id.clone(),
+                session_id: session_id.clone(),
+                tool_name: tool_name.clone(),
+                tool_input: tool_input.clone(),
+                response_tx,
+                created_at: std::time::Instant::now(),
+            });
+        }
+    }
+
+    // Emit permission_request event to frontend
+    let _ = app_handle.emit(
+        "permission_request",
+        &serde_json::json!({
+            "session_id": session_id,
+            "tool_use_id": tool_use_id,
+            "tool_name": tool_name,
+            "tool_input": tool_input,
+            "action": action,
+            "risk_level": risk_level,
+            "diff": diff,
+            "permission_suggestions": payload.permission_suggestions,
+        }),
+    );
+
+    // Also emit state_change to approval
+    let _ = app_handle.emit(
+        "state_change",
+        &serde_json::json!({
+            "session_id": session_id,
+            "state": "approval",
+        }),
+    );
+
+    // Wait for response with timeout
+    let timeout_duration = std::time::Duration::from_secs(APPROVAL_TIMEOUT_SECS);
+    let decision = match tokio::time::timeout(timeout_duration, response_rx).await {
+        Ok(Ok(decision)) => {
+            log::info!("Permission decision received: {:?}", decision);
+            // Emit state_change back to running/idle
+            let _ = app_handle.emit(
+                "state_change",
+                &serde_json::json!({
+                    "session_id": session_id,
+                    "state": "running",
+                }),
+            );
+            decision
+        }
+        Ok(Err(_)) => {
+            log::warn!("Permission response channel closed unexpectedly");
+            PermissionDecision {
+                behavior: "deny".to_string(),
+                message: Some("Approval response channel closed".to_string()),
+                updated_input: None,
+            }
+        }
+        Err(_) => {
+            log::warn!("Permission request timed out after {} seconds", APPROVAL_TIMEOUT_SECS);
+            // Clean up the pending approval
+            {
+                let state_guard = HOOK_SERVER_STATE.lock();
+                if let Some(ref state) = *state_guard {
+                    let mut pending = state.pending_approvals.lock();
+                    pending.remove(&tool_use_id);
+                }
+            }
+            PermissionDecision {
+                behavior: "deny".to_string(),
+                message: Some(format!("Permission request timed out after {} seconds", APPROVAL_TIMEOUT_SECS)),
+                updated_input: None,
+            }
+        }
+    };
+
+    // Build the response JSON
+    let response = serde_json::json!({
+        "decision": decision
+    });
+
+    Ok(Json(response))
+}
+
+/// Determine risk level based on tool name and input
+fn determine_risk_level(tool_name: &str, tool_input: &serde_json::Value) -> String {
+    match tool_name {
+        // High risk tools
+        "Bash" => {
+            if let Some(cmd) = tool_input.get("command").and_then(|v| v.as_str()) {
+                let cmd_lower = cmd.to_lowercase();
+                // Check for dangerous commands
+                if cmd_lower.contains("rm ") || cmd_lower.contains("rmdir")
+                    || cmd_lower.contains("del ") || cmd_lower.contains("format")
+                    || cmd_lower.contains("shutdown") || cmd_lower.contains("reboot")
+                    || cmd_lower.contains("sudo") || cmd_lower.contains("su ")
+                    || cmd_lower.contains("chmod") || cmd_lower.contains("chown")
+                    || cmd_lower.contains("mkfs") || cmd_lower.contains("dd ")
+                {
+                    return "high".to_string();
+                }
+            }
+            "medium".to_string()
+        }
+        "Write" | "Edit" => {
+            // Check if modifying important files
+            if let Some(file_path) = tool_input.get("file_path").and_then(|v| v.as_str()) {
+                let path_lower = file_path.to_lowercase();
+                if path_lower.contains(".env") || path_lower.contains("config")
+                    || path_lower.contains("secret") || path_lower.contains("credential")
+                    || path_lower.contains("password") || path_lower.contains("key")
+                {
+                    return "high".to_string();
+                }
+            }
+            "medium".to_string()
+        }
+        // Medium risk tools
+        "TodoWrite" | "Task" | "Agent" => "medium".to_string(),
+        // Low risk tools
+        "Read" | "Glob" | "Grep" | "LS" => "low".to_string(),
+        // Default to medium for unknown tools
+        _ => "medium".to_string(),
+    }
+}
+
+/// Format a human-readable action description from tool name and input
+fn format_tool_action(tool_name: &str, tool_input: &serde_json::Value) -> String {
+    match tool_name {
+        "Bash" => {
+            let cmd = tool_input.get("command")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown command");
+            let description = tool_input.get("description")
+                .and_then(|v| v.as_str())
+                .map(|d| format!(": {}", d))
+                .unwrap_or_default();
+            format!("Execute: {}{}", cmd, description)
+        }
+        "Read" => {
+            let file_path = tool_input.get("file_path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown file");
+            format!("Read file: {}", file_path)
+        }
+        "Write" => {
+            let file_path = tool_input.get("file_path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown file");
+            format!("Write file: {}", file_path)
+        }
+        "Edit" => {
+            let file_path = tool_input.get("file_path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown file");
+            format!("Edit file: {}", file_path)
+        }
+        "Glob" => {
+            let pattern = tool_input.get("pattern")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown pattern");
+            format!("Find files: {}", pattern)
+        }
+        "Grep" => {
+            let pattern = tool_input.get("pattern")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown pattern");
+            format!("Search: {}", pattern)
+        }
+        _ => {
+            format!("Execute tool: {}", tool_name)
+        }
+    }
+}
+
+/// Extract diff data from Write/Edit tool input
+fn extract_diff_data(tool_name: &str, tool_input: &serde_json::Value) -> Option<serde_json::Value> {
+    match tool_name {
+        "Write" | "Edit" => {
+            let file_path = tool_input.get("file_path")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())?;
+
+            let new_content = tool_input.get("content")
+                .or_else(|| tool_input.get("new_string"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
+            let old_content = tool_input.get("old_string")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
+            if new_content.is_some() {
+                Some(serde_json::json!({
+                    "fileName": file_path.split('/').next_back().unwrap_or(&file_path),
+                    "filePath": file_path,
+                    "oldContent": old_content.unwrap_or_default(),
+                    "newContent": new_content.unwrap_or_default(),
+                }))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Submit an approval response for a pending permission request.
+/// This is called from the frontend when the user approves or rejects an action.
+pub fn submit_approval_response(tool_use_id: &str, approved: bool) -> Result<(), String> {
+    let state_guard = HOOK_SERVER_STATE.lock();
+    if let Some(ref state) = *state_guard {
+        let mut pending = state.pending_approvals.lock();
+        if let Some(pending_approval) = pending.remove(tool_use_id) {
+            let decision = PermissionDecision {
+                behavior: if approved { "allow" } else { "deny" }.to_string(),
+                message: None,
+                updated_input: None,
+            };
+            pending_approval.response_tx.send(decision)
+                .map_err(|_| "Failed to send approval response".to_string())?;
+            Ok(())
+        } else {
+            Err(format!("No pending approval found for tool_use_id: {}", tool_use_id))
+        }
+    } else {
+        Err("Hook server not running".to_string())
+    }
 }
 
 /// Health check endpoint

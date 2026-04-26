@@ -1,7 +1,6 @@
 mod overlay;
 mod commands;
 mod events;
-mod mock;
 mod pipe_server;
 mod process_watcher;
 mod window_focus;
@@ -114,9 +113,6 @@ pub fn run() {
             commands::update_overlay,
             commands::destroy_overlay,
             commands::emit_test_event,
-            commands::toggle_demo_mode,
-            commands::set_demo_config,
-            commands::get_demo_config_status,
             commands::get_pipe_server_status,
             commands::start_pipe_server,
             commands::stop_pipe_server,

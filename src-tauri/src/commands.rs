@@ -1,12 +1,10 @@
 use crate::overlay::{self, OverlayConfig, DpiScale};
 use crate::events::{self, SessionStart, StateChange, SessionEnd};
-use crate::mock::{self, DemoConfig};
 use crate::pipe_server;
 use crate::process_watcher;
 use crate::window_focus::{self, FocusResult};
 use crate::hook_server;
 use tauri::{AppHandle, WebviewWindow, Size, PhysicalSize};
-use serde::Serialize;
 
 #[tauri::command]
 pub fn create_overlay(config: OverlayConfig) -> Result<String, String> {
@@ -94,34 +92,6 @@ pub fn emit_test_event(app: AppHandle, event_type: String, session_id: String) -
     }
 }
 
-#[tauri::command]
-pub fn toggle_demo_mode(app: AppHandle, start: bool) -> Result<(), String> {
-    if start {
-        mock::start_demo_mode(app)
-    } else {
-        mock::stop_demo_mode()
-    }
-}
-
-#[tauri::command]
-pub fn set_demo_config(config: DemoConfig) -> Result<(), String> {
-    mock::set_demo_config(config)
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct DemoStatus {
-    pub running: bool,
-    pub config: DemoConfig,
-}
-
-#[tauri::command]
-pub fn get_demo_config_status() -> DemoStatus {
-    DemoStatus {
-        running: mock::is_demo_running(),
-        config: mock::get_demo_config(),
-    }
-}
-
 // Pipe server commands
 #[tauri::command]
 pub fn get_pipe_server_status() -> pipe_server::PipeServerStatus {
@@ -180,17 +150,13 @@ pub fn set_process_watcher_config(
 /// Submit an approval response for a pending approval request.
 ///
 /// This is called from the frontend when the user approves or rejects an action.
-/// The response is emitted as an event that can be listened to by the agent process.
+/// The response is sent to the waiting PermissionRequest handler.
 #[tauri::command]
 pub fn submit_approval_response(
-    app: AppHandle,
-    session_id: String,
+    tool_use_id: String,
     approved: bool,
 ) -> Result<(), String> {
-    events::emit_approval_response(&app, events::ApprovalResponse {
-        session_id,
-        approved,
-    })
+    hook_server::submit_approval_response(&tool_use_id, approved)
 }
 
 // DPI-related commands

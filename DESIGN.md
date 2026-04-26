@@ -5,6 +5,23 @@
 - Rust 后端直接调用 Win32 API
 - WebView2 渲染前端
 
+## 实现状态
+
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| Overlay 浮窗 | ✅ 已完成 | 置顶、透明、点击穿透切换 |
+| 系统托盘 | ✅ 已完成 | 右键菜单、显示/隐藏控制 |
+| HTTP Hook Server | ✅ 已完成 | Claude Code 原生集成 (端口 7878) |
+| Named Pipe Server | ✅ 已完成 | Agent SDK 通信通道 |
+| 进程监控 | ✅ 已完成 | 检测 Claude Code / Codex 进程 |
+| 窗口聚焦 | ✅ 已完成 | 点击 session 聚焦对应窗口 |
+| Mock 模式 | ✅ 已完成 | 模拟 agent 事件用于测试 |
+| Approval Panel | ✅ 已完成 | 审批面板 + Approve/Reject |
+| Diff Viewer | ✅ 已完成 | 代码差异预览 |
+| Agent SDK (Node) | ✅ 已完成 | Node.js SDK |
+| Agent SDK (Python) | ✅ 已完成 | Python SDK |
+| 文档 | ✅ 已完成 | Hooks 配置指南 |
+
 ## 核心功能
 
 ### 1. Overlay 浮窗实现
@@ -87,39 +104,117 @@ fn focus_window(session: &Session) {
 
 ```
 vibe-island/
-├── src-tauri/           # Rust 后端
+├── src-tauri/                    # Rust 后端
 │   ├── src/
-│   │   ├── main.rs      # 入口，Tauri builder
-│   │   ├── overlay.rs   # Win32 Overlay 窗口管理
-│   │   ├── pipe_server.rs    # Named Pipe 服务端
-│   │   ├── process_watcher.rs # 进程枚举 + PTY 监控
-│   │   ├── window_focus.rs   # 跨应用聚焦
-│   │   ├── commands.rs  # Tauri commands（前端调用入口）
-│   │   └── state.rs     # 全局状态聚合
+│   │   ├── main.rs               # 入口，Tauri builder
+│   │   ├── lib.rs                # Tauri 应用配置，插件注册
+│   │   ├── overlay.rs            # Win32 Overlay 窗口管理
+│   │   ├── commands.rs           # Tauri IPC commands
+│   │   ├── events.rs             # Tauri 事件发射
+│   │   ├── hook_server.rs        # HTTP Hook 服务器 (Claude Code)
+│   │   ├── pipe_server.rs        # Named Pipe 服务端 (Agent SDK)
+│   │   ├── process_watcher.rs    # 进程枚举 + 监控
+│   │   ├── window_focus.rs       # 跨应用聚焦
+│   │   └── mock.rs               # Mock 事件生成器
 │   └── tauri.conf.json
-├── src/                 # React 前端
-│   ├── components/
-│   │   ├── Overlay.tsx      # 主浮窗容器
-│   │   ├── StatusDot.tsx    # 状态指示器（闪烁/旋转动画）
-│   │   ├── ApprovalPanel.tsx # 审批面板 + Diff 渲染
-│   │   ├── SessionList.tsx  # 多对话列表
-│   │   └── TrayMenu.tsx     # 系统托盘菜单
-│   ├── hooks/
-│   │   └── useAgentEvents.ts # 订阅 Tauri 事件
-│   └── store/
-│       └── sessions.ts  # Zustand 全局状态
-└── agent-sdk/           # 注入到 Claude Code / Codex 的轻量 SDK
-    ├── node/index.ts    # Node.js 版本（Claude Code）
-    └── python/vibe_island.py # Python 版本（Codex CLI）
+├── frontend/                     # React 前端
+│   └── src/
+│       ├── components/
+│       │   ├── Overlay.tsx       # 主浮窗容器
+│       │   ├── StatusDot.tsx     # 状态指示器（闪烁/旋转动画）
+│       │   ├── ApprovalPanel.tsx # 审批面板
+│       │   └── DiffViewer.tsx    # 代码差异渲染
+│       ├── hooks/
+│       │   └── useAgentEvents.ts # 订阅 Tauri 事件
+│       └── store/
+│           └── sessions.ts       # Zustand 全局状态
+├── agent-sdk/                    # Agent SDK (可选，用于非 Claude Code 工具)
+│   ├── node/                     # Node.js SDK
+│   │   ├── src/
+│   │   │   ├── index.ts          # 入口
+│   │   │   ├── client.ts         # Named Pipe 客户端
+│   │   │   └── types.ts          # 类型定义
+│   │   └── package.json
+│   └── python/                   # Python SDK
+│       └── src/vibe_island_sdk/
+│           ├── __init__.py       # 入口
+│           ├── client.py         # Named Pipe 客户端
+│           └── types.py          # 类型定义
+├── docs/
+│   ├── hooks-setup.md            # Claude Code Hooks 配置指南
+│   └── claude-settings.example.json  # 配置示例
+├── architecture.md               # 架构文档
+├── task.json                     # 任务定义
+└── progress.txt                  # 进度记录
 ```
 
-## Phase 1 MVP 目标（第 1-3 周）
+## 集成方式
 
-1. 搭建 Tauri 2.0 工程骨架
-2. 配置 Win32 Overlay 窗口属性（置顶、透明、不抢焦点）
-3. 实现系统托盘图标 + 右键菜单
-4. Named Pipe Server 基础框架
-5. 前端：状态指示动画（闲置/运行中/需审批）
+### 方式 1: HTTP Hooks (推荐，Claude Code 原生)
+
+Claude Code 原生支持 HTTP Hooks，无需安装 SDK。在 `.claude/settings.json` 中配置：
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "*",
+      "hooks": [{ "type": "http", "url": "http://localhost:7878/hooks/pre-tool-use" }]
+    }],
+    "Notification": [{
+      "matcher": "*",
+      "hooks": [{ "type": "http", "url": "http://localhost:7878/hooks/notification" }]
+    }],
+    "Stop": [{
+      "matcher": "*",
+      "hooks": [{ "type": "http", "url": "http://localhost:7878/hooks/stop" }]
+    }]
+  }
+}
+```
+
+### 方式 2: Agent SDK (Codex CLI / 自定义工具)
+
+对于非 Claude Code 工具，使用 Agent SDK 通过 Named Pipe 通信：
+
+```typescript
+// Node.js
+import { VibeIslandClient } from 'vibe-island-sdk';
+
+const client = new VibeIslandClient();
+await client.connect();
+await client.sendEvent({ session_id: 'xxx', state: 'running', payload: {} });
+```
+
+```python
+# Python
+from vibe_island_sdk import VibeIslandClient
+
+client = VibeIslandClient()
+client.connect()
+client.send_event(session_id='xxx', state='running', payload={})
+```
+
+## 开发阶段
+
+### Phase 1 - MVP ✅ 已完成
+- Tauri 2.0 工程骨架
+- Win32 Overlay 窗口（置顶、透明、不抢焦点）
+- 系统托盘图标 + 右键菜单
+- Named Pipe Server
+- 前端状态指示动画
+
+### Phase 2 - 核心功能 ✅ 已完成
+- HTTP Hook Server (Claude Code 集成)
+- 进程监控
+- 窗口聚焦
+- Approval Panel
+- Diff Viewer
+
+### Phase 3 - SDK & 文档 ✅ 已完成
+- Node.js Agent SDK
+- Python Agent SDK
+- Hooks 配置文档
 
 ## 关键 Win32 API
 

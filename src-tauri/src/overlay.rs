@@ -37,7 +37,7 @@ impl Default for OverlayConfig {
             x: 100,
             y: 100,
             width: 320,
-            height: 48,
+            height: 56,
             alpha: 240,
             dpi_scale: 1.0,
         }

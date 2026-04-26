@@ -20,30 +20,19 @@
         "Handle Quit to gracefully shut down the app",
         "Test: tray icon appears, right-click shows menu, emit test event from backend, verify frontend store updates"
       ],
-      "passes": true,
+      "status": "completed",
       "priority": "critical",
       "dependencies": [],
-      "files": ["src-tauri/src/lib.rs", "src-tauri/src/events.rs", "src-tauri/src/commands.rs", "src-tauri/tauri.conf.json", "frontend/src/hooks/useAgentEvents.ts", "frontend/src/App.tsx"],
-      "conflict_groups": ["core-infra"]
+      "files": ["src-tauri/src/lib.rs", "src-tauri/src/events.rs", "src-tauri/src/commands.rs", "src-tauri/tauri.conf.json", "frontend/src/hooks/useAgentEvents.ts", "frontend/src/App.tsx"]
     },
     {
       "id": 2,
-      "title": "Demo/Mock Mode - Simulated Agent Events",
-      "description": "Create a mock event source that simulates an agent session lifecycle (idle -> running -> approval -> done). This enables full UI testing without real agent processes. CRITICAL for parallel development - blocks Task 5 (Approval Panel) and Task 9 (UI Polish).",
-      "steps": [
-        "Create src-tauri/src/mock.rs with a demo event generator",
-        "Simulate session lifecycle: create session, cycle through states, remove session",
-        "Implement configurable timing for state transitions (config via frontend)",
-        "Add Tauri IPC command toggle_demo_mode to start/stop mock",
-        "Add IPC command set_demo_config to control simulation speed",
-        "Add a demo toggle button in frontend Overlay.tsx (dev mode only, hidden in production)",
-        "Test: clicking demo toggle creates sessions that cycle through states in the overlay UI"
-      ],
-      "passes": true,
+      "title": "Demo/Mock Mode - REMOVED",
+      "description": "DELETED: Demo mode was removed to simplify the codebase. Testing should be done with real Claude Code hooks.",
+      "status": "removed",
       "priority": "high",
       "dependencies": [1],
-      "files": ["src-tauri/src/mock.rs", "src-tauri/src/lib.rs", "src-tauri/src/commands.rs", "frontend/src/components/Overlay.tsx"],
-      "conflict_groups": ["mock"]
+      "files": []
     },
     {
       "id": 3,
@@ -61,11 +50,10 @@
         "Add IPC command to check pipe server status",
         "Test: use multiple simple clients to send JSON events concurrently and verify frontend updates"
       ],
-      "passes": true,
+      "status": "completed",
       "priority": "high",
       "dependencies": [1],
-      "files": ["src-tauri/src/pipe_server.rs", "src-tauri/src/lib.rs", "src-tauri/Cargo.toml"],
-      "conflict_groups": ["backend-pipe"]
+      "files": ["src-tauri/src/pipe_server.rs", "src-tauri/src/lib.rs", "src-tauri/Cargo.toml"]
     },
     {
       "id": 4,
@@ -81,11 +69,10 @@
         "Add IPC commands: start_process_watcher, stop_process_watcher, get_detected_processes",
         "Test: start a known agent process, verify detection in overlay"
       ],
-      "passes": true,
+      "status": "completed",
       "priority": "medium",
       "dependencies": [1],
-      "files": ["src-tauri/src/process_watcher.rs", "src-tauri/src/lib.rs", "src-tauri/Cargo.toml"],
-      "conflict_groups": ["backend-process"]
+      "files": ["src-tauri/src/process_watcher.rs", "src-tauri/src/lib.rs", "src-tauri/Cargo.toml"]
     },
     {
       "id": 5,
@@ -101,11 +88,10 @@
         "Add keyboard shortcuts for quick approval (Enter) and rejection (Escape)",
         "Test: trigger mock approval event via demo mode, verify panel shows and buttons respond"
       ],
-      "passes": true,
+      "status": "completed",
       "priority": "medium",
-      "dependencies": [2],
-      "files": ["frontend/src/components/ApprovalPanel.tsx", "frontend/src/components/Overlay.tsx", "src-tauri/src/commands.rs"],
-      "conflict_groups": ["frontend-ui"]
+      "dependencies": [1],
+      "files": ["frontend/src/components/ApprovalPanel.tsx", "frontend/src/components/Overlay.tsx", "src-tauri/src/commands.rs"]
     },
     {
       "id": 6,
@@ -124,11 +110,10 @@
         "Wire up session click in Overlay.tsx to call focus command",
         "Test: click session in overlay, corresponding terminal window comes to front"
       ],
-      "passes": true,
+      "status": "completed",
       "priority": "low",
       "dependencies": [1],
-      "files": ["src-tauri/src/window_focus.rs", "src-tauri/src/commands.rs", "frontend/src/components/Overlay.tsx"],
-      "conflict_groups": ["backend-focus"]
+      "files": ["src-tauri/src/window_focus.rs", "src-tauri/src/commands.rs", "frontend/src/components/Overlay.tsx"]
     },
     {
       "id": 7,
@@ -144,11 +129,10 @@
         "Test on 150% and 200% scaling",
         "Verify overlay snaps to correct positions after DPI change"
       ],
-      "passes": true,
+      "status": "completed",
       "priority": "medium",
       "dependencies": [1],
-      "files": ["src-tauri/src/overlay.rs", "src-tauri/src/lib.rs"],
-      "conflict_groups": ["backend-overlay"]
+      "files": ["src-tauri/src/overlay.rs", "src-tauri/src/lib.rs"]
     },
     {
       "id": 8,
@@ -156,7 +140,7 @@
       "description": "Create a lightweight Node.js SDK that injects into Claude Code sessions and communicates with Vibe Island via Named Pipe. Publishes session lifecycle events.",
       "steps": [
         "Create agent-sdk/node/ directory with package.json",
-        "Implement Named Pipe client using net.connect to \\\\\\.\\pipe\\VibeIsland",
+        "Implement Named Pipe client using net.connect to \\\\.\\pipe\\VibeIsland",
         "Define event types matching backend AgentEvent schema",
         "Hook into Claude Code lifecycle: session start, state changes, session end",
         "Add TypeScript type definitions",
@@ -165,11 +149,10 @@
         "Test: load SDK in a Node.js script, verify events appear in Vibe Island overlay",
         "Create installation tarball for local testing: npm pack"
       ],
-      "passes": true,
+      "status": "completed",
       "priority": "low",
       "dependencies": [3],
-      "files": ["agent-sdk/node/"],
-      "conflict_groups": ["sdk-node"]
+      "files": ["agent-sdk/node/"]
     },
     {
       "id": 9,
@@ -185,11 +168,10 @@
         "Test: run SDK in a Python script, verify events appear in Vibe Island overlay",
         "Create distribution package: python -m build"
       ],
-      "passes": true,
+      "status": "completed",
       "priority": "low",
       "dependencies": [3],
-      "files": ["agent-sdk/python/"],
-      "conflict_groups": ["sdk-python"]
+      "files": ["agent-sdk/python/"]
     },
     {
       "id": 10,
@@ -206,31 +188,28 @@
         "Test full end-to-end flow with demo mode in browser",
         "Verify all features work on Windows 10 and Windows 11"
       ],
-      "passes": true,
+      "status": "completed",
       "priority": "medium",
-      "dependencies": [2, 5, 7],
-      "files": ["frontend/src/"],
-      "conflict_groups": ["frontend-polish"]
+      "dependencies": [1, 5, 7],
+      "files": ["frontend/src/"]
     },
     {
       "id": 11,
       "title": "Claude Code Integration via HTTP Hooks",
-      "description": "Integrate with Claude Code using its native Hooks system. Claude Code supports HTTP hooks that POST JSON to a local server on lifecycle events (PreToolUse, Notification, Stop). This is the official, zero-SDK integration path.",
+      "description": "Integrate with Claude Code using its native Hooks system. Claude Code supports HTTP hooks that POST JSON to a local server on lifecycle events. Session tracking now uses session_id field properly.",
       "steps": [
-        "Implement HTTP server in Rust (tokio + axum or warp) on port 7878",
-        "Handle POST /hooks/pre-tool-use - capture tool use events, enable approval flow",
-        "Handle POST /hooks/notification - capture Claude notifications (covers 'needs attention' state)",
-        "Handle POST /hooks/stop - capture session end events",
-        "Map hook events to overlay states (idle, running, approval, done)",
-        "Create .claude/settings.json example for users",
-        "Test with real Claude Code session",
-        "Handle multiple concurrent Claude Code sessions"
+        "Fix session_id extraction from hook payloads (use session_id field, not transcript_path)",
+        "Add SessionStart hook handler to properly create new sessions",
+        "Handle UserPromptSubmit hook for session resume detection",
+        "Map hook events to correct overlay states per session",
+        "Handle multiple concurrent Claude Code sessions (different terminals)",
+        "Use cwd to generate meaningful session labels (project name)",
+        "Test with multiple Claude Code instances running simultaneously"
       ],
-      "passes": true,
+      "status": "completed",
       "priority": "critical",
-      "dependencies": [4],
-      "files": ["src-tauri/src/hook_server.rs", "src-tauri/src/lib.rs", "frontend/src/hooks/useAgentEvents.ts"],
-      "conflict_groups": ["integration"]
+      "dependencies": [1],
+      "files": ["src-tauri/src/hook_server.rs", "frontend/src/hooks/useAgentEvents.ts", "frontend/src/store/sessions.ts"]
     },
     {
       "id": 12,
@@ -243,11 +222,10 @@
         "Include troubleshooting section",
         "Test documentation with fresh Claude Code installation"
       ],
-      "passes": true,
+      "status": "completed",
       "priority": "high",
       "dependencies": [11],
-      "files": ["README.md", "docs/hooks-setup.md"],
-      "conflict_groups": ["docs"]
+      "files": ["README.md", "docs/hooks-setup.md"]
     },
     {
       "id": 13,
@@ -259,11 +237,10 @@
         "Test with custom Node.js/Python scripts",
         "Note: Claude Code users should prefer HTTP Hooks (Task 11)"
       ],
-      "passes": true,
+      "status": "completed",
       "priority": "low",
       "dependencies": [3],
-      "files": ["agent-sdk/node/", "agent-sdk/python/"],
-      "conflict_groups": ["sdk-fallback"]
+      "files": ["agent-sdk/node/", "agent-sdk/python/"]
     },
     {
       "id": 14,
@@ -277,11 +254,10 @@
         "Integrate with PreToolUse hook data for real-time diff preview",
         "Test with mock approval events containing diff data"
       ],
-      "passes": true,
+      "status": "completed",
       "priority": "medium",
       "dependencies": [5, 11],
-      "files": ["frontend/src/components/DiffViewer.tsx", "frontend/src/components/ApprovalPanel.tsx"],
-      "conflict_groups": ["frontend-diff"]
+      "files": ["frontend/src/components/DiffViewer.tsx", "frontend/src/components/ApprovalPanel.tsx"]
     },
     {
       "id": 15,
@@ -296,11 +272,98 @@
         "Add version number and update mechanism",
         "Create GitHub release with signed installer"
       ],
-      "passes": true,
+      "status": "pending",
       "priority": "low",
       "dependencies": [10, 11, 12],
-      "files": ["README.md", "src-tauri/tauri.conf.json"],
-      "conflict_groups": ["release"]
+      "files": ["README.md", "src-tauri/tauri.conf.json"]
+    },
+    {
+      "id": 16,
+      "title": "Session Management Fix - Proper Session Tracking",
+      "description": "Fix the core issue where all Claude Code conversations are mixed together. Each terminal/session should appear as a separate entry in the overlay.",
+      "steps": [
+        "Update hook_server.rs to use session_id from Claude Code hooks",
+        "Add SessionStart hook endpoint (/hooks/session-start)",
+        "Add UserPromptSubmit hook endpoint (/hooks/user-prompt-submit)",
+        "Update frontend useAgentEvents.ts to handle new event structure",
+        "Update sessions store to properly track sessions by session_id",
+        "Generate session labels from cwd (project folder name)",
+        "Handle session cleanup when Claude Code exits",
+        "Test: run multiple Claude Code instances, verify each appears as separate session"
+      ],
+      "status": "completed",
+      "priority": "critical",
+      "dependencies": [1],
+      "files": ["src-tauri/src/hook_server.rs", "frontend/src/hooks/useAgentEvents.ts", "frontend/src/store/sessions.ts"]
+    },
+    {
+      "id": 17,
+      "title": "Fix Approval Panel Window Height",
+      "description": "When approval request appears, the overlay window does not resize properly to show the approval buttons. Users cannot see or click the approve/reject buttons.",
+      "steps": [
+        "Calculate correct approval panel height in Overlay.tsx",
+        "Account for diff viewer height when present",
+        "Base approval panel height: ~180px",
+        "With diff viewer: add ~220px (max-height)",
+        "Test: trigger approval request, verify window expands to show all buttons"
+      ],
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [5],
+      "files": ["frontend/src/components/Overlay.tsx"]
+    },
+    {
+      "id": 18,
+      "title": "Implement Real Approval Flow via PermissionRequest Hook",
+      "description": "Current approval system only displays approval requests but does NOT actually block tool execution. PreToolUse hook returns 200 OK immediately, allowing tools to execute without waiting for user approval. Need to implement proper approval flow using Claude Code's PermissionRequest hook.",
+      "steps": [
+        "Add PermissionRequest hook endpoint (/hooks/permission-request)",
+        "Parse permission_suggestions from hook payload",
+        "Store pending approval request with tool_use_id for correlation",
+        "Wait for user approval/rejection from frontend",
+        "Return JSON response with permissionDecision (allow/deny/ask)",
+        "Update ApprovalPanel to show actual permission request details",
+        "Handle approval timeout (default: 30s)",
+        "Test: trigger a Bash command that requires permission, verify approval panel blocks execution until user responds"
+      ],
+      "status": "completed",
+      "priority": "critical",
+      "dependencies": [11, 17],
+      "files": ["src-tauri/src/hook_server.rs", "frontend/src/hooks/useAgentEvents.ts", "frontend/src/components/ApprovalPanel.tsx", "frontend/src/store/sessions.ts"]
+    },
+    {
+      "id": 19,
+      "title": "Approval Response Correlation System",
+      "description": "Implement a system to correlate user approval responses with the original PermissionRequest hook calls. This requires storing pending requests and matching responses.",
+      "steps": [
+        "Create pending_approvals storage in hook_server.rs (Mutex<HashMap>)",
+        "Store tool_use_id, session_id, and timestamp for each pending request",
+        "Implement approval waiting mechanism (async channel or condition variable)",
+        "Match submit_approval_response to pending request by session_id",
+        "Clean up expired pending requests (timeout cleanup)",
+        "Add IPC command to get pending approvals status",
+        "Test: multiple concurrent approval requests, verify each response matches correct request"
+      ],
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [18],
+      "files": ["src-tauri/src/hook_server.rs", "src-tauri/src/commands.rs"]
+    },
+    {
+      "id": 20,
+      "title": "Update Hook Configuration Documentation",
+      "description": "Update hooks-setup.md to include PermissionRequest hook configuration. Users need to add this hook to their .claude/settings.json for approval flow to work.",
+      "steps": [
+        "Add PermissionRequest hook to example settings.json",
+        "Document the approval flow behavior",
+        "Explain how Vibe Island intercepts and processes permission requests",
+        "Add troubleshooting for approval not working",
+        "Test: fresh Claude Code setup with new hook config, verify approval works"
+      ],
+      "status": "completed",
+      "priority": "medium",
+      "dependencies": [18],
+      "files": ["docs/hooks-setup.md", "README.md"]
     }
   ]
 }

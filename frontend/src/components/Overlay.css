@@ -76,9 +76,10 @@
 
 /* Scrollable session list */
 .overlay__sessions-list {
-  max-height: 200px;
+  max-height: 220px;
   overflow-y: auto;
   overflow-x: hidden;
+  padding-bottom: 4px;
 }
 
 /* Scrollbar styling */
@@ -241,77 +242,6 @@
   to {
     transform: rotate(360deg);
   }
-}
-
-/* Demo controls */
-.overlay__demo-controls {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  animation: fadeIn 300ms ease-out;
-}
-
-.overlay__demo-header {
-  font-size: 11px;
-  color: #9ca3af;
-  text-transform: uppercase;
-  margin-bottom: 6px;
-  padding: 0 8px;
-}
-
-.overlay__demo-row {
-  display: flex;
-  gap: 8px;
-  padding: 0 4px;
-}
-
-.overlay__speed-select {
-  flex: 1;
-  padding: 4px 8px;
-  background: rgba(55, 55, 55, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  color: #e5e7eb;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 200ms ease, border-color 200ms ease;
-}
-
-.overlay__speed-select:hover:not(:disabled) {
-  background: rgba(70, 70, 70, 0.9);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.overlay__speed-select:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.overlay__demo-btn {
-  padding: 4px 12px;
-  background: rgba(59, 130, 246, 0.8);
-  border: none;
-  border-radius: 4px;
-  color: white;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 200ms ease, transform 150ms ease, box-shadow 200ms ease;
-}
-
-.overlay__demo-btn:hover {
-  background: rgba(59, 130, 246, 1);
-}
-
-.overlay__demo-btn:active {
-  transform: scale(0.96);
-}
-
-.overlay__demo-btn--stop {
-  background: rgba(239, 68, 68, 0.8);
-}
-
-.overlay__demo-btn--stop:hover {
-  background: rgba(239, 68, 68, 1);
 }
 
 /* Session state change animation */

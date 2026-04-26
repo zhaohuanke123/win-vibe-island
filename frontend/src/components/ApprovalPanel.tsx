@@ -1,17 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { DiffViewer } from "./DiffViewer";
-import type { DiffData } from "../store/sessions";
+import type { ApprovalRequest } from "../store/sessions";
 import "./ApprovalPanel.css";
-
-export interface ApprovalRequest {
-  sessionId: string;
-  sessionLabel: string;
-  action: string;
-  riskLevel: "low" | "medium" | "high";
-  timestamp: number;
-  diff?: DiffData;
-}
 
 interface ApprovalPanelProps {
   request: ApprovalRequest | null;
@@ -29,7 +20,7 @@ export function ApprovalPanel({ request, onApprovalHandled }: ApprovalPanelProps
     setStatus("approving");
     try {
       await invoke("submit_approval_response", {
-        sessionId: request.sessionId,
+        toolUseId: request.toolUseId,
         approved: true,
       });
       setStatus("approved");
@@ -49,7 +40,7 @@ export function ApprovalPanel({ request, onApprovalHandled }: ApprovalPanelProps
     setStatus("rejecting");
     try {
       await invoke("submit_approval_response", {
-        sessionId: request.sessionId,
+        toolUseId: request.toolUseId,
         approved: false,
       });
       setStatus("rejected");
@@ -110,6 +101,9 @@ export function ApprovalPanel({ request, onApprovalHandled }: ApprovalPanelProps
 
       <div className="approval-panel__session">
         <span className="approval-panel__label">{request.sessionLabel}</span>
+        {request.toolName && (
+          <span className="approval-panel__tool-name">[{request.toolName}]</span>
+        )}
       </div>
 
       <div className="approval-panel__action">
