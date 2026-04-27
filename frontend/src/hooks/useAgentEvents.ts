@@ -124,7 +124,17 @@ export function useAgentEvents() {
           ? state as AgentState
           : "idle";
 
-        updateSessionState(session_id, validState);
+        // Create session if it doesn't exist
+        const existingSession = useSessionsStore.getState().sessions.find(s => s.id === session_id);
+        if (!existingSession) {
+          addSession({
+            id: session_id,
+            label: "Claude Code",
+            state: validState,
+          });
+        } else {
+          updateSessionState(session_id, validState);
+        }
 
         // If tool info is provided, update that too
         if (tool_name) {
@@ -137,6 +147,17 @@ export function useAgentEvents() {
       // Listen for tool_use events (from PreToolUse hook)
       const unlistenToolUse = await listen<ToolUseEvent>("tool_use", (event) => {
         const { session_id, tool_name, file_path } = event.payload;
+
+        // Create session if it doesn't exist
+        const existingSession = useSessionsStore.getState().sessions.find(s => s.id === session_id);
+        if (!existingSession) {
+          addSession({
+            id: session_id,
+            label: "Claude Code",
+            state: "running",
+          });
+        }
+
         updateSessionInfo(session_id, {
           state: "running",
           toolName: tool_name,

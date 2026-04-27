@@ -4,7 +4,7 @@ use crate::pipe_server;
 use crate::process_watcher;
 use crate::window_focus::{self, FocusResult};
 use crate::hook_server;
-use tauri::{AppHandle, WebviewWindow, Size, PhysicalSize};
+use tauri::{AppHandle, WebviewWindow, Size, LogicalSize};
 
 #[tauri::command]
 pub fn create_overlay(config: OverlayConfig) -> Result<String, String> {
@@ -209,12 +209,77 @@ pub fn enable_dpi_awareness() -> Result<(), String> {
     overlay::enable_dpi_awareness()
 }
 
-/// Set the main window size (used for dynamic resize when panel expands/collapses)
+/// Set whether the main Tauri window is interactive (receives mouse clicks) or click-through.
+/// When `interactive` is false, adds WS_EX_TRANSPARENT to allow clicks to pass through.
 #[tauri::command]
-pub fn set_window_size(window: WebviewWindow, width: u32, height: u32) -> Result<(), String> {
+pub fn set_window_interactive(window: WebviewWindow, interactive: bool) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::UI::WindowsAndMessaging::*;
+        use windows::Win32::Foundation::HWND;
+
+        let hwnd_raw = window.hwnd().map_err(|e| e.to_string())?;
+        let hwnd = HWND(hwnd_raw.0 as *mut _);
+
+        unsafe {
+            let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+            let new_style = if interactive {
+                ex_style & !(WS_EX_TRANSPARENT.0 as isize)
+            } else {
+                ex_style | (WS_EX_TRANSPARENT.0 as isize)
+            };
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_style);
+        }
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (window, interactive);
+        Ok(())
+    }
+}
+
+/// Set the main window size and optionally re-center it horizontally at the top of the screen
+/// Set the window content area (inner size) to match the desired CSS pixel dimensions.
+/// Returns the actual inner size achieved after resizing.
+#[tauri::command]
+pub fn set_window_size(window: WebviewWindow, width: u32, height: u32, skip_center: Option<bool>) -> Result<(u32, u32), String> {
+    let target_logical = LogicalSize { width: width as f64, height: height as f64 };
+
+    // Get current outer/inner size difference (decorations, DPI adjustments, etc.)
+    let outer = window.outer_size().map_err(|e| e.to_string())?;
+    let inner = window.inner_size().map_err(|e| e.to_string())?;
+    let dw = outer.width as f64 - inner.width as f64;
+    let dh = outer.height as f64 - inner.height as f64;
+    let scale = window.scale_factor().unwrap_or(1.0);
+
+    // Compensate: set outer size = desired inner size + delta
+    let adjusted = LogicalSize {
+        width: target_logical.width + dw / scale,
+        height: target_logical.height + dh / scale,
+    };
     window
-        .set_size(Size::Physical(PhysicalSize { width, height }))
-        .map_err(|e| e.to_string())
+        .set_size(Size::Logical(adjusted))
+        .map_err(|e| e.to_string())?;
+
+    // Re-center horizontally at top of screen
+    if skip_center != Some(true) {
+        if let Ok(Some(monitor)) = window.primary_monitor() {
+            let screen_width = monitor.size().width as f64 / monitor.scale_factor();
+            let x = ((screen_width - width as f64) / 2.0) as i32;
+            let _ = window.set_position(tauri::Position::Logical(
+                tauri::LogicalPosition { x: x as f64, y: 8.0 }
+            ));
+        }
+    }
+
+    // Return actual inner size for frontend verification
+    let actual = window.inner_size().map_err(|e| e.to_string())?;
+    let actual_logical = LogicalSize {
+        width: actual.width as f64 / scale,
+        height: actual.height as f64 / scale,
+    };
+    Ok((actual_logical.width as u32, actual_logical.height as u32))
 }
 
 // Hook server commands

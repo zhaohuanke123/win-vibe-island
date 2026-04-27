@@ -279,6 +279,18 @@ async fn handle_pre_tool_use(
     );
 
     let session_id = get_session_id(&payload);
+    let label = get_session_label(&payload);
+
+    // Emit session_start event to ensure frontend has this session
+    // This handles the case where SessionStart hook wasn't received
+    let _ = app_handle.emit(
+        "session_start",
+        &serde_json::json!({
+            "session_id": session_id,
+            "label": label,
+            "cwd": payload.cwd,
+        }),
+    );
 
     // Emit state_change to running
     let _ = app_handle.emit(

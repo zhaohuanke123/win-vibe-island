@@ -1,29 +1,27 @@
 .overlay {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
+  width: 420px;
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 13px;
   color: #e5e7eb;
   user-select: none;
-  /* Transparent background - window shows through */
   background: transparent;
+  padding-top: 8px;
 }
 
+/* Bar is always visible at normal size */
 .overlay__bar {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
-  margin-top: 8px;
   background: rgba(17, 17, 17, 0.95);
   border-radius: 8px;
   cursor: pointer;
   backdrop-filter: blur(12px);
   transition: background 200ms ease, border-radius 200ms ease;
-  width: fit-content;
-  min-width: 200px;
-  max-width: 320px;
 }
 
 .overlay__bar:hover {
@@ -52,16 +50,22 @@
   transition: color 200ms ease;
 }
 
-/* Panel with smooth expand/collapse animation */
+/* Panel - hidden via transform when collapsed */
 .overlay__panel {
   padding: 8px;
   background: rgba(17, 17, 17, 0.95);
   border-radius: 0 0 8px 8px;
   backdrop-filter: blur(12px);
-  animation: slideDown 300ms ease-out;
   transform-origin: top center;
-  width: 100%;
-  max-width: 320px;
+  transform: scaleY(0);
+  opacity: 0;
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1), opacity 150ms ease;
+  overflow: hidden;
+}
+
+.overlay--expanded .overlay__panel {
+  transform: scaleY(1);
+  opacity: 1;
 }
 
 /* Sessions header */
@@ -98,17 +102,6 @@
 
 .overlay__sessions-list::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scaleY(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scaleY(1);
-  }
 }
 
 .overlay__session {
@@ -167,7 +160,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 150px;
+  max-width: 200px;
 }
 
 .overlay__session-time {
@@ -180,16 +173,6 @@
   padding: 12px 8px;
   text-align: center;
   color: #6b7280;
-  animation: fadeIn 300ms ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 /* Error state */
@@ -241,19 +224,5 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
-  }
-}
-
-/* Session state change animation */
-.overlay__session--state-change {
-  animation: highlight 400ms ease-out;
-}
-
-@keyframes highlight {
-  0% {
-    background: rgba(59, 130, 246, 0.4);
-  }
-  100% {
-    background: rgba(59, 130, 246, 0.2);
   }
 }

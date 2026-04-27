@@ -128,6 +128,7 @@ pub fn run() {
             commands::update_overlay_with_dpi,
             commands::enable_dpi_awareness,
             commands::set_window_size,
+            commands::set_window_interactive,
             commands::get_hook_server_status,
             commands::start_hook_server,
             commands::stop_hook_server,

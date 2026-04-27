@@ -364,6 +364,188 @@
       "priority": "medium",
       "dependencies": [18],
       "files": ["docs/hooks-setup.md", "README.md"]
+    },
+    {
+      "id": 21,
+      "title": "调研 macOS 灵动岛动画实现方案",
+      "description": "调研 macOS 灵动岛(Dynamic Island)的动画效果实现方案，包括：动画类型、过渡效果、弹性动画参数、系统级动画API。为 Vibe Island 的动画设计提供参考。",
+      "steps": [
+        "研究 macOS Dynamic Island 的动画类型（展开/收缩/状态切换）",
+        "分析弹性动画参数（阻尼、刚度、质量）",
+        "研究 Core Animation API 的弹簧动画实现",
+        "记录关键动画时长和曲线参数",
+        "整理可借鉴的动画设计模式"
+      ],
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [],
+      "files": ["docs/research-dynamic-island-animation.md"]
+    },
+    {
+      "id": 22,
+      "title": "调研 Windows 窗口管理方案",
+      "description": "调研 Windows 平台的窗口管理方案，包括：Win32 窗口层级管理、多显示器支持、窗口状态同步、与其他应用的窗口交互、点击穿透与交互模式切换的最佳实践。",
+      "steps": [
+        "研究 Win32 窗口层级 API（SetWindowPos, Z-order）",
+        "分析多显示器场景下的窗口定位策略",
+        "研究窗口状态同步机制",
+        "分析点击穿透与交互模式切换的实现方式",
+        "整理 Windows 10/11 的窗口管理最佳实践"
+      ],
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [],
+      "files": ["docs/research-windows-window-management.md"]
+    },
+    {
+      "id": 23,
+      "title": "制定 Vibe Island 实际落地技术方案",
+      "description": "基于调研结果，制定 Vibe Island 的实际落地技术方案，包括：动画系统架构、Win32 动画实现方式、性能优化策略、与现有 Tauri 架构的集成方式。",
+      "steps": [
+        "整合 macOS 动画调研结果",
+        "整合 Windows 窗口管理调研结果",
+        "设计动画系统架构（前后端分工）",
+        "确定 Win32 动画实现方式（定时器/动画API）",
+        "制定性能优化策略",
+        "设计 Tauri 集成方案",
+        "输出完整技术方案文档"
+      ],
+      "status": "completed",
+      "priority": "critical",
+      "dependencies": [21, 22],
+      "files": ["docs/animation-design.md", "docs/research-dynamic-island-animation.md", "docs/research-windows-window-management.md"]
+    },
+    {
+      "id": 24,
+      "title": "添加 Framer Motion 动画依赖",
+      "description": "在 frontend 项目中添加 Framer Motion 依赖，配置动画参数常量文件。",
+      "steps": [
+        "npm install framer-motion",
+        "创建 frontend/src/config/animation.ts 配置文件",
+        "定义弹簧动画参数（stiffness, damping, mass）",
+        "定义缓动曲线常量",
+        "定义动画时长常量",
+        "验证依赖安装成功"
+      ],
+      "status": "pending",
+      "priority": "high",
+      "dependencies": [23],
+      "files": ["frontend/package.json", "frontend/src/config/animation.ts"]
+    },
+    {
+      "id": 25,
+      "title": "实现 AnimatedOverlay 组件",
+      "description": "创建支持弹簧动画的 Overlay 组件，包含展开/收缩动画和 IPC 尺寸同步。",
+      "steps": [
+        "创建 frontend/src/components/AnimatedOverlay.tsx",
+        "实现展开/收缩动画 variants",
+        "添加 onUpdate 回调同步窗口尺寸",
+        "实现 useThrottledCallback hook（16ms 节流）",
+        "集成到现有 Overlay.tsx",
+        "测试动画流畅性"
+      ],
+      "status": "pending",
+      "priority": "high",
+      "dependencies": [24],
+      "files": ["frontend/src/components/AnimatedOverlay.tsx", "frontend/src/components/Overlay.tsx", "frontend/src/hooks/useThrottledCallback.ts"]
+    },
+    {
+      "id": 26,
+      "title": "实现后端 update_overlay_size 命令",
+      "description": "在 Rust 后端实现 update_overlay_size IPC 命令，包含节流检查和 Win32 SetWindowPos 调用。",
+      "steps": [
+        "在 commands.rs 添加 update_overlay_size 命令",
+        "实现节流检查（16ms 最小间隔）",
+        "调用 SetWindowPos 更新窗口尺寸",
+        "添加错误处理",
+        "注册命令到 Tauri builder",
+        "测试 IPC 调用正确性"
+      ],
+      "status": "pending",
+      "priority": "high",
+      "dependencies": [23],
+      "files": ["src-tauri/src/commands.rs", "src-tauri/src/lib.rs"]
+    },
+    {
+      "id": 27,
+      "title": "实现点击穿透自动切换",
+      "description": "根据 Overlay 状态自动切换点击穿透模式：紧凑状态启用穿透，展开状态禁用穿透。",
+      "steps": [
+        "扩展 set_click_through 函数",
+        "添加 update_interactive_mode 命令",
+        "前端在状态变化时调用命令",
+        "处理审批请求时的强制交互模式",
+        "测试点击穿透切换正确性"
+      ],
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": [25, 26],
+      "files": ["src-tauri/src/overlay.rs", "src-tauri/src/commands.rs", "frontend/src/components/Overlay.tsx"]
+    },
+    {
+      "id": 28,
+      "title": "实现 StatusDot 状态动画",
+      "description": "为状态指示点添加动画效果：颜色过渡动画、思考状态的脉动动画。",
+      "steps": [
+        "更新 StatusDot.tsx 使用 Framer Motion",
+        "实现颜色过渡动画",
+        "实现思考状态的 scale 脉动动画",
+        "添加动画配置参数",
+        "测试各状态动画效果"
+      ],
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": [24],
+      "files": ["frontend/src/components/StatusDot.tsx"]
+    },
+    {
+      "id": 29,
+      "title": "实现 Windows 11 圆角窗口",
+      "description": "使用 DWM API 为 Overlay 窗口设置圆角，匹配灵动岛视觉效果。",
+      "steps": [
+        "在 overlay.rs 添加 set_rounded_corners 函数",
+        "使用 DWMWA_WINDOW_CORNER_PREFERENCE 属性",
+        "在窗口创建时调用圆角设置",
+        "处理 Windows 10 兼容性（不支持时静默失败）",
+        "测试圆角显示效果"
+      ],
+      "status": "pending",
+      "priority": "low",
+      "dependencies": [26],
+      "files": ["src-tauri/src/overlay.rs"]
+    },
+    {
+      "id": 30,
+      "title": "动画性能优化",
+      "description": "优化动画性能，确保 60fps 流畅度和低 CPU 占用。",
+      "steps": [
+        "添加 CSS will-change 提示 GPU 加速",
+        "使用 transform 替代 width/height（如可行）",
+        "优化 IPC 调用频率",
+        "添加性能监控日志",
+        "测试动画帧率和 CPU 占用"
+      ],
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": [25, 26, 27, 28],
+      "files": ["frontend/src/components/AnimatedOverlay.tsx", "frontend/src/components/Overlay.tsx"]
+    },
+    {
+      "id": 31,
+      "title": "动画系统测试和文档",
+      "description": "编写动画系统测试用例，更新项目文档。",
+      "steps": [
+        "编写前端动画组件测试",
+        "编写后端 IPC 命令测试",
+        "测试多显示器场景",
+        "测试高 DPI 场景",
+        "更新 AGENTS.md 添加动画系统说明",
+        "更新 progress.txt 记录开发进度"
+      ],
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": [30],
+      "files": ["frontend/src/__tests__/", "src-tauri/src/", "AGENTS.md", "progress.txt"]
     }
   ]
 }

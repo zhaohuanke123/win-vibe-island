@@ -14,11 +14,12 @@
       {
         "label": "main",
         "title": "Vibe Island",
-        "width": 240,
-        "height": 48,
+        "width": 420,
+        "height": 60,
         "resizable": false,
         "decorations": false,
         "transparent": true,
+        "shadow": false,
         "alwaysOnTop": true,
         "visible": true
       }
@@ -43,6 +44,9 @@
       "icons/icon.ico"
     ],
     "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
       "nsis": {
         "installMode": "currentUser",
         "languages": ["en-US", "zh-CN"],
