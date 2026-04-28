@@ -15,12 +15,12 @@
 use axum::{
     extract::State,
     http::StatusCode,
-    routing::post,
+    routing::{get, post},
     Json, Router,
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
@@ -31,6 +31,43 @@ pub const HOOK_SERVER_PORT: u16 = 7878;
 
 /// Default timeout for approval requests (30 seconds)
 const APPROVAL_TIMEOUT_SECS: u64 = 30;
+
+/// Maximum number of error logs to keep
+const MAX_ERROR_LOGS: usize = 100;
+
+/// Connection state for the hook server
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum HookConnectionState {
+    /// Hook server is running and accepting connections
+    Connected,
+    /// Hook server is not running
+    Disconnected,
+    /// Hook server encountered an error
+    Error,
+}
+
+/// Error log entry
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HookErrorLog {
+    pub timestamp: i64,
+    pub error_type: String,
+    pub message: String,
+    pub details: Option<String>,
+}
+
+/// Hook server health status
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HookHealthStatus {
+    pub state: HookConnectionState,
+    pub port: u16,
+    pub last_heartbeat: Option<i64>,
+    pub uptime_secs: Option<u64>,
+    pub total_requests: u64,
+    pub error_count: u64,
+}
 
 /// Response to a permission request
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,7 +104,17 @@ struct HookServerState {
     running: Mutex<bool>,
     app_handle: AppHandle,
     /// Pending approval requests keyed by tool_use_id
-    pending_approvals: Mutex<HashMap<String, PendingApproval>>,
+    pending_approvals: Mutex<std::collections::HashMap<String, PendingApproval>>,
+    /// Server start time for uptime calculation
+    start_time: std::time::Instant,
+    /// Total number of requests received
+    total_requests: Mutex<u64>,
+    /// Error count
+    error_count: Mutex<u64>,
+    /// Error logs (most recent first)
+    error_logs: Mutex<VecDeque<HookErrorLog>>,
+    /// Last heartbeat timestamp
+    last_heartbeat: Mutex<Option<i64>>,
 }
 
 /// Generic hook payload - captures all fields from Claude Code hooks
@@ -132,7 +179,12 @@ pub fn start_hook_server(app: AppHandle) -> Result<(), String> {
     let state = Arc::new(HookServerState {
         running: Mutex::new(true),
         app_handle: app.clone(),
-        pending_approvals: Mutex::new(HashMap::new()),
+        pending_approvals: Mutex::new(std::collections::HashMap::new()),
+        start_time: std::time::Instant::now(),
+        total_requests: Mutex::new(0),
+        error_count: Mutex::new(0),
+        error_logs: Mutex::new(VecDeque::new()),
+        last_heartbeat: Mutex::new(None),
     });
     *state_guard = Some(state.clone());
     drop(state_guard);
@@ -172,8 +224,6 @@ pub fn get_hook_server_status() -> HookServerStatus {
 }
 
 async fn run_hook_server(state: Arc<HookServerState>) -> Result<(), String> {
-    let app_handle = state.app_handle.clone();
-
     let app = Router::new()
         .route("/hooks/session-start", post(handle_session_start))
         .route("/hooks/pre-tool-use", post(handle_pre_tool_use))
@@ -183,7 +233,8 @@ async fn run_hook_server(state: Arc<HookServerState>) -> Result<(), String> {
         .route("/hooks/user-prompt-submit", post(handle_user_prompt_submit))
         .route("/hooks/permission-request", post(handle_permission_request))
         .route("/hooks/ping", post(handle_ping))
-        .with_state(app_handle);
+        .route("/hooks/health", get(handle_health))
+        .with_state(state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], HOOK_SERVER_PORT));
     let listener = tokio::net::TcpListener::bind(addr)
@@ -229,9 +280,11 @@ fn get_session_label(payload: &HookPayload) -> String {
 
 /// Handle SessionStart hook - triggered when a new session begins
 async fn handle_session_start(
-    State(app_handle): State<AppHandle>,
+    State(state): State<Arc<HookServerState>>,
     Json(payload): Json<HookPayload>,
 ) -> Result<StatusCode, StatusCode> {
+    increment_request_count(&state);
+    
     log::info!(
         "SessionStart hook received: session_id={:?}, source={:?}, cwd={:?}",
         payload.session_id,
@@ -243,7 +296,7 @@ async fn handle_session_start(
     let label = get_session_label(&payload);
 
     // Emit session_start event to frontend
-    let _ = app_handle.emit(
+    let _ = state.app_handle.emit(
         "session_start",
         &serde_json::json!({
             "session_id": session_id,
@@ -256,7 +309,7 @@ async fn handle_session_start(
     );
 
     // Also emit initial state
-    let _ = app_handle.emit(
+    let _ = state.app_handle.emit(
         "state_change",
         &serde_json::json!({
             "session_id": session_id,
@@ -269,9 +322,11 @@ async fn handle_session_start(
 
 /// Handle PreToolUse hook - triggered before Claude executes any tool
 async fn handle_pre_tool_use(
-    State(app_handle): State<AppHandle>,
+    State(state): State<Arc<HookServerState>>,
     Json(payload): Json<HookPayload>,
 ) -> Result<StatusCode, StatusCode> {
+    increment_request_count(&state);
+    
     log::info!(
         "PreToolUse hook received: session_id={:?}, tool={:?}",
         payload.session_id,
@@ -283,7 +338,7 @@ async fn handle_pre_tool_use(
 
     // Emit session_start event to ensure frontend has this session
     // This handles the case where SessionStart hook wasn't received
-    let _ = app_handle.emit(
+    let _ = state.app_handle.emit(
         "session_start",
         &serde_json::json!({
             "session_id": session_id,
@@ -293,7 +348,7 @@ async fn handle_pre_tool_use(
     );
 
     // Emit state_change to running
-    let _ = app_handle.emit(
+    let _ = state.app_handle.emit(
         "state_change",
         &serde_json::json!({
             "session_id": session_id,
@@ -309,7 +364,7 @@ async fn handle_pre_tool_use(
     });
 
     if let Some(ref tool_name) = payload.tool_name {
-        let _ = app_handle.emit(
+        let _ = state.app_handle.emit(
             "tool_use",
             &serde_json::json!({
                 "session_id": session_id,
@@ -324,9 +379,11 @@ async fn handle_pre_tool_use(
 
 /// Handle PostToolUse hook - triggered after a tool completes
 async fn handle_post_tool_use(
-    State(app_handle): State<AppHandle>,
+    State(state): State<Arc<HookServerState>>,
     Json(payload): Json<HookPayload>,
 ) -> Result<StatusCode, StatusCode> {
+    increment_request_count(&state);
+    
     log::info!(
         "PostToolUse hook received: session_id={:?}, tool={:?}",
         payload.session_id,
@@ -336,7 +393,7 @@ async fn handle_post_tool_use(
     let session_id = get_session_id(&payload);
 
     // Emit tool_complete event
-    let _ = app_handle.emit(
+    let _ = state.app_handle.emit(
         "tool_complete",
         &serde_json::json!({
             "session_id": session_id,
@@ -350,9 +407,11 @@ async fn handle_post_tool_use(
 
 /// Handle Notification hook - triggered when Claude needs user attention
 async fn handle_notification(
-    State(app_handle): State<AppHandle>,
+    State(state): State<Arc<HookServerState>>,
     Json(payload): Json<HookPayload>,
 ) -> Result<StatusCode, StatusCode> {
+    increment_request_count(&state);
+    
     log::info!(
         "Notification hook received: session_id={:?}, type={:?}",
         payload.session_id,
@@ -365,7 +424,7 @@ async fn handle_notification(
     match payload.notification_type.as_deref() {
         Some("permission_prompt") => {
             // Claude is waiting for permission
-            let _ = app_handle.emit(
+            let _ = state.app_handle.emit(
                 "state_change",
                 &serde_json::json!({
                     "session_id": session_id,
@@ -376,7 +435,7 @@ async fn handle_notification(
         }
         Some("idle_prompt") => {
             // Claude is idle, waiting for input
-            let _ = app_handle.emit(
+            let _ = state.app_handle.emit(
                 "state_change",
                 &serde_json::json!({
                     "session_id": session_id,
@@ -386,7 +445,7 @@ async fn handle_notification(
         }
         _ => {
             // Generic notification
-            let _ = app_handle.emit(
+            let _ = state.app_handle.emit(
                 "notification",
                 &serde_json::json!({
                     "session_id": session_id,
@@ -402,9 +461,11 @@ async fn handle_notification(
 
 /// Handle Stop hook - triggered when Claude finishes a response
 async fn handle_stop(
-    State(app_handle): State<AppHandle>,
+    State(state): State<Arc<HookServerState>>,
     Json(payload): Json<HookPayload>,
 ) -> Result<StatusCode, StatusCode> {
+    increment_request_count(&state);
+    
     log::info!(
         "Stop hook received: session_id={:?}, reason={:?}",
         payload.session_id,
@@ -414,7 +475,7 @@ async fn handle_stop(
     let session_id = get_session_id(&payload);
 
     // Emit state_change to done/idle
-    let _ = app_handle.emit(
+    let _ = state.app_handle.emit(
         "state_change",
         &serde_json::json!({
             "session_id": session_id,
@@ -428,9 +489,11 @@ async fn handle_stop(
 
 /// Handle UserPromptSubmit hook - triggered when user submits a prompt
 async fn handle_user_prompt_submit(
-    State(app_handle): State<AppHandle>,
+    State(state): State<Arc<HookServerState>>,
     Json(payload): Json<HookPayload>,
 ) -> Result<StatusCode, StatusCode> {
+    increment_request_count(&state);
+    
     log::info!(
         "UserPromptSubmit hook received: session_id={:?}",
         payload.session_id
@@ -439,7 +502,7 @@ async fn handle_user_prompt_submit(
     let session_id = get_session_id(&payload);
 
     // Emit state_change to running
-    let _ = app_handle.emit(
+    let _ = state.app_handle.emit(
         "state_change",
         &serde_json::json!({
             "session_id": session_id,
@@ -454,9 +517,11 @@ async fn handle_user_prompt_submit(
 /// Handle PermissionRequest hook - triggered when Claude needs permission to execute a tool
 /// This handler BLOCKS until the user responds or times out.
 async fn handle_permission_request(
-    State(app_handle): State<AppHandle>,
+    State(state): State<Arc<HookServerState>>,
     Json(payload): Json<HookPayload>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
+    increment_request_count(&state);
+    
     log::info!(
         "PermissionRequest hook received: session_id={:?}, tool={:?}, tool_use_id={:?}",
         payload.session_id,
@@ -498,7 +563,7 @@ async fn handle_permission_request(
     }
 
     // Emit permission_request event to frontend
-    let _ = app_handle.emit(
+    let _ = state.app_handle.emit(
         "permission_request",
         &serde_json::json!({
             "session_id": session_id,
@@ -513,7 +578,7 @@ async fn handle_permission_request(
     );
 
     // Also emit state_change to approval
-    let _ = app_handle.emit(
+    let _ = state.app_handle.emit(
         "state_change",
         &serde_json::json!({
             "session_id": session_id,
@@ -527,7 +592,7 @@ async fn handle_permission_request(
         Ok(Ok(decision)) => {
             log::info!("Permission decision received: {:?}", decision);
             // Emit state_change back to running/idle
-            let _ = app_handle.emit(
+            let _ = state.app_handle.emit(
                 "state_change",
                 &serde_json::json!({
                     "session_id": session_id,
@@ -716,9 +781,42 @@ pub fn submit_approval_response(tool_use_id: &str, approved: bool) -> Result<(),
     }
 }
 
-/// Health check endpoint
-async fn handle_ping() -> StatusCode {
+/// Health check endpoint - updates heartbeat
+async fn handle_ping(State(state): State<Arc<HookServerState>>) -> StatusCode {
+    // Update heartbeat timestamp
+    let now = chrono_timestamp();
+    *state.last_heartbeat.lock() = Some(now);
+    
+    // Emit heartbeat event to frontend
+    let _ = state.app_handle.emit("hook_heartbeat", &serde_json::json!({
+        "timestamp": now,
+    }));
+    
     StatusCode::OK
+}
+
+/// Health status endpoint
+async fn handle_health(State(state): State<Arc<HookServerState>>) -> Json<HookHealthStatus> {
+    let running = *state.running.lock();
+    let state_type = if running {
+        HookConnectionState::Connected
+    } else {
+        HookConnectionState::Disconnected
+    };
+    
+    let uptime = state.start_time.elapsed().as_secs();
+    let total_requests = *state.total_requests.lock();
+    let error_count = *state.error_count.lock();
+    let last_heartbeat = *state.last_heartbeat.lock();
+    
+    Json(HookHealthStatus {
+        state: state_type,
+        port: HOOK_SERVER_PORT,
+        last_heartbeat,
+        uptime_secs: Some(uptime),
+        total_requests,
+        error_count,
+    })
 }
 
 /// Get current timestamp as string
@@ -727,4 +825,95 @@ fn chrono_timestamp() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0)
+}
+
+/// Add an error to the error log
+fn add_error_log(state: &HookServerState, error_type: &str, message: &str, details: Option<&str>) {
+    let log_entry = HookErrorLog {
+        timestamp: chrono_timestamp(),
+        error_type: error_type.to_string(),
+        message: message.to_string(),
+        details: details.map(|s| s.to_string()),
+    };
+    
+    // Increment error count
+    *state.error_count.lock() += 1;
+    
+    // Add to error logs (most recent first)
+    let mut logs = state.error_logs.lock();
+    logs.push_front(log_entry);
+    
+    // Keep only the most recent errors
+    if logs.len() > MAX_ERROR_LOGS {
+        logs.pop_back();
+    }
+    
+    // Emit error event to frontend
+    let _ = state.app_handle.emit("hook_error", &serde_json::json!({
+        "timestamp": log_entry.timestamp,
+        "error_type": log_entry.error_type,
+        "message": log_entry.message,
+        "details": log_entry.details,
+    }));
+}
+
+/// Increment request counter
+fn increment_request_count(state: &HookServerState) {
+    *state.total_requests.lock() += 1;
+}
+
+/// Get hook server health status (IPC command)
+pub fn get_hook_health() -> HookHealthStatus {
+    let state_guard = HOOK_SERVER_STATE.lock();
+    if let Some(ref state) = *state_guard {
+        let running = *state.running.lock();
+        let state_type = if running {
+            HookConnectionState::Connected
+        } else {
+            HookConnectionState::Disconnected
+        };
+        
+        let uptime = state.start_time.elapsed().as_secs();
+        let total_requests = *state.total_requests.lock();
+        let error_count = *state.error_count.lock();
+        let last_heartbeat = *state.last_heartbeat.lock();
+        
+        HookHealthStatus {
+            state: state_type,
+            port: HOOK_SERVER_PORT,
+            last_heartbeat,
+            uptime_secs: Some(uptime),
+            total_requests,
+            error_count,
+        }
+    } else {
+        HookHealthStatus {
+            state: HookConnectionState::Disconnected,
+            port: HOOK_SERVER_PORT,
+            last_heartbeat: None,
+            uptime_secs: None,
+            total_requests: 0,
+            error_count: 0,
+        }
+    }
+}
+
+/// Get error logs (IPC command)
+pub fn get_hook_errors(limit: usize) -> Vec<HookErrorLog> {
+    let state_guard = HOOK_SERVER_STATE.lock();
+    if let Some(ref state) = *state_guard {
+        let logs = state.error_logs.lock();
+        logs.iter().take(limit).cloned().collect()
+    } else {
+        Vec::new()
+    }
+}
+
+/// Clear error logs (IPC command)
+pub fn clear_hook_errors() {
+    let state_guard = HOOK_SERVER_STATE.lock();
+    if let Some(ref state) = *state_guard {
+        state.error_logs.lock().clear();
+        *state.error_count.lock() = 0;
+    }
 }

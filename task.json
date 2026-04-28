@@ -546,6 +546,132 @@
       "priority": "medium",
       "dependencies": [30],
       "files": ["frontend/src/__tests__/", "src-tauri/src/", "AGENTS.md", "progress.txt"]
+    },
+    {
+      "id": 32,
+      "title": "Hook Server 健康监控",
+      "description": "添加心跳检测机制，前端显示连接状态（已连接/断开/错误），自动重连逻辑，错误日志面板。",
+      "steps": [
+        "在 hook_server.rs 添加心跳检测机制",
+        "定义 HookConnectionState 枚举: connected, disconnected, error",
+        "前端添加 StatusBar 组件显示连接状态（绿/红/灰）",
+        "实现自动重连逻辑（指数退避）",
+        "添加错误日志存储和展示",
+        "添加 IPC 命令: get_hook_status, get_hook_errors",
+        "测试: 模拟 Hook server 断开，验证前端状态更新"
+      ],
+      "status": "pending",
+      "priority": "critical",
+      "dependencies": [11],
+      "files": ["src-tauri/src/hook_server.rs", "frontend/src/components/StatusBar.tsx", "frontend/src/store/hooks.ts"]
+    },
+    {
+      "id": 33,
+      "title": "Hook 事件增强",
+      "description": "新增 thinking、error、streaming 状态，添加工具执行耗时统计。",
+      "steps": [
+        "扩展 AgentState 枚举: thinking, streaming, error",
+        "解析 Claude Code hook 事件映射到新状态",
+        "添加工具执行开始时间记录",
+        "计算工具执行耗时并显示",
+        "前端状态切换添加动画过渡",
+        "更新 StatusDot 组件支持新状态颜色",
+        "测试: 验证各状态正确显示"
+      ],
+      "status": "pending",
+      "priority": "critical",
+      "dependencies": [32],
+      "files": ["src-tauri/src/hook_server.rs", "frontend/src/store/sessions.ts", "frontend/src/components/StatusDot.tsx"]
+    },
+    {
+      "id": 34,
+      "title": "Session 详情面板",
+      "description": "点击 session 展开详情，显示完整 cwd 路径、创建时间、最近活动时间、工具执行历史。",
+      "steps": [
+        "创建 SessionDetail 组件",
+        "显示 session 基本信息（cwd, 创建时间, 最近活动）",
+        "添加工具执行历史列表（最近 10 条）",
+        "显示当前工具信息（名称、输入、耗时）",
+        "添加折叠/展开动画",
+        "集成到 Overlay 组件",
+        "测试: 点击 session 验证详情面板显示"
+      ],
+      "status": "pending",
+      "priority": "high",
+      "dependencies": [33],
+      "files": ["frontend/src/components/SessionDetail.tsx", "frontend/src/components/Overlay.tsx"]
+    },
+    {
+      "id": 35,
+      "title": "Session 分组与搜索",
+      "description": "按项目（cwd）分组，按状态筛选，搜索框，排序选项。",
+      "steps": [
+        "实现按 cwd 分组逻辑",
+        "添加状态筛选下拉（running/idle/approval）",
+        "添加搜索框（按 label 搜索）",
+        "添加排序选项（最近活动/创建时间）",
+        "更新 SessionList 组件支持分组显示",
+        "添加分组折叠功能",
+        "测试: 多个项目 session 验证分组和筛选"
+      ],
+      "status": "pending",
+      "priority": "high",
+      "dependencies": [34],
+      "files": ["frontend/src/components/SessionList.tsx", "frontend/src/store/sessions.ts"]
+    },
+    {
+      "id": 36,
+      "title": "Session 持久化",
+      "description": "保存 session 历史到本地，重启后恢复 session 列表，清理过期 session。",
+      "steps": [
+        "定义 session 持久化格式",
+        "后端添加 save_sessions / load_sessions 命令",
+        "应用启动时加载历史 sessions",
+        "定期保存 sessions 到文件",
+        "实现过期清理逻辑（7 天无活动）",
+        "前端恢复 session 列表状态",
+        "测试: 重启应用验证 session 恢复"
+      ],
+      "status": "pending",
+      "priority": "high",
+      "dependencies": [35],
+      "files": ["src-tauri/src/commands.rs", "src-tauri/src/session_store.rs", "frontend/src/store/sessions.ts"]
+    },
+    {
+      "id": 37,
+      "title": "工具执行详情",
+      "description": "显示工具输入参数（可折叠）、输出摘要、执行耗时、错误信息高亮。",
+      "steps": [
+        "扩展 ToolExecution 类型包含完整信息",
+        "创建 ToolExecutionDetail 组件",
+        "显示工具输入参数（JSON 格式化）",
+        "显示工具输出摘要（截断处理）",
+        "错误信息红色高亮显示",
+        "添加折叠/展开功能",
+        "测试: 验证工具详情正确显示"
+      ],
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": [34],
+      "files": ["frontend/src/components/ToolExecutionDetail.tsx", "frontend/src/store/sessions.ts"]
+    },
+    {
+      "id": 38,
+      "title": "活动时间线",
+      "description": "记录所有工具调用，时间线视图展示，点击可查看详情，支持导出日志。",
+      "steps": [
+        "创建 ActivityTimeline 组件",
+        "按时间顺序显示工具调用",
+        "每个条目显示: 时间、工具名、状态、耗时",
+        "点击条目展开详情",
+        "添加导出日志按钮（JSON/Markdown）",
+        "添加时间范围筛选",
+        "测试: 多次工具调用验证时间线"
+      ],
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": [37],
+      "files": ["frontend/src/components/ActivityTimeline.tsx", "frontend/src/store/timeline.ts"]
     }
   ]
 }

@@ -1,0 +1,114 @@
+[     624ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:14336
+[    1162ms] TypeError: Cannot read properties of undefined (reading 'transformCallback')
+    at transformCallback (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:90:36)
+    at listen (http://localhost:5187/node_modules/.vite/deps/@tauri-apps_api_event.js?v=9ce6afa5:74:12)
+    at http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:51:20
+    at Object.react_stack_bottom_frame (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:12903:13)
+    at runWithFiberInDEV (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:850:66)
+    at commitHookEffectListMount (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:6616:153)
+    at commitHookPassiveMountEffects (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:6651:55)
+    at reconnectPassiveEffects (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:7700:6)
+    at recursivelyTraverseReconnectPassiveEffects (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:7687:5)
+    at reconnectPassiveEffects (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:7699:6)
+[    1171ms] TypeError: Cannot read properties of undefined (reading 'transformCallback')
+    at transformCallback (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:90:36)
+    at listen (http://localhost:5187/node_modules/.vite/deps/@tauri-apps_api_event.js?v=9ce6afa5:74:12)
+    at setupListeners (http://localhost:5187/src/hooks/useAgentEvents.ts?t=1777177660193:10:32)
+    at http://localhost:5187/src/hooks/useAgentEvents.ts?t=1777177660193:157:3
+    at Object.react_stack_bottom_frame (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:12903:13)
+    at runWithFiberInDEV (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:850:66)
+    at commitHookEffectListMount (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:6616:153)
+    at commitHookPassiveMountEffects (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:6651:55)
+    at commitPassiveMountOnFiber (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:7617:22)
+    at recursivelyTraversePassiveMountEffects (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:7605:5)
+[    1293ms] TypeError: Cannot read properties of undefined (reading 'transformCallback')
+    at transformCallback (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:90:36)
+    at listen (http://localhost:5187/node_modules/.vite/deps/@tauri-apps_api_event.js?v=9ce6afa5:74:12)
+    at http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:51:20
+    at Object.react_stack_bottom_frame (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:12903:13)
+    at runWithFiberInDEV (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:850:66)
+    at commitHookEffectListMount (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:6616:153)
+    at commitHookPassiveMountEffects (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:6651:55)
+    at commitPassiveMountOnFiber (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:7617:22)
+    at recursivelyTraversePassiveMountEffects (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:7605:5)
+    at commitPassiveMountOnFiber (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:7616:6)
+[    1307ms] TypeError: Cannot read properties of undefined (reading 'transformCallback')
+    at transformCallback (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:90:36)
+    at listen (http://localhost:5187/node_modules/.vite/deps/@tauri-apps_api_event.js?v=9ce6afa5:74:12)
+    at setupListeners (http://localhost:5187/src/hooks/useAgentEvents.ts?t=1777177660193:10:32)
+    at http://localhost:5187/src/hooks/useAgentEvents.ts?t=1777177660193:157:3
+    at Object.react_stack_bottom_frame (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:12903:13)
+    at runWithFiberInDEV (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:850:66)
+    at commitHookEffectListMount (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:6616:153)
+    at commitHookPassiveMountEffects (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:6651:55)
+    at reconnectPassiveEffects (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:7700:6)
+    at recursivelyTraverseReconnectPassiveEffects (http://localhost:5187/node_modules/.vite/deps/react-dom_client.js?v=9ce6afa5:7687:5)
+[     858ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[    9186ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[    9865ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   10265ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   11385ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   11878ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   12598ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   12986ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   13491ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   13825ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   14251ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   14585ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   15051ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   15358ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   15878ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   16198ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   16544ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   16825ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   17251ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   17584ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   17917ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   18238ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509
+[   18504ms] [ERROR] Failed to resize window: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:5187/node_modules/.vite/deps/core-CiOu3334.js?v=9ce6afa5:204:36)
+    at resize (http://localhost:5187/src/components/Overlay.tsx?t=1777197168260:116:11) @ http://localhost:5187/@vite/client:509

@@ -4,6 +4,7 @@
 - **Started:** 2026-04-25
 - **Current Phase:** Phase 2 - Real Integration
 - **Completed Tasks:** 10 / 15
+- **Active Task:** Task 32 - Hook Server 健康监控 (Phase 1 of CC Experience Improvement)
 
 ---
 
@@ -287,5 +288,57 @@
 [Task 1] → [Task 2] → [Task 3 + 5] → [Task 4 + 6 + 7] → [Task 8 + 9] → [Task 10]
   骨架        Mock        通道+UI         后端功能           SDK           收尾
 ```
+
+---
+
+## 2026-04-28: Task 32 - Hook Server 健康监控
+
+### 目标
+实现 Hook Server 的健康监控功能，让前端能够实时显示连接状态和服务器统计信息。
+
+### 完成的工作
+
+#### 1. 后端 (hook_server.rs)
+- 新增 `HookHealthStatus` 结构体，包含：
+  - `status`: 服务器状态 ("running" | "stopped")
+  - `uptime_secs`: 运行时长（秒）
+  - `request_count`: 总请求数
+  - `pending_approvals`: 待处理的审批请求数
+  - `last_heartbeat`: 最后心跳时间戳
+
+- 新增 `/hooks/health` GET 端点，返回完整健康状态
+
+- 更新 `HookServerState` 结构体：
+  - 添加 `start_time`: 服务器启动时间
+  - 添加 `request_count`: 请求计数器
+  - 添加 `last_heartbeat`: 最后心跳时间
+
+- 新增辅助函数：
+  - `increment_request_count()`: 增加请求计数
+  - `update_heartbeat()`: 更新心跳时间
+
+- 更新所有 handler 函数：
+  - 使用新的 `State(state): State<Arc<HookServerState>>` 参数
+  - 在每个 handler 开头调用 `increment_request_count()`
+  - 使用 `state.app_handle.emit()` 发送事件
+
+#### 2. 前端 (HookStatus.tsx)
+- 更新 `HookServerStatus` 接口，添加新字段：
+  - `requestCount`: 总请求数
+  - `uptime`: 运行时长
+  - `pendingApprovals`: 待处理审批数
+
+- 更新 `HookStatus` 组件：
+  - 使用 `/hooks/health` 端点替代 `/hooks/ping`
+  - 显示实时统计信息（请求数、待审批数、运行时长）
+  - 添加 `formatUptime()` 函数格式化运行时长
+
+- 更新 `HookStatus.css`：
+  - 添加 `.hook-status__stats` 样式
+
+### 待完成
+- [ ] 在 Windows 环境编译测试
+- [ ] 验证前端显示效果
+- [ ] 实现 Task 33: Session 详情/分组/搜索
 
 ---
