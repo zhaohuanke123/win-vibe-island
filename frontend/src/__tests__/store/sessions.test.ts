@@ -2,6 +2,32 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { useSessionsStore } from '../../store/sessions'
 import type { Session, ToolExecution, ApprovalRequest } from '../../store/sessions'
 
+// Helper to create a valid Session
+function createSession(overrides: Partial<Session> = {}): Session {
+  return {
+    id: 'test-1',
+    label: 'Test',
+    cwd: '',
+    state: 'idle',
+    toolHistory: [],
+    createdAt: Date.now(),
+    lastActivity: Date.now(),
+    ...overrides,
+  }
+}
+
+// Helper to create a valid ApprovalRequest
+function createApprovalRequest(overrides: Partial<ApprovalRequest> = {}): ApprovalRequest {
+  return {
+    toolUseId: 'tool-1',
+    sessionId: 'session-1',
+    sessionLabel: 'Test Session',
+    approvalType: 'permission',
+    timestamp: Date.now(),
+    ...overrides,
+  }
+}
+
 describe('SessionsStore', () => {
   beforeEach(() => {
     // Reset store state before each test
@@ -22,18 +48,12 @@ describe('SessionsStore', () => {
       const store = useSessionsStore.getState()
       const now = Date.now()
 
-      store.addSession({
-        id: 'test-1',
-        label: 'Test Project',
-        cwd: '/path/to/project',
-        state: 'idle',
-        toolHistory: [],
-      })
+      store.addSession(createSession())
 
       const sessions = useSessionsStore.getState().sessions
       expect(sessions).toHaveLength(1)
       expect(sessions[0].id).toBe('test-1')
-      expect(sessions[0].label).toBe('Test Project')
+      expect(sessions[0].label).toBe('Test')
       expect(sessions[0].createdAt).toBeGreaterThanOrEqual(now)
       expect(sessions[0].lastActivity).toBeGreaterThanOrEqual(now)
       expect(sessions[0].toolHistory).toEqual([])
@@ -43,15 +63,10 @@ describe('SessionsStore', () => {
       const store = useSessionsStore.getState()
       const timestamp = 1715000000000
 
-      store.addSession({
-        id: 'test-1',
-        label: 'Test',
-        cwd: '',
-        state: 'idle',
-        toolHistory: [],
+      store.addSession(createSession({
         createdAt: timestamp,
         lastActivity: timestamp,
-      })
+      }))
 
       const sessions = useSessionsStore.getState().sessions
       expect(sessions[0].createdAt).toBe(timestamp)
@@ -61,12 +76,7 @@ describe('SessionsStore', () => {
     it('should default cwd to empty string', () => {
       const store = useSessionsStore.getState()
 
-      store.addSession({
-        id: 'test-1',
-        label: 'Test',
-        state: 'idle',
-        toolHistory: [],
-      } as Session)
+      store.addSession(createSession({ cwd: undefined } as unknown as Session))
 
       const sessions = useSessionsStore.getState().sessions
       expect(sessions[0].cwd).toBe('')
@@ -77,8 +87,8 @@ describe('SessionsStore', () => {
     it('should remove a session by id', () => {
       const store = useSessionsStore.getState()
 
-      store.addSession({ id: 'test-1', label: 'Test 1', cwd: '', state: 'idle', toolHistory: [] })
-      store.addSession({ id: 'test-2', label: 'Test 2', cwd: '', state: 'idle', toolHistory: [] })
+      store.addSession(createSession({ id: 'test-1', label: 'Test 1' }))
+      store.addSession(createSession({ id: 'test-2', label: 'Test 2' }))
 
       store.removeSession('test-1')
 
@@ -90,7 +100,7 @@ describe('SessionsStore', () => {
     it('should clear activeSessionId if removed session was active', () => {
       const store = useSessionsStore.getState()
 
-      store.addSession({ id: 'test-1', label: 'Test', cwd: '', state: 'idle', toolHistory: [] })
+      store.addSession(createSession())
       store.setActiveSession('test-1')
 
       store.removeSession('test-1')
@@ -101,8 +111,8 @@ describe('SessionsStore', () => {
     it('should not clear activeSessionId if different session was removed', () => {
       const store = useSessionsStore.getState()
 
-      store.addSession({ id: 'test-1', label: 'Test 1', cwd: '', state: 'idle', toolHistory: [] })
-      store.addSession({ id: 'test-2', label: 'Test 2', cwd: '', state: 'idle', toolHistory: [] })
+      store.addSession(createSession({ id: 'test-1', label: 'Test 1' }))
+      store.addSession(createSession({ id: 'test-2', label: 'Test 2' }))
       store.setActiveSession('test-1')
 
       store.removeSession('test-2')
@@ -115,7 +125,7 @@ describe('SessionsStore', () => {
     it('should update session state and lastActivity', () => {
       const store = useSessionsStore.getState()
 
-      store.addSession({ id: 'test-1', label: 'Test', cwd: '', state: 'idle', toolHistory: [] })
+      store.addSession(createSession())
       const beforeUpdate = useSessionsStore.getState().sessions[0].lastActivity
 
       // Small delay to ensure timestamp difference
@@ -139,7 +149,7 @@ describe('SessionsStore', () => {
     it('should update session info and lastActivity', () => {
       const store = useSessionsStore.getState()
 
-      store.addSession({ id: 'test-1', label: 'Test', cwd: '', state: 'idle', toolHistory: [] })
+      store.addSession(createSession())
 
       store.updateSessionInfo('test-1', {
         label: 'Updated Label',
@@ -156,7 +166,7 @@ describe('SessionsStore', () => {
     it('should update state through updateSessionInfo', () => {
       const store = useSessionsStore.getState()
 
-      store.addSession({ id: 'test-1', label: 'Test', cwd: '', state: 'idle', toolHistory: [] })
+      store.addSession(createSession())
 
       store.updateSessionInfo('test-1', { state: 'thinking' })
 
@@ -186,14 +196,10 @@ describe('SessionsStore', () => {
   describe('approvalRequest', () => {
     it('should set approval request', () => {
       const store = useSessionsStore.getState()
-      const request: ApprovalRequest = {
-        toolUseId: 'tool-1',
-        sessionId: 'session-1',
-        sessionLabel: 'Test Session',
+      const request = createApprovalRequest({
         action: 'Execute command',
         riskLevel: 'medium',
-        timestamp: Date.now(),
-      }
+      })
 
       store.setApprovalRequest(request)
 
@@ -203,14 +209,10 @@ describe('SessionsStore', () => {
     it('should clear approval request', () => {
       const store = useSessionsStore.getState()
 
-      store.setApprovalRequest({
-        toolUseId: 'tool-1',
-        sessionId: 'session-1',
-        sessionLabel: 'Test',
+      store.setApprovalRequest(createApprovalRequest({
         action: 'Test',
         riskLevel: 'low',
-        timestamp: Date.now(),
-      })
+      }))
 
       store.clearApprovalRequest()
 
@@ -276,7 +278,7 @@ describe('SessionsStore', () => {
     it('should add tool execution to session', () => {
       const store = useSessionsStore.getState()
 
-      store.addSession({ id: 'test-1', label: 'Test', cwd: '', state: 'idle', toolHistory: [] })
+      store.addSession(createSession())
 
       const execution: ToolExecution = {
         id: 'tool-1',
@@ -296,7 +298,7 @@ describe('SessionsStore', () => {
     it('should limit tool history to 20 entries', () => {
       const store = useSessionsStore.getState()
 
-      store.addSession({ id: 'test-1', label: 'Test', cwd: '', state: 'idle', toolHistory: [] })
+      store.addSession(createSession())
 
       // Add 25 executions
       for (let i = 0; i < 25; i++) {
@@ -316,7 +318,7 @@ describe('SessionsStore', () => {
     it('should update tool execution', () => {
       const store = useSessionsStore.getState()
 
-      store.addSession({ id: 'test-1', label: 'Test', cwd: '', state: 'idle', toolHistory: [] })
+      store.addSession(createSession())
 
       store.addToolExecution('test-1', {
         id: 'tool-1',

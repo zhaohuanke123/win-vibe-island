@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { vi } from 'vitest'
 
 // Mock Tauri API
 const mockListen = vi.fn(() => Promise.resolve(() => {}))

@@ -3,17 +3,14 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  width: 420px;
-  max-width: 420px;
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 13px;
   color: #e5e7eb;
   user-select: none;
   background: transparent;
-  padding-top: 8px;
   overflow: hidden;
-  /* GPU acceleration hints for smooth animations */
-  will-change: transform;
+  transform-origin: top center;
+  will-change: width, height, border-radius, transform;
   transform: translateZ(0);
 }
 
@@ -25,13 +22,28 @@
 
 .overlay__shell {
   width: 100%;
+  height: 100%;
   max-width: 100%;
   min-width: 0;
-  border-radius: 8px;
+  border-radius: inherit;
   overflow: hidden;
-  clip-path: inset(0 round 8px);
+  overflow: clip;
   background: rgba(17, 17, 17, 0.95);
   backdrop-filter: blur(12px);
+  contain: paint;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  mask-image: radial-gradient(white, black);
+  display: flex;
+  flex-direction: column;
+}
+
+.overlay--compact .overlay__shell {
+  border-radius: 26px;
+}
+
+.overlay--expanded .overlay__shell {
+  border-radius: 18px;
 }
 
 /* Bar is always visible at normal size */
@@ -40,10 +52,12 @@
   align-items: center;
   gap: 8px;
   width: 100%;
+  height: 52px;
   max-width: 100%;
-  padding: 8px 14px;
-  background: rgba(17, 17, 17, 0.95);
-  border-radius: 8px;
+  flex: 0 0 52px;
+  padding: 0 14px;
+  background: transparent;
+  border-radius: inherit;
   cursor: pointer;
   backdrop-filter: blur(12px);
   transition: background 200ms ease, border-radius 200ms ease;
@@ -56,7 +70,15 @@
 }
 
 .overlay--expanded .overlay__bar {
-  border-radius: 6px 6px 0 0;
+  border-radius: 18px 18px 0 0;
+}
+
+.overlay--expanded .overlay__bar:hover {
+  background: rgba(30, 30, 30, 0.55);
+}
+
+.overlay--compact .overlay__state {
+  display: none;
 }
 
 .overlay__label {
@@ -86,27 +108,19 @@
   white-space: nowrap;
 }
 
-/* Panel - animated with max-height */
+/* Panel content enters through Framer Motion; window size is animated by AnimatedOverlay. */
 .overlay__panel {
   width: 100%;
+  height: calc(100% - 52px);
   max-width: 100%;
   min-width: 0;
   padding: 8px;
-  background: rgba(17, 17, 17, 0.95);
-  border-radius: 0 0 8px 8px;
+  background: transparent;
+  border-radius: 0 0 18px 18px;
   backdrop-filter: blur(12px);
-  max-height: 0;
-  opacity: 0;
   overflow: hidden;
-  /* GPU acceleration for expand/collapse animation */
-  will-change: max-height, opacity;
-  transition: max-height 200ms cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 150ms ease;
-}
-
-.overlay--expanded .overlay__panel {
-  max-height: 520px;
-  opacity: 1;
+  transform-origin: top center;
+  will-change: transform, opacity;
 }
 
 /* Sessions header */

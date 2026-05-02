@@ -1,5 +1,7 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { AnimatePresence, motion } from "framer-motion";
+import { AnimatedOverlay } from "./AnimatedOverlay";
 import { StatusDot } from "./StatusDot";
 import { ApprovalPanel } from "./ApprovalPanel";
 import { HookStatus } from "./HookStatus";
@@ -8,11 +10,6 @@ import type { Session } from "../store/sessions";
 import "./Overlay.css";
 
 type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored";
-
-// Window dimensions
-const BAR_HEIGHT = 60;
-const EXPANDED_HEIGHT = 600;
-const WINDOW_WIDTH = 420;
 
 function formatTime(timestamp: number): string {
   const now = Date.now();
@@ -28,7 +25,7 @@ export function Overlay() {
   const [expanded, setExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const expandedRef = useRef(false);
+  const hadApprovalRequestRef = useRef(false);
 
   // Note: approval_request events are handled by useAgentEvents hook
   // which sets the approvalRequest in the store
@@ -36,16 +33,24 @@ export function Overlay() {
   // Auto-expand when approval request comes in
   useEffect(() => {
     if (approvalRequest) {
-      setExpanded(true);
+      hadApprovalRequestRef.current = true;
+      const frame = window.requestAnimationFrame(() => setExpanded(true));
+      return () => window.cancelAnimationFrame(frame);
+    }
+
+    if (hadApprovalRequestRef.current) {
+      hadApprovalRequestRef.current = false;
+      setExpanded(false);
     }
   }, [approvalRequest]);
 
-  // Update click-through mode based on expanded state
+  // Keep the capsule clickable in compact mode. The smaller compact footprint
+  // replaces the old click-through behavior.
   useEffect(() => {
-    invoke("set_window_interactive", { interactive: expanded }).catch((e) => {
+    invoke("set_window_interactive", { interactive: true }).catch((e) => {
       console.error("Failed to set window interactive mode:", e);
     });
-  }, [expanded]);
+  }, []);
 
   const handleSessionClick = useCallback(async (session: Session) => {
     setActiveSession(session.id);
@@ -70,26 +75,15 @@ export function Overlay() {
     }
   }, [sessions, activeSessionId, setActiveSession]);
 
-  // Initialize window at bar height (collapsed state)
-  useEffect(() => {
-    invoke("set_window_size", { width: WINDOW_WIDTH, height: BAR_HEIGHT, skipCenter: false });
-  }, []);
-
-  // Resize window on expand/collapse
-  useEffect(() => {
-    if (expandedRef.current === expanded) return;
-    expandedRef.current = expanded;
-
-    const height = expanded ? EXPANDED_HEIGHT : BAR_HEIGHT;
-    invoke("set_window_size", { width: WINDOW_WIDTH, height, skipCenter: false });
-  }, [expanded]);
-
-  const handleApprovalHandled = () => { clearApprovalRequest(); };
+  const handleApprovalHandled = () => {
+    clearApprovalRequest();
+    setExpanded(false);
+  };
 
   const clearError = useCallback(() => { setError(null); }, []);
 
   return (
-    <div className={`overlay ${expanded ? "overlay--expanded" : ""}`}>
+    <AnimatedOverlay className={`overlay ${expanded ? "overlay--expanded" : "overlay--compact"}`} isExpanded={expanded}>
       <div className="overlay__shell">
         <div className="overlay__bar" onClick={() => setExpanded(!expanded)}>
           {isLoading && <span className="overlay__spinner" />}
@@ -105,46 +99,70 @@ export function Overlay() {
           <HookStatus />
         </div>
 
-        <div className="overlay__panel">
-          {error && (
-            <div className="overlay__error" onClick={clearError}>
-              <span className="overlay__error-icon">!</span>
-              <span>{error}</span>
-            </div>
-          )}
-          {approvalRequest && (
-            <ApprovalPanel key={approvalRequest.timestamp} request={approvalRequest} onApprovalHandled={handleApprovalHandled} />
-          )}
-          {sessions.length > 0 && (
-            <div className="overlay__sessions-header">Sessions ({sessions.length})</div>
-          )}
-          <div className="overlay__sessions-list">
-            {sessions.map((s) => (
-              <div key={s.id}
-                className={`overlay__session ${s.id === activeSessionId ? "overlay__session--active" : ""}`}
-                onClick={() => handleSessionClick(s)}
-              >
-                <div className="overlay__session-row">
-                  <StatusDot state={s.state} />
-                  <span className="overlay__session-label" title={s.label}>{s.label}</span>
+        <AnimatePresence initial={false}>
+          {expanded && (
+            <motion.div
+              className="overlay__panel"
+              initial={{ opacity: 0, y: -10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.985 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+            >
+              {error && (
+                <div className="overlay__error" onClick={clearError}>
+                  <span className="overlay__error-icon">!</span>
+                  <span>{error}</span>
                 </div>
-                {s.currentTool && (
-                  <div className="overlay__session-info">
-                    <span className="overlay__session-tool">{s.currentTool.name}</span>
-                    {(s.currentTool.input?.file_path as string) && <span className="overlay__session-file">{(s.currentTool.input.file_path as string).split("/").pop()}</span>}
-                  </div>
+              )}
+              {approvalRequest && (
+                <ApprovalPanel key={approvalRequest.timestamp} request={approvalRequest} onApprovalHandled={handleApprovalHandled} />
+              )}
+              {sessions.length > 0 && (
+                <div className="overlay__sessions-header">Sessions ({sessions.length})</div>
+              )}
+              <motion.div
+                className="overlay__sessions-list"
+                initial="hidden"
+                animate="show"
+                variants={{
+                  hidden: {},
+                  show: { transition: { staggerChildren: 0.035 } },
+                }}
+              >
+                {sessions.map((s) => (
+                  <motion.div
+                    key={s.id}
+                    className={`overlay__session ${s.id === activeSessionId ? "overlay__session--active" : ""}`}
+                    onClick={() => handleSessionClick(s)}
+                    variants={{
+                      hidden: { opacity: 0, y: 6 },
+                      show: { opacity: 1, y: 0 },
+                    }}
+                    transition={{ duration: 0.16, ease: "easeOut" }}
+                  >
+                    <div className="overlay__session-row">
+                      <StatusDot state={s.state} />
+                      <span className="overlay__session-label" title={s.label}>{s.label}</span>
+                    </div>
+                    {s.currentTool && (
+                      <div className="overlay__session-info">
+                        <span className="overlay__session-tool">{s.currentTool.name}</span>
+                        {(s.currentTool.input?.file_path as string) && <span className="overlay__session-file">{(s.currentTool.input.file_path as string).split("/").pop()}</span>}
+                      </div>
+                    )}
+                    {s.lastActivity && (
+                      <div className="overlay__session-time">{formatTime(s.lastActivity)}</div>
+                    )}
+                  </motion.div>
+                ))}
+                {sessions.length === 0 && !error && (
+                  <div className="overlay__empty">Waiting for agent sessions...</div>
                 )}
-                {s.lastActivity && (
-                  <div className="overlay__session-time">{formatTime(s.lastActivity)}</div>
-                )}
-              </div>
-            ))}
-            {sessions.length === 0 && !error && (
-              <div className="overlay__empty">Waiting for agent sessions...</div>
-            )}
-          </div>
-        </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    </div>
+    </AnimatedOverlay>
   );
 }

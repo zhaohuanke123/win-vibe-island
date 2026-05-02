@@ -10,8 +10,42 @@ and any relevant notes.
 
 - **Started:** 2026-04-25
 - **Current Phase:** Phase 2 - Real Integration
-- **Completed Tasks:** 34 / 40 (plus 1 removed)
-- **Active Task:** None (动画系统完成)
+- **Completed Tasks:** 35 / 40 (plus 1 removed)
+- **Active Task:** None
+
+---
+
+## [2026-05-02] - Task #41: 明显弹性灵动岛动画
+
+### What was done:
+- Follow-up bug record before source edits:
+  - Bottom corners render as flat/straight edges in compact and expanded states.
+  - Approval-triggered expansion can appear without visible spring animation.
+  - Approval Approve/Reject clears the request but leaves the overlay expanded.
+- Documentation Gate completed before source edits.
+- Added Task #41 to `task.json`.
+- Updated `docs/animation-design.md` with compact capsule dimensions, expanded dimensions, spring parameters, centered window resize behavior, and compact clickable interaction.
+- Rebuilt `AnimatedOverlay` as the real Framer Motion shell for width, height, border radius, and subtle scale animation.
+- Integrated `AnimatedOverlay` into `Overlay.tsx`, removed expand/collapse `set_window_size` jumps, and kept the compact capsule clickable.
+- Replaced CSS `max-height` as the primary panel animation with Framer Motion content entry/exit and session item staggering.
+- Extended `update_overlay_size` with `anchorCenter` support so window width changes around the current center point.
+- Fixed follow-up issues by adding motion `clipPath` rounded clipping, deferring approval auto-expand by one animation frame, and collapsing the overlay when approval is cleared.
+- Fixed remaining flat-bottom rendering by moving the black surface to `overlay__shell`, making bar/panel transparent, and adding WebView2-friendly paint containment and mask clipping.
+
+### Documentation:
+- Requirement ref: docs/animation-design.md#三动画参数配置
+- Design ref: docs/animation-design.md#33-明显弹性灵动岛尺寸
+- Docs updated: yes
+
+### Testing:
+- `src-tauri`: `cargo check` passed.
+- `frontend`: `.\\node_modules\\.bin\\vite build` passed.
+- `frontend`: targeted TypeScript check for `AnimatedOverlay.tsx`, `Overlay.tsx`, and `animation.ts` passed with `tsc --ignoreConfig`.
+- `frontend`: `npm run build` is still blocked by existing unrelated test TypeScript errors (`vi` globals, unused test imports, and Session fixtures missing `createdAt`/`lastActivity`).
+
+### Notes:
+- User chose real window width/height spring animation and compact capsule click interaction.
+- Existing untracked `docs/states-and-flows.md` was present before this task and is left untouched.
 
 ---
 
@@ -528,9 +562,6 @@ and any relevant notes.
 
 ## Pending Tasks
 
-- Task 29: Windows 11 圆角窗口
-- Task 30: 动画性能优化
-- Task 31: 动画系统测试和文档
 - Task 34: Session 详情面板
 - Task 35: Session 分组与搜索
 - Task 36: Session 持久化

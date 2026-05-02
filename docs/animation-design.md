@@ -11,7 +11,7 @@
 - **灵动岛风格**：借鉴 macOS Dynamic Island 的动画美学
 - **流畅自然**：使用弹簧物理动画，避免机械感
 - **响应迅速**：动画时长控制在 200-500ms
-- **不干扰工作**：紧凑状态下点击穿透，展开时允许交互
+- **不干扰工作**：紧凑状态收成小胶囊并保持可点击，展开时显示完整交互面板
 
 ### 1.2 技术目标
 
@@ -129,6 +129,40 @@ export const EASING = {
 } as const
 ```
 
+### 3.3 明显弹性灵动岛尺寸
+
+Overlay 主动画由 Framer Motion 驱动，并通过 `update_overlay_size` 同步 Tauri 窗口真实宽高。紧凑态不再保持 420px 固定宽度，而是收成可点击小胶囊；展开态从窗口中心向两侧弹性扩展。
+
+| 状态 | 宽度 | 高度 | 圆角 | 行为 |
+|------|------|------|------|------|
+| compact | 236px | 52px | 26px | 仅显示状态点、会话标签和 Hook 小点，可点击展开 |
+| expanded | 420px | 600px | 18px | 显示审批面板和 session 列表 |
+
+弹簧参数：
+
+```typescript
+export const SPRING_CONFIG = {
+  expand: {
+    stiffness: 300,
+    damping: 22,
+    mass: 0.9,
+  },
+  collapse: {
+    stiffness: 380,
+    damping: 26,
+    mass: 0.85,
+  },
+} as const
+```
+
+窗口同步要求：
+
+- 动画帧调用 `update_overlay_size({ width, height, anchorCenter: true })`
+- 后端以当前窗口中心点为锚点重新计算 X 坐标，避免从左侧单边展开或收缩
+- 胶囊态保持主窗口可交互，不启用点击穿透
+- 外层容器同时动画 `borderRadius` 和 `clipPath`，实际黑色 surface 只由 shell 绘制；bar/panel 保持透明，避免子层背景覆盖父层底部圆角
+- 审批请求到达时延后一帧触发展开，保证从胶囊态到展开态有可见 spring 动画；审批处理或超时清理后自动收回胶囊
+
 ## 四、前端实现
 
 ### 4.1 动画组件
@@ -150,14 +184,14 @@ export function AnimatedOverlay({ isExpanded, children }: AnimatedOverlayProps) 
   // 尺寸配置
   const variants = {
     compact: {
-      width: 120,
-      height: 36,
-      borderRadius: 18,
+      width: 236,
+      height: 52,
+      borderRadius: 26,
     },
     expanded: {
-      width: 350,
-      height: 200,
-      borderRadius: 24,
+      width: 420,
+      height: 600,
+      borderRadius: 18,
     },
   }
 
@@ -168,6 +202,7 @@ export function AnimatedOverlay({ isExpanded, children }: AnimatedOverlayProps) 
         await invoke('update_overlay_size', {
           width: Math.round(latest.width),
           height: Math.round(latest.height),
+          anchorCenter: true,
         })
       } catch (error) {
         console.error('Failed to update overlay size:', error)
@@ -186,9 +221,6 @@ export function AnimatedOverlay({ isExpanded, children }: AnimatedOverlayProps) 
       }}
       onUpdate={handleUpdate}
       style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
         overflow: 'hidden',
       }}
     >
@@ -265,6 +297,29 @@ export function StatusDot({ status }: StatusDotProps) {
 }
 ```
 
+### 4.4 内容入场动画
+
+展开时使用 `AnimatePresence` 让面板内容执行 `opacity + y + scale` 入场，session 列表采用轻微 stagger。收缩时先隐藏面板内容，再让窗口回到胶囊尺寸，避免内容在小胶囊中挤压。
+
+### 4.5 Compact 状态布局规范
+
+紧凑态胶囊内容必须自适应垂直居中，不依赖固定像素值。
+
+**布局要求**：
+- `#root` 容器使用 `align-items: center` 让内容垂直居中
+- `overlay__shell` 使用 `display: flex; flex-direction: column;` 让子元素自适应排列
+- `overlay__bar` 内容通过 `align-items: center` 在 bar 高度内垂直居中
+
+**CSS 实现**：
+
+```css
+#root {
+  align-items: center;
+}
+```
+
+这样无论窗口高度如何变化，内容都会自适应居中。
+
 ## 五、后端实现
 
 ### 5.1 尺寸更新命令
@@ -282,7 +337,8 @@ const MIN_UPDATE_INTERVAL: Duration = Duration::from_millis(16);
 pub fn update_overlay_size(
     width: u32,
     height: u32,
-    app: tauri::AppHandle,
+    anchor_center: Option<bool>,
+    window: tauri::WebviewWindow,
 ) -> Result<(), String> {
     // 节流检查
     {
@@ -295,25 +351,30 @@ pub fn update_overlay_size(
         *last = Some(Instant::now());
     }
 
-    // 获取 overlay 窗口句柄
-    let hwnd = get_overlay_hwnd(&app)?;
+    let target_x = if anchor_center.unwrap_or(false) {
+        // Resize around the current window center so the island expands from the middle.
+        let position = window.outer_position().map_err(|e| e.to_string())?;
+        let current = window.outer_size().map_err(|e| e.to_string())?;
+        let scale = window.scale_factor().unwrap_or(1.0);
+        let current_width = current.width as f64 / scale;
+        let center_x = position.x as f64 / scale + current_width / 2.0;
+        Some(center_x - width as f64 / 2.0)
+    } else {
+        None
+    };
 
-    // 更新窗口尺寸
-    #[cfg(target_os = "windows")]
-    {
-        use windows::Win32::UI::WindowsAndMessaging::{
-            SetWindowPos, HWND, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOZORDER
-        };
+    window
+        .set_size(tauri::Size::Logical(tauri::LogicalSize {
+            width: width as f64,
+            height: height as f64,
+        }))
+        .map_err(|e| e.to_string())?;
 
-        unsafe {
-            SetWindowPos(
-                hwnd,
-                HWND(0),
-                0, 0,
-                width as i32, height as i32,
-                SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOZORDER,
-            );
-        }
+    if let Some(x) = target_x {
+        window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
+            x,
+            y: 8.0,
+        })).map_err(|e| e.to_string())?;
     }
 
     Ok(())

@@ -7,6 +7,40 @@ use crate::process_watcher;
 use crate::window_focus::{self, FocusResult};
 use tauri::{AppHandle, LogicalSize, Size, WebviewWindow};
 
+#[cfg(target_os = "windows")]
+fn apply_window_round_region(window: &WebviewWindow, radius: u32) -> Result<(), String> {
+    use windows::Win32::Foundation::{BOOL, HWND};
+    use windows::Win32::Graphics::Gdi::{CreateRoundRectRgn, DeleteObject, SetWindowRgn};
+
+    let hwnd_raw = window.hwnd().map_err(|e| e.to_string())?;
+    let hwnd = HWND(hwnd_raw.0 as *mut _);
+    let size = window.inner_size().map_err(|e| e.to_string())?;
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let radius_px = ((radius as f64 * scale).round() as i32).max(1);
+
+    unsafe {
+        let region = CreateRoundRectRgn(
+            0,
+            0,
+            size.width as i32 + 1,
+            size.height as i32 + 1,
+            radius_px * 2,
+            radius_px * 2,
+        );
+        if region.is_invalid() {
+            return Err("Failed to create rounded window region".to_string());
+        }
+
+        let result = SetWindowRgn(hwnd, region, BOOL(1));
+        if result == 0 {
+            let _ = DeleteObject(region);
+            return Err("Failed to apply rounded window region".to_string());
+        }
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 pub fn create_overlay(config: OverlayConfig) -> Result<String, String> {
     #[cfg(target_os = "windows")]
@@ -166,9 +200,16 @@ pub fn set_process_watcher_config(
 ///
 /// This is called from the frontend when the user approves or rejects an action.
 /// The response is sent to the waiting PermissionRequest handler.
+///
+/// For AskUserQuestion, pass answers as Some(json) containing the user's selections.
+/// For regular approvals, pass None for answers.
 #[tauri::command]
-pub fn submit_approval_response(tool_use_id: String, approved: bool) -> Result<(), String> {
-    hook_server::submit_approval_response(&tool_use_id, approved)
+pub fn submit_approval_response(
+    tool_use_id: String,
+    approved: bool,
+    answers: Option<serde_json::Value>,
+) -> Result<(), String> {
+    hook_server::submit_approval_response(&tool_use_id, approved, answers)
 }
 
 // DPI-related commands
@@ -274,6 +315,12 @@ pub fn set_window_size(
         .set_size(Size::Logical(target_logical))
         .map_err(|e| e.to_string())?;
 
+    #[cfg(target_os = "windows")]
+    {
+        let radius = if height <= 80 { height / 2 } else { 18 };
+        let _ = apply_window_round_region(&window, radius);
+    }
+
     // Re-center horizontally at top of screen
     if skip_center != Some(true) {
         if let Ok(Some(monitor)) = window.primary_monitor() {
@@ -334,9 +381,16 @@ pub fn clear_hook_errors() {
 }
 
 /// Lightweight resize for animation sync. Throttled to ~16ms intervals.
-/// Unlike `set_window_size`, this only changes size without re-centering.
+/// Unlike `set_window_size`, this does not recenter on the monitor unless
+/// `anchor_center` is true, in which case it preserves the current center x.
 #[tauri::command]
-pub fn update_overlay_size(window: WebviewWindow, width: u32, height: u32) -> Result<(), String> {
+pub fn update_overlay_size(
+    window: WebviewWindow,
+    width: u32,
+    height: u32,
+    border_radius: Option<u32>,
+    anchor_center: Option<bool>,
+) -> Result<(), String> {
     use std::sync::atomic::{AtomicI64, Ordering};
     use std::time::SystemTime;
 
@@ -355,21 +409,37 @@ pub fn update_overlay_size(window: WebviewWindow, width: u32, height: u32) -> Re
         width: width as f64,
         height: height as f64,
     };
-    let scale = window.scale_factor().unwrap_or(1.0);
 
-    // Compensate for window decorations
-    let outer = window.outer_size().map_err(|e| e.to_string())?;
-    let inner = window.inner_size().map_err(|e| e.to_string())?;
-    let dw = outer.width as f64 - inner.width as f64;
-    let dh = outer.height as f64 - inner.height as f64;
-
-    let adjusted = LogicalSize {
-        width: target_logical.width + dw / scale,
-        height: target_logical.height + dh / scale,
+    let target_x = if anchor_center.unwrap_or(false) {
+        let scale = window.scale_factor().unwrap_or(1.0);
+        let position = window.outer_position().map_err(|e| e.to_string())?;
+        let current_size = window.outer_size().map_err(|e| e.to_string())?;
+        let current_width = current_size.width as f64 / scale;
+        let current_x = position.x as f64 / scale;
+        let center_x = current_x + current_width / 2.0;
+        Some(center_x - target_logical.width / 2.0)
+    } else {
+        None
     };
+
     window
-        .set_size(Size::Logical(adjusted))
+        .set_size(Size::Logical(target_logical))
         .map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "windows")]
+    {
+        let radius = border_radius.unwrap_or(if height <= 80 { height / 2 } else { 18 });
+        apply_window_round_region(&window, radius)?;
+    }
+
+    if let Some(x) = target_x {
+        window
+            .set_position(tauri::Position::Logical(tauri::LogicalPosition {
+                x,
+                y: 8.0,
+            }))
+            .map_err(|e| e.to_string())?;
+    }
 
     Ok(())
 }

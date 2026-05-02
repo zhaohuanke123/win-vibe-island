@@ -4,6 +4,20 @@ import { ApprovalPanel } from '../../components/ApprovalPanel'
 import { useSessionsStore } from '../../store/sessions'
 import { mockInvoke } from '../setup'
 
+// Helper to create a valid ApprovalRequest
+function createMockRequest(overrides: Partial<any> = {}) {
+  return {
+    toolUseId: 'tool-1',
+    sessionId: 'session-1',
+    sessionLabel: 'Test Project',
+    approvalType: 'permission' as const,
+    timestamp: Date.now(),
+    action: 'Test action',
+    riskLevel: 'medium' as const,
+    ...overrides,
+  }
+}
+
 describe('ApprovalPanel', () => {
   const mockOnApprovalHandled = vi.fn()
 
@@ -21,15 +35,11 @@ describe('ApprovalPanel', () => {
   })
 
   it('should display approval request details', () => {
-    const request = {
-      toolUseId: 'tool-1',
-      sessionId: 'session-1',
-      sessionLabel: 'Test Project',
+    const request = createMockRequest({
       toolName: 'Bash',
       action: 'Execute: npm install',
       riskLevel: 'medium' as const,
-      timestamp: Date.now(),
-    }
+    })
 
     render(<ApprovalPanel request={request} onApprovalHandled={mockOnApprovalHandled} />)
 
@@ -40,14 +50,10 @@ describe('ApprovalPanel', () => {
   })
 
   it('should display risk level with correct class', () => {
-    const request = {
-      toolUseId: 'tool-1',
-      sessionId: 'session-1',
-      sessionLabel: 'Test',
+    const request = createMockRequest({
       action: 'Test',
       riskLevel: 'high' as const,
-      timestamp: Date.now(),
-    }
+    })
 
     render(<ApprovalPanel request={request} onApprovalHandled={mockOnApprovalHandled} />)
 
@@ -56,14 +62,10 @@ describe('ApprovalPanel', () => {
   })
 
   it('should call invoke with approve=true when Approve clicked', async () => {
-    const request = {
-      toolUseId: 'tool-1',
-      sessionId: 'session-1',
-      sessionLabel: 'Test',
+    const request = createMockRequest({
       action: 'Test',
       riskLevel: 'low' as const,
-      timestamp: Date.now(),
-    }
+    })
 
     render(<ApprovalPanel request={request} onApprovalHandled={mockOnApprovalHandled} />)
 
@@ -74,19 +76,16 @@ describe('ApprovalPanel', () => {
       expect(mockInvoke).toHaveBeenCalledWith('submit_approval_response', {
         toolUseId: 'tool-1',
         approved: true,
+        answers: null,
       })
     })
   })
 
   it('should call invoke with approved=false when Reject clicked', async () => {
-    const request = {
-      toolUseId: 'tool-1',
-      sessionId: 'session-1',
-      sessionLabel: 'Test',
+    const request = createMockRequest({
       action: 'Test',
       riskLevel: 'low' as const,
-      timestamp: Date.now(),
-    }
+    })
 
     render(<ApprovalPanel request={request} onApprovalHandled={mockOnApprovalHandled} />)
 
@@ -97,19 +96,16 @@ describe('ApprovalPanel', () => {
       expect(mockInvoke).toHaveBeenCalledWith('submit_approval_response', {
         toolUseId: 'tool-1',
         approved: false,
+        answers: null,
       })
     })
   })
 
   it('should call onApprovalHandled after approval', async () => {
-    const request = {
-      toolUseId: 'tool-1',
-      sessionId: 'session-1',
-      sessionLabel: 'Test',
+    const request = createMockRequest({
       action: 'Test',
       riskLevel: 'low' as const,
-      timestamp: Date.now(),
-    }
+    })
 
     render(<ApprovalPanel request={request} onApprovalHandled={mockOnApprovalHandled} />)
 
@@ -123,20 +119,16 @@ describe('ApprovalPanel', () => {
   })
 
   it('should show diff viewer when diff is present', () => {
-    const request = {
-      toolUseId: 'tool-1',
-      sessionId: 'session-1',
-      sessionLabel: 'Test',
+    const request = createMockRequest({
       toolName: 'Write',
       action: 'Write file: test.ts',
       riskLevel: 'medium' as const,
-      timestamp: Date.now(),
       diff: {
         fileName: 'test.ts',
         oldContent: 'old code',
         newContent: 'new code',
       },
-    }
+    })
 
     render(<ApprovalPanel request={request} onApprovalHandled={mockOnApprovalHandled} />)
 
@@ -144,15 +136,11 @@ describe('ApprovalPanel', () => {
   })
 
   it('should display tool name when provided', () => {
-    const request = {
-      toolUseId: 'tool-1',
-      sessionId: 'session-1',
-      sessionLabel: 'Test Project',
+    const request = createMockRequest({
       toolName: 'Bash',
       action: 'Execute command',
       riskLevel: 'medium' as const,
-      timestamp: Date.now(),
-    }
+    })
 
     render(<ApprovalPanel request={request} onApprovalHandled={mockOnApprovalHandled} />)
 
@@ -160,14 +148,10 @@ describe('ApprovalPanel', () => {
   })
 
   it('should show loading state when approving', async () => {
-    const request = {
-      toolUseId: 'tool-1',
-      sessionId: 'session-1',
-      sessionLabel: 'Test',
+    const request = createMockRequest({
       action: 'Test',
       riskLevel: 'low' as const,
-      timestamp: Date.now(),
-    }
+    })
 
     render(<ApprovalPanel request={request} onApprovalHandled={mockOnApprovalHandled} />)
 

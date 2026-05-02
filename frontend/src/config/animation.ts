@@ -1,13 +1,13 @@
 export const SPRING_CONFIG = {
   expand: {
     stiffness: 300,
-    damping: 25,
-    mass: 1,
+    damping: 22,
+    mass: 0.9,
   },
   collapse: {
-    stiffness: 350,
-    damping: 28,
-    mass: 0.9,
+    stiffness: 380,
+    damping: 26,
+    mass: 0.85,
   },
   transition: {
     stiffness: 400,
@@ -18,6 +18,19 @@ export const SPRING_CONFIG = {
     stiffness: 500,
     damping: 35,
     mass: 0.8,
+  },
+} as const;
+
+export const OVERLAY_DIMENSIONS = {
+  compact: {
+    width: 236,
+    height: 52,
+    borderRadius: 26,
+  },
+  expanded: {
+    width: 420,
+    height: 600,
+    borderRadius: 18,
   },
 } as const;
 

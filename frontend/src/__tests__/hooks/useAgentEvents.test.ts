@@ -2,7 +2,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useAgentEvents } from '../../hooks/useAgentEvents'
 import { useSessionsStore } from '../../store/sessions'
-import { mockListen } from '../setup'
+import type { Session } from '../../store/sessions'
+
+// Helper to create a valid Session
+function createSession(overrides: Partial<Session> = {}): Session {
+  return {
+    id: 'session-1',
+    label: 'Test',
+    cwd: '',
+    state: 'idle',
+    toolHistory: [],
+    createdAt: Date.now(),
+    lastActivity: Date.now(),
+    ...overrides,
+  }
+}
 
 // Mock the listen function to capture event handlers
 const eventHandlers = new Map<string, (event: { payload: unknown }) => void>()
@@ -69,13 +83,10 @@ describe('useAgentEvents', () => {
 
     it('should update existing session if already exists', async () => {
       // Pre-add session
-      useSessionsStore.getState().addSession({
+      useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
         label: 'Old Label',
-        cwd: '',
-        state: 'idle',
-        toolHistory: [],
-      })
+      }))
 
       renderHook(() => useAgentEvents())
 
@@ -103,13 +114,9 @@ describe('useAgentEvents', () => {
 
   describe('session_end event', () => {
     it('should remove session on session_end event', async () => {
-      useSessionsStore.getState().addSession({
+      useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
-        label: 'Test',
-        cwd: '',
-        state: 'idle',
-        toolHistory: [],
-      })
+      }))
 
       renderHook(() => useAgentEvents())
 
@@ -129,13 +136,9 @@ describe('useAgentEvents', () => {
 
   describe('state_change event', () => {
     it('should update session state', async () => {
-      useSessionsStore.getState().addSession({
+      useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
-        label: 'Test',
-        cwd: '',
-        state: 'idle',
-        toolHistory: [],
-      })
+      }))
 
       renderHook(() => useAgentEvents())
 
@@ -158,13 +161,10 @@ describe('useAgentEvents', () => {
     })
 
     it('should fallback to idle for invalid state', async () => {
-      useSessionsStore.getState().addSession({
+      useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
-        label: 'Test',
-        cwd: '',
         state: 'running',
-        toolHistory: [],
-      })
+      }))
 
       renderHook(() => useAgentEvents())
 
@@ -211,13 +211,9 @@ describe('useAgentEvents', () => {
     })
 
     it('should update toolName and filePath when provided', async () => {
-      useSessionsStore.getState().addSession({
+      useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
-        label: 'Test',
-        cwd: '',
-        state: 'idle',
-        toolHistory: [],
-      })
+      }))
 
       renderHook(() => useAgentEvents())
 
@@ -244,13 +240,9 @@ describe('useAgentEvents', () => {
     })
 
     it('should update lastError on error state', async () => {
-      useSessionsStore.getState().addSession({
+      useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
-        label: 'Test',
-        cwd: '',
-        state: 'idle',
-        toolHistory: [],
-      })
+      }))
 
       renderHook(() => useAgentEvents())
 
@@ -276,13 +268,10 @@ describe('useAgentEvents', () => {
 
   describe('tool_use event', () => {
     it('should set thinking state and current tool', async () => {
-      useSessionsStore.getState().addSession({
+      useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
-        label: 'Test',
-        cwd: '',
         state: 'idle',
-        toolHistory: [],
-      })
+      }))
 
       renderHook(() => useAgentEvents())
 
@@ -312,18 +301,15 @@ describe('useAgentEvents', () => {
 
   describe('tool_complete event', () => {
     it('should add tool execution to history', async () => {
-      useSessionsStore.getState().addSession({
+      useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
-        label: 'Test',
-        cwd: '',
         state: 'thinking',
-        toolHistory: [],
         currentTool: {
           name: 'Read',
           input: { file_path: '/test.ts' },
           startTime: Date.now() - 100,
         },
-      })
+      }))
 
       renderHook(() => useAgentEvents())
 
@@ -351,18 +337,15 @@ describe('useAgentEvents', () => {
     })
 
     it('should clear current tool after completion', async () => {
-      useSessionsStore.getState().addSession({
+      useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
-        label: 'Test',
-        cwd: '',
         state: 'thinking',
-        toolHistory: [],
         currentTool: {
           name: 'Read',
           input: {},
           startTime: Date.now(),
         },
-      })
+      }))
 
       renderHook(() => useAgentEvents())
 
@@ -390,13 +373,10 @@ describe('useAgentEvents', () => {
 
   describe('tool_error event', () => {
     it('should add failed tool execution to history', async () => {
-      useSessionsStore.getState().addSession({
+      useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
-        label: 'Test',
-        cwd: '',
         state: 'thinking',
-        toolHistory: [],
-      })
+      }))
 
       renderHook(() => useAgentEvents())
 
@@ -427,13 +407,11 @@ describe('useAgentEvents', () => {
 
   describe('permission_request event', () => {
     it('should set approval state and request', async () => {
-      useSessionsStore.getState().addSession({
+      useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
         label: 'Test Project',
-        cwd: '',
         state: 'running',
-        toolHistory: [],
-      })
+      }))
 
       renderHook(() => useAgentEvents())
 
@@ -463,13 +441,10 @@ describe('useAgentEvents', () => {
     })
 
     it('should include diff data when provided', async () => {
-      useSessionsStore.getState().addSession({
+      useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
-        label: 'Test',
-        cwd: '',
         state: 'running',
-        toolHistory: [],
-      })
+      }))
 
       renderHook(() => useAgentEvents())
 
@@ -565,14 +540,11 @@ describe('useAgentEvents', () => {
 
   describe('process_terminated event', () => {
     it('should remove session for terminated process', async () => {
-      useSessionsStore.getState().addSession({
+      useSessionsStore.getState().addSession(createSession({
         id: 'process-12345',
         label: 'Claude (PID: 12345)',
-        cwd: '',
-        state: 'idle',
         pid: 12345,
-        toolHistory: [],
-      })
+      }))
 
       renderHook(() => useAgentEvents())
 

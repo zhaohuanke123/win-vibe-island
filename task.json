@@ -973,6 +973,43 @@
         "frontend/src/components/HookConfigStatus.tsx",
         "frontend/src/components/HookConfigStatus.css"
       ]
+    },
+    {
+      "id": 41,
+      "title": "明显弹性灵动岛动画",
+      "description": "将 Overlay 从固定 420px CSS max-height 过渡改为 Framer Motion 驱动的小胶囊到完整面板弹性动画，并同步 Tauri 窗口真实宽高。",
+      "steps": [
+        "更新动画设计文档，定义紧凑胶囊态和展开态尺寸",
+        "重做 AnimatedOverlay，让它实际渲染 motion 容器并同步窗口宽高",
+        "Overlay.tsx 移除展开/收缩时 set_window_size 跳变，改用 AnimatedOverlay",
+        "CSS 移除 max-height 主动画，紧凑态隐藏面板和次要文本",
+        "扩展 update_overlay_size 支持 anchorCenter，窗口从中心扩展和收缩",
+        "运行前端构建和后端 cargo check"
+      ],
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [
+        25,
+        26,
+        27,
+        30
+      ],
+      "requirement_ref": "docs/animation-design.md#三动画参数配置",
+      "design_ref": "docs/animation-design.md#33-明显弹性灵动岛尺寸",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "docs/animation-design.md",
+        "frontend/src/config/animation.ts",
+        "frontend/src/components/AnimatedOverlay.tsx",
+        "frontend/src/components/Overlay.tsx",
+        "frontend/src/components/Overlay.css",
+        "src-tauri/src/commands.rs",
+        "task.json",
+        "progress.txt"
+      ]
     }
   ]
 }
