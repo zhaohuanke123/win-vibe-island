@@ -1,6 +1,7 @@
 {
   "project": "Vibe Island (氛围岛)",
   "description": "Windows desktop overlay app that monitors AI coding agent sessions (Claude Code, Codex) and displays their state as a floating overlay. Built with Tauri 2.0 (Rust + React).",
+  "version": "1.0.0",
   "tasks": [
     {
       "id": 1,
@@ -23,6 +24,12 @@
       "status": "completed",
       "priority": "critical",
       "dependencies": [],
+      "requirement_ref": "architecture.md#Core Infrastructure",
+      "design_ref": "DESIGN.md#System Tray",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "src-tauri/src/lib.rs",
         "src-tauri/src/events.rs",
@@ -752,15 +759,20 @@
         "更新 StatusDot 组件支持新状态颜色",
         "测试: 验证各状态正确显示"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "critical",
       "dependencies": [
         32
       ],
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "src-tauri/src/hook_server.rs",
         "frontend/src/store/sessions.ts",
-        "frontend/src/components/StatusDot.tsx"
+        "frontend/src/components/StatusDot.tsx",
+        "frontend/src/hooks/useAgentEvents.ts"
       ]
     },
     {
