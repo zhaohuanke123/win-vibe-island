@@ -5,9 +5,9 @@
 //! On exit (in auto-cleanup mode), it can remove the hooks.
 
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use std::fs;
 use std::io::{Read, Write};
+use std::path::PathBuf;
 
 /// Hook configuration modes
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -276,8 +276,7 @@ fn generate_hook_config() -> serde_json::Value {
 /// Install hooks to settings.json
 /// Returns the path where hooks were installed
 pub fn install_hooks() -> Result<String, String> {
-    let settings_path = get_active_settings_path()
-        .unwrap_or_else(get_default_settings_path);
+    let settings_path = get_active_settings_path().unwrap_or_else(get_default_settings_path);
 
     // Ensure .claude directory exists
     let parent = settings_path.parent();
@@ -351,7 +350,10 @@ fn merge_hooks(existing: &mut serde_json::Value, vibe_hooks: &serde_json::Value)
                             log::info!("Updated existing Vibe Island hook: {}", hook_name);
                         } else {
                             // It's user's own hook, DON'T overwrite
-                            log::warn!("Skipping hook '{}' - user has their own configuration", hook_name);
+                            log::warn!(
+                                "Skipping hook '{}' - user has their own configuration",
+                                hook_name
+                            );
                         }
                     }
                 }
@@ -359,7 +361,10 @@ fn merge_hooks(existing: &mut serde_json::Value, vibe_hooks: &serde_json::Value)
         }
     } else {
         // No hooks section exists, add entire vibe_hooks
-        existing["hooks"] = vibe_hooks.get("hooks").cloned().unwrap_or(serde_json::json!({}));
+        existing["hooks"] = vibe_hooks
+            .get("hooks")
+            .cloned()
+            .unwrap_or(serde_json::json!({}));
     }
 }
 
@@ -373,8 +378,8 @@ pub fn uninstall_hooks() -> Result<(), String> {
         }
 
         // Read existing settings
-        let mut file = fs::File::open(&path)
-            .map_err(|e| format!("Failed to open settings.json: {}", e))?;
+        let mut file =
+            fs::File::open(&path).map_err(|e| format!("Failed to open settings.json: {}", e))?;
         let mut content = String::new();
         file.read_to_string(&mut content)
             .map_err(|e| format!("Failed to read settings.json: {}", e))?;
@@ -408,8 +413,7 @@ pub fn uninstall_hooks() -> Result<(), String> {
                 log::info!("Restored from backup");
             }
             // Remove backup file
-            fs::remove_file(&backup_path)
-                .map_err(|e| format!("Failed to remove backup: {}", e))?;
+            fs::remove_file(&backup_path).map_err(|e| format!("Failed to remove backup: {}", e))?;
         }
     }
 
@@ -464,7 +468,10 @@ pub fn auto_configure_hooks() -> Result<bool, String> {
 /// chosen auto-cleanup mode. The mode should be stored persistently.
 pub fn auto_cleanup_hooks(mode: HookConfigMode) -> Result<bool, String> {
     if mode != HookConfigMode::AutoCleanup {
-        log::info!("Not in auto-cleanup mode (mode: {:?}) - keeping hooks", mode);
+        log::info!(
+            "Not in auto-cleanup mode (mode: {:?}) - keeping hooks",
+            mode
+        );
         return Ok(false);
     }
 
@@ -520,8 +527,7 @@ pub fn set_stored_mode(mode: HookConfigMode) -> Result<(), String> {
     let mut config: serde_json::Value = if config_path.exists() {
         let content = fs::read_to_string(&config_path)
             .map_err(|e| format!("Failed to read config: {}", e))?;
-        serde_json::from_str(&content)
-            .unwrap_or(serde_json::json!({}))
+        serde_json::from_str(&content).unwrap_or(serde_json::json!({}))
     } else {
         serde_json::json!({})
     };
@@ -533,8 +539,7 @@ pub fn set_stored_mode(mode: HookConfigMode) -> Result<(), String> {
     let content = serde_json::to_string_pretty(&config)
         .map_err(|e| format!("Failed to serialize config: {}", e))?;
 
-    fs::write(&config_path, content)
-        .map_err(|e| format!("Failed to write config: {}", e))?;
+    fs::write(&config_path, content).map_err(|e| format!("Failed to write config: {}", e))?;
 
     log::info!("Hook config mode saved: {}", mode_str);
     Ok(())
@@ -569,7 +574,11 @@ mod tests {
         let hooks = config.get("hooks").unwrap().as_object().unwrap();
 
         for hook_name in REQUIRED_HOOKS {
-            assert!(hooks.contains_key(*hook_name), "Missing hook: {}", hook_name);
+            assert!(
+                hooks.contains_key(*hook_name),
+                "Missing hook: {}",
+                hook_name
+            );
         }
     }
 

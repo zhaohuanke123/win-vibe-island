@@ -133,7 +133,7 @@ pub struct HookPayload {
     pub hook_event_name: Option<String>,
 
     // SessionStart specific
-    pub source: Option<String>,  // startup, resume, clear, compact
+    pub source: Option<String>, // startup, resume, clear, compact
     pub model: Option<String>,
     pub agent_type: Option<String>,
     pub agent_id: Option<String>,
@@ -241,7 +241,10 @@ async fn run_hook_server(state: Arc<HookServerState>) -> Result<(), String> {
         .route("/hooks/session-start", post(handle_session_start))
         .route("/hooks/pre-tool-use", post(handle_pre_tool_use))
         .route("/hooks/post-tool-use", post(handle_post_tool_use))
-        .route("/hooks/post-tool-use-failure", post(handle_post_tool_use_failure))
+        .route(
+            "/hooks/post-tool-use-failure",
+            post(handle_post_tool_use_failure),
+        )
         .route("/hooks/notification", post(handle_notification))
         .route("/hooks/stop", post(handle_stop))
         .route("/hooks/user-prompt-submit", post(handle_user_prompt_submit))
@@ -284,8 +287,12 @@ fn get_session_id(payload: &HookPayload) -> String {
 fn get_session_label(payload: &HookPayload) -> String {
     // Use cwd as the label (project name)
     if let Some(ref cwd) = payload.cwd {
-        // Extract just the folder name
-        if let Some(name) = cwd.split('/').next_back() {
+        // Extract just the folder name. Claude Code can send Windows paths with
+        // backslashes, so handle both path separators before falling back.
+        if let Some(name) = cwd
+            .rsplit(|c| c == '/' || c == '\\')
+            .find(|segment| !segment.is_empty())
+        {
             return name.to_string();
         }
         return cwd.clone();
@@ -299,7 +306,7 @@ async fn handle_session_start(
     Json(payload): Json<HookPayload>,
 ) -> Result<StatusCode, StatusCode> {
     increment_request_count(&state);
-    
+
     log::info!(
         "SessionStart hook received: session_id={:?}, source={:?}, cwd={:?}",
         payload.session_id,
@@ -375,7 +382,10 @@ async fn handle_pre_tool_use(
 
     // Extract file path if present
     let file_path = payload.tool_input.as_ref().and_then(|input| {
-        input.get("file_path").and_then(|v| v.as_str()).map(|s| s.to_string())
+        input
+            .get("file_path")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
     });
 
     if let Some(ref tool_name) = payload.tool_name {
@@ -486,7 +496,7 @@ async fn handle_notification(
     Json(payload): Json<HookPayload>,
 ) -> Result<StatusCode, StatusCode> {
     increment_request_count(&state);
-    
+
     log::info!(
         "Notification hook received: session_id={:?}, type={:?}",
         payload.session_id,
@@ -540,7 +550,7 @@ async fn handle_stop(
     Json(payload): Json<HookPayload>,
 ) -> Result<StatusCode, StatusCode> {
     increment_request_count(&state);
-    
+
     log::info!(
         "Stop hook received: session_id={:?}, reason={:?}",
         payload.session_id,
@@ -568,7 +578,7 @@ async fn handle_user_prompt_submit(
     Json(payload): Json<HookPayload>,
 ) -> Result<StatusCode, StatusCode> {
     increment_request_count(&state);
-    
+
     log::info!(
         "UserPromptSubmit hook received: session_id={:?}",
         payload.session_id
@@ -606,9 +616,18 @@ async fn handle_permission_request(
     );
 
     let session_id = get_session_id(&payload);
-    let tool_use_id = payload.tool_use_id.clone().unwrap_or_else(|| format!("auto-{}", chrono_timestamp()));
-    log::info!("Generated tool_use_id for pending approval: {}", tool_use_id);
-    let tool_name = payload.tool_name.clone().unwrap_or_else(|| "unknown".to_string());
+    let tool_use_id = payload
+        .tool_use_id
+        .clone()
+        .unwrap_or_else(|| format!("auto-{}", chrono_timestamp()));
+    log::info!(
+        "Generated tool_use_id for pending approval: {}",
+        tool_use_id
+    );
+    let tool_name = payload
+        .tool_name
+        .clone()
+        .unwrap_or_else(|| "unknown".to_string());
     let tool_input = payload.tool_input.clone().unwrap_or(serde_json::json!({}));
 
     // Determine risk level based on tool name and input
@@ -628,14 +647,17 @@ async fn handle_permission_request(
         let state_guard = HOOK_SERVER_STATE.lock();
         if let Some(ref state) = *state_guard {
             let mut pending = state.pending_approvals.lock();
-            pending.insert(tool_use_id.clone(), PendingApproval {
-                tool_use_id: tool_use_id.clone(),
-                session_id: session_id.clone(),
-                tool_name: tool_name.clone(),
-                tool_input: tool_input.clone(),
-                response_tx,
-                created_at: std::time::Instant::now(),
-            });
+            pending.insert(
+                tool_use_id.clone(),
+                PendingApproval {
+                    tool_use_id: tool_use_id.clone(),
+                    session_id: session_id.clone(),
+                    tool_name: tool_name.clone(),
+                    tool_input: tool_input.clone(),
+                    response_tx,
+                    created_at: std::time::Instant::now(),
+                },
+            );
         }
     }
 
@@ -687,7 +709,10 @@ async fn handle_permission_request(
             }
         }
         Err(_) => {
-            log::warn!("Permission request timed out after {} seconds", APPROVAL_TIMEOUT_SECS);
+            log::warn!(
+                "Permission request timed out after {} seconds",
+                APPROVAL_TIMEOUT_SECS
+            );
             // Clean up the pending approval
             {
                 let state_guard = HOOK_SERVER_STATE.lock();
@@ -706,7 +731,10 @@ async fn handle_permission_request(
             );
             PermissionDecision {
                 behavior: "deny".to_string(),
-                message: Some(format!("Permission request timed out after {} seconds", APPROVAL_TIMEOUT_SECS)),
+                message: Some(format!(
+                    "Permission request timed out after {} seconds",
+                    APPROVAL_TIMEOUT_SECS
+                )),
                 updated_input: None,
             }
         }
@@ -723,7 +751,10 @@ async fn handle_permission_request(
         }
     });
 
-    log::info!("Sending permission response to Claude Code: {}", serde_json::to_string(&response).unwrap_or_default());
+    log::info!(
+        "Sending permission response to Claude Code: {}",
+        serde_json::to_string(&response).unwrap_or_default()
+    );
 
     Ok(Json(response))
 }
@@ -736,12 +767,18 @@ fn determine_risk_level(tool_name: &str, tool_input: &serde_json::Value) -> Stri
             if let Some(cmd) = tool_input.get("command").and_then(|v| v.as_str()) {
                 let cmd_lower = cmd.to_lowercase();
                 // Check for dangerous commands
-                if cmd_lower.contains("rm ") || cmd_lower.contains("rmdir")
-                    || cmd_lower.contains("del ") || cmd_lower.contains("format")
-                    || cmd_lower.contains("shutdown") || cmd_lower.contains("reboot")
-                    || cmd_lower.contains("sudo") || cmd_lower.contains("su ")
-                    || cmd_lower.contains("chmod") || cmd_lower.contains("chown")
-                    || cmd_lower.contains("mkfs") || cmd_lower.contains("dd ")
+                if cmd_lower.contains("rm ")
+                    || cmd_lower.contains("rmdir")
+                    || cmd_lower.contains("del ")
+                    || cmd_lower.contains("format")
+                    || cmd_lower.contains("shutdown")
+                    || cmd_lower.contains("reboot")
+                    || cmd_lower.contains("sudo")
+                    || cmd_lower.contains("su ")
+                    || cmd_lower.contains("chmod")
+                    || cmd_lower.contains("chown")
+                    || cmd_lower.contains("mkfs")
+                    || cmd_lower.contains("dd ")
                 {
                     return "high".to_string();
                 }
@@ -752,9 +789,12 @@ fn determine_risk_level(tool_name: &str, tool_input: &serde_json::Value) -> Stri
             // Check if modifying important files
             if let Some(file_path) = tool_input.get("file_path").and_then(|v| v.as_str()) {
                 let path_lower = file_path.to_lowercase();
-                if path_lower.contains(".env") || path_lower.contains("config")
-                    || path_lower.contains("secret") || path_lower.contains("credential")
-                    || path_lower.contains("password") || path_lower.contains("key")
+                if path_lower.contains(".env")
+                    || path_lower.contains("config")
+                    || path_lower.contains("secret")
+                    || path_lower.contains("credential")
+                    || path_lower.contains("password")
+                    || path_lower.contains("key")
                 {
                     return "high".to_string();
                 }
@@ -774,41 +814,48 @@ fn determine_risk_level(tool_name: &str, tool_input: &serde_json::Value) -> Stri
 fn format_tool_action(tool_name: &str, tool_input: &serde_json::Value) -> String {
     match tool_name {
         "Bash" => {
-            let cmd = tool_input.get("command")
+            let cmd = tool_input
+                .get("command")
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown command");
-            let description = tool_input.get("description")
+            let description = tool_input
+                .get("description")
                 .and_then(|v| v.as_str())
                 .map(|d| format!(": {}", d))
                 .unwrap_or_default();
             format!("Execute: {}{}", cmd, description)
         }
         "Read" => {
-            let file_path = tool_input.get("file_path")
+            let file_path = tool_input
+                .get("file_path")
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown file");
             format!("Read file: {}", file_path)
         }
         "Write" => {
-            let file_path = tool_input.get("file_path")
+            let file_path = tool_input
+                .get("file_path")
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown file");
             format!("Write file: {}", file_path)
         }
         "Edit" => {
-            let file_path = tool_input.get("file_path")
+            let file_path = tool_input
+                .get("file_path")
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown file");
             format!("Edit file: {}", file_path)
         }
         "Glob" => {
-            let pattern = tool_input.get("pattern")
+            let pattern = tool_input
+                .get("pattern")
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown pattern");
             format!("Find files: {}", pattern)
         }
         "Grep" => {
-            let pattern = tool_input.get("pattern")
+            let pattern = tool_input
+                .get("pattern")
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown pattern");
             format!("Search: {}", pattern)
@@ -823,16 +870,19 @@ fn format_tool_action(tool_name: &str, tool_input: &serde_json::Value) -> String
 fn extract_diff_data(tool_name: &str, tool_input: &serde_json::Value) -> Option<serde_json::Value> {
     match tool_name {
         "Write" | "Edit" => {
-            let file_path = tool_input.get("file_path")
+            let file_path = tool_input
+                .get("file_path")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string())?;
 
-            let new_content = tool_input.get("content")
+            let new_content = tool_input
+                .get("content")
                 .or_else(|| tool_input.get("new_string"))
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
 
-            let old_content = tool_input.get("old_string")
+            let old_content = tool_input
+                .get("old_string")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
 
@@ -854,22 +904,34 @@ fn extract_diff_data(tool_name: &str, tool_input: &serde_json::Value) -> Option<
 /// Submit an approval response for a pending permission request.
 /// This is called from the frontend when the user approves or rejects an action.
 pub fn submit_approval_response(tool_use_id: &str, approved: bool) -> Result<(), String> {
-    log::info!("submit_approval_response called: tool_use_id={}, approved={}", tool_use_id, approved);
+    log::info!(
+        "submit_approval_response called: tool_use_id={}, approved={}",
+        tool_use_id,
+        approved
+    );
     let state_guard = HOOK_SERVER_STATE.lock();
     if let Some(ref state) = *state_guard {
         let mut pending = state.pending_approvals.lock();
-        log::info!("Pending approvals keys: {:?}", pending.keys().collect::<Vec<_>>());
+        log::info!(
+            "Pending approvals keys: {:?}",
+            pending.keys().collect::<Vec<_>>()
+        );
         if let Some(pending_approval) = pending.remove(tool_use_id) {
             let decision = PermissionDecision {
                 behavior: if approved { "allow" } else { "deny" }.to_string(),
                 message: None,
                 updated_input: None,
             };
-            pending_approval.response_tx.send(decision)
+            pending_approval
+                .response_tx
+                .send(decision)
                 .map_err(|_| "Failed to send approval response".to_string())?;
             Ok(())
         } else {
-            Err(format!("No pending approval found for tool_use_id: {}", tool_use_id))
+            Err(format!(
+                "No pending approval found for tool_use_id: {}",
+                tool_use_id
+            ))
         }
     } else {
         Err("Hook server not running".to_string())
@@ -881,12 +943,15 @@ async fn handle_ping(State(state): State<Arc<HookServerState>>) -> StatusCode {
     // Update heartbeat timestamp
     let now = chrono_timestamp();
     *state.last_heartbeat.lock() = Some(now);
-    
+
     // Emit heartbeat event to frontend
-    let _ = state.app_handle.emit("hook_heartbeat", &serde_json::json!({
-        "timestamp": now,
-    }));
-    
+    let _ = state.app_handle.emit(
+        "hook_heartbeat",
+        &serde_json::json!({
+            "timestamp": now,
+        }),
+    );
+
     StatusCode::OK
 }
 
@@ -898,7 +963,7 @@ async fn handle_health(State(state): State<Arc<HookServerState>>) -> Json<HookHe
     } else {
         HookConnectionState::Disconnected
     };
-    
+
     let uptime = state.start_time.elapsed().as_secs();
     let total_requests = *state.total_requests.lock();
     let error_count = *state.error_count.lock();
@@ -932,10 +997,10 @@ fn add_error_log(state: &HookServerState, error_type: &str, message: &str, detai
         message: message.to_string(),
         details: details.map(|s| s.to_string()),
     };
-    
+
     // Increment error count
     *state.error_count.lock() += 1;
-    
+
     // Add to error logs (most recent first)
     let mut logs = state.error_logs.lock();
     logs.push_front(log_entry.clone());
@@ -946,12 +1011,15 @@ fn add_error_log(state: &HookServerState, error_type: &str, message: &str, detai
     }
 
     // Emit error event to frontend
-    let _ = state.app_handle.emit("hook_error", &serde_json::json!({
-        "timestamp": log_entry.timestamp,
-        "error_type": log_entry.error_type,
-        "message": log_entry.message,
-        "details": log_entry.details,
-    }));
+    let _ = state.app_handle.emit(
+        "hook_error",
+        &serde_json::json!({
+            "timestamp": log_entry.timestamp,
+            "error_type": log_entry.error_type,
+            "message": log_entry.message,
+            "details": log_entry.details,
+        }),
+    );
 }
 
 /// Increment request counter
@@ -969,7 +1037,7 @@ pub fn get_hook_health() -> HookHealthStatus {
         } else {
             HookConnectionState::Disconnected
         };
-        
+
         let uptime = state.start_time.elapsed().as_secs();
         let total_requests = *state.total_requests.lock();
         let error_count = *state.error_count.lock();
@@ -1092,9 +1160,16 @@ mod tests {
         payload.cwd = Some("C:\\Users\\test\\windows-project".to_string());
 
         let label = get_session_label(&payload);
-        // Windows path uses backslash, split by '/' won't work
-        // The function splits by '/', so it returns the whole path
-        assert!(label.contains("windows-project"));
+        assert_eq!(label, "windows-project");
+    }
+
+    #[test]
+    fn test_get_session_label_from_cwd_with_trailing_separator() {
+        let mut payload = create_test_payload();
+        payload.cwd = Some("D:\\work\\vibe-island\\".to_string());
+
+        let label = get_session_label(&payload);
+        assert_eq!(label, "vibe-island");
     }
 
     #[test]

@@ -6,9 +6,9 @@
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::*;
 #[cfg(target_os = "windows")]
-use windows::Win32::UI::WindowsAndMessaging::*;
-#[cfg(target_os = "windows")]
 use windows::Win32::System::Threading::*;
+#[cfg(target_os = "windows")]
+use windows::Win32::UI::WindowsAndMessaging::*;
 
 /// Result of a focus operation
 #[derive(Debug, Clone, serde::Serialize)]

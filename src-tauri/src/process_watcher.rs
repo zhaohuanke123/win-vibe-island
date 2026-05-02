@@ -162,11 +162,7 @@ pub fn get_process_watcher_status() -> ProcessWatcherStatus {
         Some(state) => {
             let config = state.get_config();
             let processes = state.detected_processes.lock();
-            (
-                state.is_running(),
-                config.poll_interval_ms,
-                processes.len(),
-            )
+            (state.is_running(), config.poll_interval_ms, processes.len())
         }
         None => (false, 5000, 0),
     };
@@ -238,8 +234,7 @@ fn enumerate_processes_windows(config: &ProcessWatcherConfig) -> Result<Vec<Proc
     use std::time::{SystemTime, UNIX_EPOCH};
     use windows::Win32::Foundation::CloseHandle;
     use windows::Win32::System::Diagnostics::ToolHelp::{
-        CreateToolhelp32Snapshot, Process32First, Process32Next, PROCESSENTRY32,
-        TH32CS_SNAPPROCESS,
+        CreateToolhelp32Snapshot, Process32First, Process32Next, PROCESSENTRY32, TH32CS_SNAPPROCESS,
     };
 
     let now = SystemTime::now()

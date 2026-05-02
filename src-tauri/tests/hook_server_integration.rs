@@ -24,8 +24,7 @@ mod payload_tests {
             "tool_input": {"file_path": "/test.ts"}
         }"#;
 
-        let payload: HookPayload =
-            serde_json::from_str(json).expect("Failed to parse payload");
+        let payload: HookPayload = serde_json::from_str(json).expect("Failed to parse payload");
 
         assert_eq!(payload.session_id, Some("test-123".to_string()));
         assert_eq!(payload.cwd, Some("/path/to/project".to_string()));
@@ -38,8 +37,7 @@ mod payload_tests {
             "session_id": "test-456"
         }"#;
 
-        let payload: HookPayload =
-            serde_json::from_str(json).expect("Failed to parse payload");
+        let payload: HookPayload = serde_json::from_str(json).expect("Failed to parse payload");
 
         assert_eq!(payload.session_id, Some("test-456".to_string()));
         assert_eq!(payload.cwd, None);
@@ -149,18 +147,27 @@ mod action_format_tests {
     #[test]
     fn test_format_read_action() {
         let input = serde_json::json!({ "file_path": "/src/test.ts" });
-        assert_eq!(format_tool_action("Read", &input), "Read file: /src/test.ts");
+        assert_eq!(
+            format_tool_action("Read", &input),
+            "Read file: /src/test.ts"
+        );
     }
 
     #[test]
     fn test_format_write_action() {
         let input = serde_json::json!({ "file_path": "/src/new.ts" });
-        assert_eq!(format_tool_action("Write", &input), "Write file: /src/new.ts");
+        assert_eq!(
+            format_tool_action("Write", &input),
+            "Write file: /src/new.ts"
+        );
     }
 
     #[test]
     fn test_format_unknown_tool() {
         let input = serde_json::json!({});
-        assert_eq!(format_tool_action("CustomTool", &input), "Execute tool: CustomTool");
+        assert_eq!(
+            format_tool_action("CustomTool", &input),
+            "Execute tool: CustomTool"
+        );
     }
 }

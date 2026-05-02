@@ -211,7 +211,8 @@ async fn handle_connection(
                 // Try to parse complete JSON messages (newline-delimited)
                 while let Some(pos) = buffer.iter().position(|&b| b == b'\n') {
                     let message_bytes = buffer.drain(..=pos).collect::<Vec<_>>();
-                    let message_str = String::from_utf8_lossy(&message_bytes[..message_bytes.len() - 1]); // Exclude newline
+                    let message_str =
+                        String::from_utf8_lossy(&message_bytes[..message_bytes.len() - 1]); // Exclude newline
 
                     // Parse and handle the event
                     match serde_json::from_str::<AgentEvent>(&message_str) {
@@ -219,7 +220,11 @@ async fn handle_connection(
                             handle_agent_event(&app, event);
                         }
                         Err(e) => {
-                            log::warn!("Failed to parse agent event: {} (message: {})", e, message_str);
+                            log::warn!(
+                                "Failed to parse agent event: {} (message: {})",
+                                e,
+                                message_str
+                            );
                         }
                     }
                 }
@@ -246,10 +251,13 @@ fn handle_agent_event(app: &AppHandle, event: AgentEvent) {
     log::debug!("Received agent event: {:?}", event);
 
     // Emit state_change event to frontend
-    let _ = app.emit("state_change", &StateChange {
-        session_id: event.session_id.clone(),
-        state: event.state.clone(),
-    });
+    let _ = app.emit(
+        "state_change",
+        &StateChange {
+            session_id: event.session_id.clone(),
+            state: event.state.clone(),
+        },
+    );
 
     // If there's additional payload, emit it as well
     if let Some(ref payload) = event.payload {
@@ -262,18 +270,27 @@ fn handle_agent_event(app: &AppHandle, event: AgentEvent) {
                         .and_then(|v| v.as_str())
                         .unwrap_or("Agent Session")
                         .to_string();
-                    let pid = payload.get("pid").and_then(|v| v.as_u64()).map(|v| v as u32);
+                    let pid = payload
+                        .get("pid")
+                        .and_then(|v| v.as_u64())
+                        .map(|v| v as u32);
 
-                    let _ = app.emit("session_start", &SessionStart {
-                        session_id: event.session_id.clone(),
-                        label,
-                        pid,
-                    });
+                    let _ = app.emit(
+                        "session_start",
+                        &SessionStart {
+                            session_id: event.session_id.clone(),
+                            label,
+                            pid,
+                        },
+                    );
                 }
                 "session_end" => {
-                    let _ = app.emit("session_end", &SessionEnd {
-                        session_id: event.session_id.clone(),
-                    });
+                    let _ = app.emit(
+                        "session_end",
+                        &SessionEnd {
+                            session_id: event.session_id.clone(),
+                        },
+                    );
                 }
                 _ => {}
             }

@@ -1,16 +1,16 @@
-mod overlay;
 mod commands;
 mod events;
+mod hook_config;
+mod hook_server;
+mod overlay;
 mod pipe_server;
 mod process_watcher;
 mod window_focus;
-mod hook_server;
-mod hook_config;
 
 use tauri::{
-    menu::{Menu, MenuItem, Submenu, CheckMenuItem},
+    menu::{CheckMenuItem, Menu, MenuItem, Submenu},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager, Position, PhysicalPosition,
+    Manager, PhysicalPosition, Position,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -70,20 +70,59 @@ pub fn run() {
             }
 
             // Create tray menu items
-            let show_hide = MenuItem::with_id(app, "toggle_visibility", "Show/Hide Overlay", true, None::<&str>)?;
+            let show_hide = MenuItem::with_id(
+                app,
+                "toggle_visibility",
+                "Show/Hide Overlay",
+                true,
+                None::<&str>,
+            )?;
 
             // Hook config mode submenu
-            let mode_auto = CheckMenuItem::with_id(app, "mode_auto", "Auto (keep on exit)", true, hook_config::get_stored_mode() == hook_config::HookConfigMode::Auto, None::<&str>)?;
-            let mode_cleanup = CheckMenuItem::with_id(app, "mode_cleanup", "Auto-cleanup (remove on exit)", true, hook_config::get_stored_mode() == hook_config::HookConfigMode::AutoCleanup, None::<&str>)?;
-            let mode_manual = CheckMenuItem::with_id(app, "mode_manual", "Manual", true, hook_config::get_stored_mode() == hook_config::HookConfigMode::Manual, None::<&str>)?;
+            let mode_auto = CheckMenuItem::with_id(
+                app,
+                "mode_auto",
+                "Auto (keep on exit)",
+                true,
+                hook_config::get_stored_mode() == hook_config::HookConfigMode::Auto,
+                None::<&str>,
+            )?;
+            let mode_cleanup = CheckMenuItem::with_id(
+                app,
+                "mode_cleanup",
+                "Auto-cleanup (remove on exit)",
+                true,
+                hook_config::get_stored_mode() == hook_config::HookConfigMode::AutoCleanup,
+                None::<&str>,
+            )?;
+            let mode_manual = CheckMenuItem::with_id(
+                app,
+                "mode_manual",
+                "Manual",
+                true,
+                hook_config::get_stored_mode() == hook_config::HookConfigMode::Manual,
+                None::<&str>,
+            )?;
 
-            let mode_submenu = Submenu::with_items(app, "Hook Config Mode", true, &[&mode_auto, &mode_cleanup, &mode_manual])?;
+            let mode_submenu = Submenu::with_items(
+                app,
+                "Hook Config Mode",
+                true,
+                &[&mode_auto, &mode_cleanup, &mode_manual],
+            )?;
 
             // Hook actions
-            let install_hooks = MenuItem::with_id(app, "install_hooks", "Install Hooks", true, None::<&str>)?;
-            let uninstall_hooks = MenuItem::with_id(app, "uninstall_hooks", "Remove Hooks", true, None::<&str>)?;
+            let install_hooks =
+                MenuItem::with_id(app, "install_hooks", "Install Hooks", true, None::<&str>)?;
+            let uninstall_hooks =
+                MenuItem::with_id(app, "uninstall_hooks", "Remove Hooks", true, None::<&str>)?;
 
-            let hooks_submenu = Submenu::with_items(app, "Hooks", true, &[&mode_submenu, &install_hooks, &uninstall_hooks])?;
+            let hooks_submenu = Submenu::with_items(
+                app,
+                "Hooks",
+                true,
+                &[&mode_submenu, &install_hooks, &uninstall_hooks],
+            )?;
 
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
@@ -111,25 +150,22 @@ pub fn run() {
                         log::info!("Hook config mode set to: Auto");
                     }
                     "mode_cleanup" => {
-                        let _ = hook_config::set_stored_mode(hook_config::HookConfigMode::AutoCleanup);
+                        let _ =
+                            hook_config::set_stored_mode(hook_config::HookConfigMode::AutoCleanup);
                         log::info!("Hook config mode set to: AutoCleanup");
                     }
                     "mode_manual" => {
                         let _ = hook_config::set_stored_mode(hook_config::HookConfigMode::Manual);
                         log::info!("Hook config mode set to: Manual");
                     }
-                    "install_hooks" => {
-                        match hook_config::install_hooks() {
-                            Ok(path) => log::info!("Hooks installed to: {}", path),
-                            Err(e) => log::error!("Failed to install hooks: {}", e),
-                        }
-                    }
-                    "uninstall_hooks" => {
-                        match hook_config::uninstall_hooks() {
-                            Ok(()) => log::info!("Hooks removed"),
-                            Err(e) => log::error!("Failed to remove hooks: {}", e),
-                        }
-                    }
+                    "install_hooks" => match hook_config::install_hooks() {
+                        Ok(path) => log::info!("Hooks installed to: {}", path),
+                        Err(e) => log::error!("Failed to install hooks: {}", e),
+                    },
+                    "uninstall_hooks" => match hook_config::uninstall_hooks() {
+                        Ok(()) => log::info!("Hooks removed"),
+                        Err(e) => log::error!("Failed to remove hooks: {}", e),
+                    },
                     "quit" => {
                         // Stop servers before exit
                         let _ = hook_server::stop_hook_server();
