@@ -10,10 +10,36 @@ and any relevant notes.
 
 - **Started:** 2026-04-25
 - **Current Phase:** Phase 2 - Real Integration
-- **Completed Tasks:** 31 / 40
-- **Active Task:** None (Tasks 39 & 40 completed)
+- **Completed Tasks:** 30 / 40 (plus 1 removed)
+- **Active Task:** None (documentation sync complete)
 
 ---
+
+## [2026-05-02] - Documentation Sync: Current Code as Source of Truth
+
+### What was done:
+- Updated `architecture.md` to match registered Tauri commands, hook routes, Tauri events, session state model, hook config modes, and current module layout.
+- Updated `DESIGN.md` to remove stale Mock/PTY descriptions and document the actual Hook server, hook_config, pipe server, process watcher, overlay, frontend store, and known implementation boundaries.
+- Updated `README.md` to reflect automatic hook configuration, current state mapping, PermissionRequest approval flow, hook health, and SDK fallback.
+- Updated `docs/hooks-setup.md` to match generated hook config and the current Claude Code PermissionRequest `hookSpecificOutput` response format.
+- Updated `docs/testing-strategy.md` to describe only tests and dependencies currently present in the repository.
+- Updated `docs/cc-experience-improvement.md` to separate completed hook/status work from remaining session and timeline work.
+- Updated `AGENTS.md` overview and directory map for `hook_config.rs`, frontend config, and tests.
+
+### Documentation:
+- Requirement ref: user request to align requirements/docs with current implementation
+- Design ref: architecture.md, DESIGN.md, docs/hooks-setup.md, docs/testing-strategy.md
+- Docs updated: yes
+
+### Testing:
+- Documentation-only change; no runtime tests required.
+- `task.json` parsed successfully with `ConvertFrom-Json`.
+- `git diff --check` passed.
+- `git diff --name-only` confirmed changes are limited to documentation/task tracking files.
+
+### Notes:
+- Current code still has implemented-but-unmounted frontend components (`HookConfigStatusPanel`, `ErrorLog`).
+- Hook server implements `/hooks/post-tool-use-failure`, but auto hook configuration currently writes only the seven required hooks in `hook_config.rs`.
 
 ## [2026-05-02] - UI Width Overflow Fix: Hook Status and Approval Panel
 
@@ -365,7 +391,6 @@ and any relevant notes.
 - Task 29: Windows 11 圆角窗口
 - Task 30: 动画性能优化
 - Task 31: 动画系统测试和文档
-- Task 33: Hook 事件增强
 - Task 34: Session 详情面板
 - Task 35: Session 分组与搜索
 - Task 36: Session 持久化

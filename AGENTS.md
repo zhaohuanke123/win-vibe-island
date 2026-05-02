@@ -1,6 +1,6 @@
 # Vibe Island (氛围岛)
 
-Windows 桌面悬浮 Overlay 应用，监控 AI 编程助手会话（Codex、Codex 等）并显示其状态。基于 Tauri 2.0（Rust + React）构建。
+Windows 桌面悬浮 Overlay 应用，监控 AI 编程助手会话（Claude Code、Codex、自定义 agent 等）并显示其状态。基于 Tauri 2.0（Rust + React）构建。
 
 ---
 
@@ -82,6 +82,7 @@ Memory 只能提醒 agent 读取本文件，不能替代项目状态文件。
 │       ├── commands.rs    ← IPC 命令
 │       ├── events.rs      ← 事件发射
 │       ├── hook_server.rs ← HTTP Hook 服务器
+│       ├── hook_config.rs ← Claude Code Hooks 自动配置
 │       ├── pipe_server.rs ← Named Pipe 服务器
 │       ├── overlay.rs     ← Win32 Overlay 窗口
 │       ├── window_focus.rs← 窗口焦点管理
@@ -90,7 +91,9 @@ Memory 只能提醒 agent 读取本文件，不能替代项目状态文件。
 │   └── src/
 │       ├── components/    ← UI 组件
 │       ├── hooks/         ← React Hooks
-│       └── store/         ← Zustand 状态
+│       ├── store/         ← Zustand 状态
+│       ├── config/        ← 动画等配置
+│       └── __tests__/     ← 前端测试
 ├── agent-sdk/             ← Agent SDK
 │   ├── node/              ← Node.js SDK
 │   └── python/            ← Python SDK

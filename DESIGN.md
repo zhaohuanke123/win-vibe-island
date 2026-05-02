@@ -1,235 +1,265 @@
-# Vibe Island 氛围岛 - Windows 架构设计
+# Vibe Island 氛围岛 - 当前实现设计
 
-## 技术栈
-- Tauri 2.0 (Rust + React)
-- Rust 后端直接调用 Win32 API
-- WebView2 渲染前端
+> 本文档以当前代码实现为准，说明运行时模块、事件流和已实现能力。
+
+---
 
 ## 实现状态
 
-| 功能 | 状态 | 说明 |
-|------|------|------|
-| Overlay 浮窗 | ✅ 已完成 | 置顶、透明、点击穿透切换 |
-| 系统托盘 | ✅ 已完成 | 右键菜单、显示/隐藏控制 |
-| HTTP Hook Server | ✅ 已完成 | Claude Code 原生集成 (端口 7878) |
-| Named Pipe Server | ✅ 已完成 | Agent SDK 通信通道 |
-| 进程监控 | ✅ 已完成 | 检测 Claude Code / Codex 进程 |
-| 窗口聚焦 | ✅ 已完成 | 点击 session 聚焦对应窗口 |
-| Mock 模式 | ✅ 已完成 | 模拟 agent 事件用于测试 |
-| Approval Panel | ✅ 已完成 | 审批面板 + Approve/Reject |
-| Diff Viewer | ✅ 已完成 | 代码差异预览 |
-| Agent SDK (Node) | ✅ 已完成 | Node.js SDK |
-| Agent SDK (Python) | ✅ 已完成 | Python SDK |
-| 文档 | ✅ 已完成 | Hooks 配置指南 |
+| 功能 | 状态 | 当前实现 |
+|------|------|----------|
+| Tauri Overlay 主窗口 | 已完成 | `tauri.conf.json` 中主窗口 420x60、透明、无边框、置顶 |
+| Win32 Overlay API | 已完成 | `overlay.rs` 支持原生 HWND 创建、点击穿透、DPI scale、SetWindowPos |
+| 系统托盘 | 已完成 | `lib.rs` 创建 Show/Hide、Hook 模式、Install/Remove Hooks、Quit 菜单 |
+| HTTP Hook Server | 已完成 | `hook_server.rs` 使用 axum 监听 `127.0.0.1:7878` |
+| Claude Code 自动配置 | 已完成 | `hook_config.rs` 支持 auto / autoCleanup / manual |
+| PermissionRequest 审批 | 已完成 | 后端 pending map + oneshot 等待，前端 ApprovalPanel 提交结果 |
+| Hook 健康监控 | 已完成 | `/hooks/health` + `HookStatus.tsx` 5 秒轮询 |
+| Named Pipe Server | 已完成 | Windows 下监听 `\\.\pipe\VibeIsland`，支持 SDK fallback |
+| Node SDK | 已完成 | `agent-sdk/node` Named Pipe 客户端 |
+| Python SDK | 已完成 | `agent-sdk/python` Named Pipe 客户端 |
+| 进程监控 | 已完成 | `process_watcher.rs` 检测 claude/codex/aider/cursor/copilot-agent |
+| 窗口聚焦 | 已完成 | `window_focus.rs` 按 PID 聚焦窗口，带 fallback |
+| 状态动画 | 已完成 | `StatusDot.tsx` 使用 Framer Motion |
+| Diff Viewer | 已完成 | Write/Edit 审批请求展示 old/new content diff |
+| HookConfigStatus UI | 已存在未挂载 | 组件存在，当前 `App.tsx` 未渲染 |
+| ErrorLog UI | 已存在未挂载 | 组件存在，当前 `App.tsx` 未渲染 |
+| Mock 模式 | 已移除 | `mock.rs` 不存在，真实测试走 hooks / pipe / unit tests |
+| Session 详情/分组/持久化 | 未实现 | 对应 task 34-38 仍 pending |
+| Windows 11 DWM 圆角 | 未实现 | task 29 pending；当前圆角主要由前端 CSS clipping 表现 |
 
-## 核心功能
+---
 
-### 1. Overlay 浮窗实现
-Windows 实现"悬浮在所有窗口上方且不抢焦点"的核心是组合使用以下 Window Style 标志：
+## 运行时启动流程
 
-```rust
-// Rust (windows-rs crate)
-let hwnd = CreateWindowEx(
-    WS_EX_LAYERED      // 支持透明度
-    | WS_EX_TRANSPARENT // 点击穿透（鼠标事件穿透至下层）
-    | WS_EX_TOPMOST     // 永远置顶
-    | WS_EX_NOACTIVATE, // 不抢占焦点 ← 关键
-    "VibeIslandOverlay", "",
-    WS_POPUP, // 无标题栏边框
-    x, y, width, height,
-    ...
-);
+1. `src-tauri/src/main.rs` 调用 `app_lib::run()`。
+2. `lib.rs` 在 Windows 下调用 `overlay::enable_dpi_awareness()`。
+3. Tauri setup 阶段：
+   - debug 模式启用 `tauri-plugin-log`；
+   - 将主窗口定位到屏幕顶部居中；
+   - Windows 下启动 Named Pipe server；
+   - 启动 HTTP Hook server；
+   - 执行 `hook_config::auto_configure_hooks()`；
+   - 创建系统托盘菜单。
+4. `App.tsx` 只渲染 `Overlay`，并调用 `useAgentEvents()` 注册 Tauri event listeners。
+5. `Overlay.tsx` 初始化窗口为 `420x60`，展开时设置为 `420x600`。
 
-// 按需切换点击穿透：展开面板时恢复可交互
-fn set_interactive(hwnd: HWND, interactive: bool) {
-    let ex_style = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
-    if interactive {
-        SetWindowLongPtr(hwnd, GWL_EXSTYLE, ex_style & !WS_EX_TRANSPARENT);
-    } else {
-        SetWindowLongPtr(hwnd, GWL_EXSTYLE, ex_style | WS_EX_TRANSPARENT);
-    }
-}
-```
+---
 
-### 2. 进程状态感知
-三种互补的状态检测方案：
-1. Named Pipe - Agent 主动推送（优先级 1）
-2. PTY Hook - ConPTY 输出解析（优先级 2）
-3. 进程轮询 - 兜底 fallback（优先级 3）
+## 后端模块
 
-```rust
-// Named Pipe Server（Rust）
-async fn start_pipe_server() {
-    let pipe = create_named_pipe(r"\\.\pipe\VibeIsland");
-    loop {
-        let msg: AgentEvent = read_json(&pipe).await;
-        // AgentEvent: { session_id, state: "idle"|"running"|"approval", payload }
-        event_tx.send(msg);
-    }
-}
+### `lib.rs`
 
-// PTY 输出解析（兜底）
-fn parse_pty_line(line: &str) -> Option<AgentState> {
-    if line.contains("Do you want to proceed") {
-        return Some(Approval)
-    }
-    if line.contains("✓ Task complete") {
-        return Some(Done)
-    }
-    None
-}
-```
+- 注册所有 Tauri commands。
+- 启动 Hook server 和 Named Pipe server。
+- 创建系统托盘：
+  - `Show/Hide Overlay`
+  - `Hooks -> Hook Config Mode`
+  - `Hooks -> Install Hooks`
+  - `Hooks -> Remove Hooks`
+  - `Quit`
+- `Quit` 会停止 Hook server / Pipe server；仅当模式为 `autoCleanup` 时执行 hook 清理。
 
-### 3. 跨应用窗口聚焦
-```rust
-fn focus_window(session: &Session) {
-    // 1. 枚举所有顶层窗口，匹配进程 PID + 窗口标题
-    let hwnd = find_window_by_pid(session.pid, &session.title_hint);
-    
-    // 2. 若最小化则先恢复
-    if IsIconic(hwnd) {
-        ShowWindow(hwnd, SW_RESTORE);
-    }
-    
-    // 3. 置前（注意：直接 SetForegroundWindow 在 Win11 受限，需 AttachThreadInput）
-    let fg_tid = GetWindowThreadProcessId(GetForegroundWindow(), null);
-    let my_tid = GetCurrentThreadId();
-    AttachThreadInput(my_tid, fg_tid, TRUE);
-    SetForegroundWindow(hwnd);
-    AttachThreadInput(my_tid, fg_tid, FALSE);
-}
-```
+### `hook_server.rs`
 
-## 工程目录结构
+HTTP server 固定监听 `127.0.0.1:7878`，当前路由：
 
-```
-vibe-island/
-├── src-tauri/                    # Rust 后端
-│   ├── src/
-│   │   ├── main.rs               # 入口，Tauri builder
-│   │   ├── lib.rs                # Tauri 应用配置，插件注册
-│   │   ├── overlay.rs            # Win32 Overlay 窗口管理
-│   │   ├── commands.rs           # Tauri IPC commands
-│   │   ├── events.rs             # Tauri 事件发射
-│   │   ├── hook_server.rs        # HTTP Hook 服务器 (Claude Code)
-│   │   ├── pipe_server.rs        # Named Pipe 服务端 (Agent SDK)
-│   │   ├── process_watcher.rs    # 进程枚举 + 监控
-│   │   ├── window_focus.rs       # 跨应用聚焦
-│   │   └── mock.rs               # Mock 事件生成器
-│   └── tauri.conf.json
-├── frontend/                     # React 前端
-│   └── src/
-│       ├── components/
-│       │   ├── Overlay.tsx       # 主浮窗容器
-│       │   ├── StatusDot.tsx     # 状态指示器（闪烁/旋转动画）
-│       │   ├── ApprovalPanel.tsx # 审批面板
-│       │   └── DiffViewer.tsx    # 代码差异渲染
-│       ├── hooks/
-│       │   └── useAgentEvents.ts # 订阅 Tauri 事件
-│       └── store/
-│           └── sessions.ts       # Zustand 全局状态
-├── agent-sdk/                    # Agent SDK (可选，用于非 Claude Code 工具)
-│   ├── node/                     # Node.js SDK
-│   │   ├── src/
-│   │   │   ├── index.ts          # 入口
-│   │   │   ├── client.ts         # Named Pipe 客户端
-│   │   │   └── types.ts          # 类型定义
-│   │   └── package.json
-│   └── python/                   # Python SDK
-│       └── src/vibe_island_sdk/
-│           ├── __init__.py       # 入口
-│           ├── client.py         # Named Pipe 客户端
-│           └── types.py          # 类型定义
-├── docs/
-│   ├── hooks-setup.md            # Claude Code Hooks 配置指南
-│   └── claude-settings.example.json  # 配置示例
-├── architecture.md               # 架构文档
-├── task.json                     # 任务定义
-└── progress.txt                  # 进度记录
-```
+| Route | 状态映射 / 行为 |
+|-------|------------------|
+| `POST /hooks/session-start` | 创建 session，发 `session_start`，再发 `idle` |
+| `POST /hooks/pre-tool-use` | 确保 session 存在，发 `thinking` 和 `tool_use` |
+| `POST /hooks/post-tool-use` | 发 `tool_complete`，再发 `streaming` |
+| `POST /hooks/post-tool-use-failure` | 发 `tool_error`，再发 `error`，写错误日志 |
+| `POST /hooks/notification` | `permission_prompt` -> `approval`，`idle_prompt` -> `idle` |
+| `POST /hooks/stop` | 发 `done` |
+| `POST /hooks/user-prompt-submit` | 发 `running` |
+| `POST /hooks/permission-request` | 存 pending approval，发前端审批事件，等待响应后返回 Claude Code |
+| `POST /hooks/ping` | 更新 heartbeat，发 `hook_heartbeat` |
+| `GET /hooks/health` | 返回 health JSON |
 
-## 集成方式
+`PermissionRequest` 后端等待时间常量为 120 秒。当前自动生成的 Claude Code hook timeout 是 60 秒，因此手动配置时建议把 Claude Code hook timeout 设置为 60 秒或更高。
 
-### 方式 1: HTTP Hooks (推荐，Claude Code 原生)
-
-Claude Code 原生支持 HTTP Hooks，无需安装 SDK。在 `.claude/settings.json` 中配置：
+Claude Code PermissionRequest 响应格式按当前代码为：
 
 ```json
 {
-  "hooks": {
-    "PreToolUse": [{
-      "matcher": "*",
-      "hooks": [{ "type": "http", "url": "http://localhost:7878/hooks/pre-tool-use" }]
-    }],
-    "Notification": [{
-      "matcher": "*",
-      "hooks": [{ "type": "http", "url": "http://localhost:7878/hooks/notification" }]
-    }],
-    "Stop": [{
-      "matcher": "*",
-      "hooks": [{ "type": "http", "url": "http://localhost:7878/hooks/stop" }]
-    }]
+  "hookSpecificOutput": {
+    "hookEventName": "PermissionRequest",
+    "decision": {
+      "behavior": "allow"
+    }
   }
 }
 ```
 
-### 方式 2: Agent SDK (Codex CLI / 自定义工具)
+拒绝时 `behavior` 为 `deny`。
 
-对于非 Claude Code 工具，使用 Agent SDK 通过 Named Pipe 通信：
+### `hook_config.rs`
 
-```typescript
-// Node.js
-import { VibeIslandClient } from 'vibe-island-sdk';
+自动配置写入的 required hooks：
 
-const client = new VibeIslandClient();
-await client.connect();
-await client.sendEvent({ session_id: 'xxx', state: 'running', payload: {} });
+- `SessionStart`
+- `PreToolUse`
+- `PostToolUse`
+- `Notification`
+- `Stop`
+- `UserPromptSubmit`
+- `PermissionRequest`
+
+模式：
+
+| Mode | Serialized | 行为 |
+|------|------------|------|
+| Auto | `auto` | 启动安装，退出保留 |
+| AutoCleanup | `autoCleanup` | 启动安装，通过 tray Quit 退出时移除 |
+| Manual | `manual` | 不自动安装 |
+
+合并策略：
+
+- 缺失 hook：新增；
+- 已有 Vibe Island hook：更新；
+- 用户已有非 Vibe Island 同名 hook：跳过，不覆盖；
+- 写入前创建 `settings.json.vibe-island-backup`。
+
+### `pipe_server.rs`
+
+Windows 下监听 `\\.\pipe\VibeIsland`，接收 newline-delimited JSON：
+
+```json
+{
+  "session_id": "agent-session-1",
+  "state": "running",
+  "payload": {
+    "event_type": "session_start",
+    "label": "Agent Session",
+    "pid": 1234
+  }
+}
 ```
 
-```python
-# Python
-from vibe_island_sdk import VibeIslandClient
+基础 `state_change` 总会发出；payload 中 `event_type=session_start` 或 `session_end` 时额外发对应事件。
 
-client = VibeIslandClient()
-client.connect()
-client.send_event(session_id='xxx', state='running', payload={})
+### `process_watcher.rs`
+
+检测进程名：
+
+- `claude` / `claude.exe`
+- `codex` / `codex.exe`
+- `aider` / `aider.exe`
+- `cursor` / `cursor.exe`
+- `copilot-agent` / `copilot-agent.exe`
+
+默认 5000ms 轮询。检测到新进程发 `process_detected`，进程消失发 `process_terminated`。
+
+### `overlay.rs`
+
+原生 Win32 overlay 使用：
+
+```text
+WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE
 ```
 
-## 开发阶段
+支持：
 
-### Phase 1 - MVP ✅ 已完成
-- Tauri 2.0 工程骨架
-- Win32 Overlay 窗口（置顶、透明、不抢焦点）
-- 系统托盘图标 + 右键菜单
-- Named Pipe Server
-- 前端状态指示动画
+- `SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)`
+- `GetDpiForWindow`
+- `GetDpiForMonitor`
+- `MonitorFromPoint`
+- `SetWindowLongPtrW` 切换 `WS_EX_TRANSPARENT`
+- `SetWindowPos(HWND_TOPMOST, ..., SWP_NOACTIVATE)`
 
-### Phase 2 - 核心功能 ✅ 已完成
-- HTTP Hook Server (Claude Code 集成)
-- 进程监控
-- 窗口聚焦
-- Approval Panel
-- Diff Viewer
+### `window_focus.rs`
 
-### Phase 3 - SDK & 文档 ✅ 已完成
-- Node.js Agent SDK
-- Python Agent SDK
-- Hooks 配置文档
+按 PID 枚举顶层窗口并尝试聚焦。前端点击 session 且 session 有 `pid` 时调用 `focus_session_window`。
 
-## 关键 Win32 API
+---
 
-- `CreateWindowExW` - 创建窗口
-- `SetLayeredWindowAttributes` - 设置透明度
-- `SetWindowPos` - 设置窗口位置和层级
-- `EnumWindows` - 枚举所有窗口
-- `GetWindowTextW` - 获取窗口标题
-- `CreateNamedPipeW` - 创建命名管道
-- `SetForegroundWindow` - 设置前台窗口
-- `AttachThreadInput` - 线程输入附加
+## 前端模块
 
-## 注意事项
+### `useAgentEvents.ts`
 
-1. 使用 `windows-rs` crate 进行 Win32 API 调用
-2. Overlay 窗口需要 `WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_TRANSPARENT`
-3. 点击穿透时鼠标事件会穿透到下层窗口
-4. 展开面板时需要动态关闭 `WS_EX_TRANSPARENT`
+当前订阅事件：
+
+- `session_start`
+- `session_end`
+- `state_change`
+- `tool_use`
+- `tool_complete`
+- `tool_error`
+- `notification`
+- `permission_request`
+- `process_detected`
+- `process_terminated`
+- `approval_timeout`
+
+无效 state 会回退为 `idle`。
+
+### `sessions.ts`
+
+Zustand store 管理：
+
+- sessions 列表；
+- active session；
+- 当前 approval request；
+- hook server health 状态；
+- error logs；
+- tool execution history。
+
+工具历史保留最近 20 条，错误日志保留最近 50 条。
+
+### `Overlay.tsx`
+
+当前 UI：
+
+- collapsed height: `60`
+- expanded height: `600`
+- width: `420`
+- 点击顶部 bar 展开/收起；
+- approval request 到达时自动展开；
+- session 有 PID 时点击尝试聚焦窗口；
+- 顶部右侧显示 `HookStatus`。
+
+### `StatusDot.tsx`
+
+状态颜色和动画：
+
+| State | Color | Animation |
+|-------|-------|-----------|
+| `idle` | gray | static |
+| `thinking` | purple | scale pulse |
+| `running` | blue | opacity pulse |
+| `streaming` | cyan | fast opacity pulse |
+| `approval` | amber | fast scale pulse |
+| `error` | red | static |
+| `done` | green | static |
+
+---
+
+## Claude Code 集成
+
+用户通常不需要手写配置：默认 `auto` 模式会在启动时尝试自动配置。完整手动配置见 `docs/hooks-setup.md` 和 `docs/claude-settings.example.json`。
+
+当前核心数据来源是 Claude Code hook payload 的 `session_id`。如果缺失，后端回退到 `transcript_path`，最后才生成临时 ID。
+
+Session label 优先从 `cwd` 最后一段提取；没有 `cwd` 时显示 `Claude Code`。
+
+---
+
+## 已知实现边界
+
+1. `HookConfigStatusPanel` 和 `ErrorLog` 组件尚未挂载到当前 UI。
+2. 自动 hook 配置未写入 `PostToolUseFailure`，但后端 route 和前端 `tool_error` 处理已实现。
+3. `update_overlay_size` 有 16ms 节流，但当前 `Overlay.tsx` 主要使用固定高度的 `set_window_size`。
+4. Named Pipe SDK 的状态类型仍是 `idle/running/approval/done` 四态；HTTP Hooks 路径支持七态。
+5. 进程命令行读取当前是简化实现，主要依赖进程名匹配。
+6. 当前没有持久化 session 历史，重启后 session store 为空。
+
+---
+
+## 关键约束
+
+1. Win32 代码必须保留 `#[cfg(target_os = "windows")]` 和非 Windows stub。
+2. HWND 通过 IPC 传递时必须序列化成字符串。
+3. 不得删除 overlay 的关键扩展样式：`WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE`。
+4. Hook 自动配置必须保持非破坏性，不覆盖用户已有的非 Vibe Island hook。
+5. Approval response 必须按 `tool_use_id` 关联 pending request。

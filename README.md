@@ -1,18 +1,19 @@
 # Vibe Island
 
-A Windows desktop overlay app that monitors AI coding agent sessions (Claude Code, Codex, etc.) and displays their state as a floating overlay - inspired by Apple's Dynamic Island.
-
-<!-- Screenshot placeholder - add docs/screenshot.png -->
-<!-- ![Vibe Island Screenshot](docs/screenshot.png) -->
+Windows desktop overlay for AI coding agent sessions. Vibe Island tracks Claude Code through HTTP Hooks, supports optional Named Pipe SDK clients for other agents, and shows session state, tool activity, hook health, and approval requests in a floating Dynamic Island-style window.
 
 ## Features
 
-- **Floating Overlay**: Always-visible status bar at the top of your screen
-- **Real-time State Tracking**: Shows agent state (idle, running, awaiting approval, done)
-- **Claude Code Integration**: Native HTTP hooks support - no SDK installation required
-- **Multi-session Support**: Track multiple agent sessions simultaneously
-- **Click-through Toggle**: Overlay can be interactive or click-through
-- **Approval Flow**: Approve or reject tool executions directly from the overlay
+- Floating transparent overlay at the top of the screen
+- Claude Code HTTP Hooks integration on `localhost:7878`
+- Automatic Claude Code hook configuration with `auto`, `autoCleanup`, and `manual` modes
+- Multi-session tracking by Claude Code `session_id`
+- Tool activity states: `idle`, `thinking`, `running`, `streaming`, `approval`, `error`, `done`
+- PermissionRequest approval flow with Approve/Reject from the overlay
+- Diff preview for Write/Edit approval requests
+- Hook server health indicator
+- Optional Named Pipe SDK fallback at `\\.\pipe\VibeIsland`
+- Windows process detection and click-to-focus by PID
 
 ## Installation
 
@@ -20,158 +21,107 @@ A Windows desktop overlay app that monitors AI coding agent sessions (Claude Cod
 
 Download the latest release from the [Releases](https://github.com/vibeisland/vibe-island/releases) page.
 
-Two installer formats are available:
-- **NSIS Installer** (`Vibe Island_X.X.X_x64-setup.exe`) - Recommended, smaller size
-- **MSI Installer** (`Vibe Island_X.X.X_x64_en-US.msi`) - For enterprise deployment
+Installer formats:
+
+- NSIS installer: `Vibe Island_X.X.X_x64-setup.exe`
+- MSI installer: `Vibe Island_X.X.X_x64_en-US.msi`
 
 ### System Requirements
 
 - Windows 10 version 1809 or later
-- Windows 11 (recommended)
-- No additional runtime dependencies required
-
-### Install Steps
-
-1. Download and run the installer
-2. Follow the installation wizard
-3. Launch Vibe Island from the Start Menu or Desktop shortcut
+- Windows 11 recommended
+- WebView2 runtime, installed by the Tauri bundle bootstrapper if needed
 
 ## Quick Start
 
-### Step 1: Install Vibe Island
+1. Launch Vibe Island.
+2. Keep the default hook mode as `auto`, or use the tray menu `Hooks -> Install Hooks`.
+3. Restart Claude Code after hooks are installed.
+4. Start or resume a Claude Code session.
 
-Run the downloaded installer and follow the prompts.
+The app checks Claude Code settings at startup. It prefers an existing user-level `~/.claude/settings.json`, then an existing project-level `.claude/settings.json`, and creates user-level settings if neither exists.
 
-### Step 2: Configure Claude Code Hooks
+Manual hook configuration is documented in [docs/hooks-setup.md](docs/hooks-setup.md). The generated example is in [docs/claude-settings.example.json](docs/claude-settings.example.json).
 
-Add the following to your Claude Code settings file:
+## Overlay States
 
-**Location**: `~/.claude/settings.json` (global) or `.claude/settings.json` in your project
+| State | Meaning |
+|-------|---------|
+| `idle` | Session exists but is waiting |
+| `thinking` | Claude is about to use a tool (`PreToolUse`) |
+| `running` | User submitted a prompt or approval was accepted |
+| `streaming` | A tool completed and Claude is processing the result |
+| `approval` | Permission request is waiting for user input |
+| `error` | Tool failure was reported |
+| `done` | Claude finished a response (`Stop`) |
+
+## Hook Events
+
+| Claude Hook | Endpoint | Overlay Behavior |
+|-------------|----------|------------------|
+| `SessionStart` | `/hooks/session-start` | Create/update session, set `idle` |
+| `PreToolUse` | `/hooks/pre-tool-use` | Set `thinking`, show current tool |
+| `PostToolUse` | `/hooks/post-tool-use` | Record completion, set `streaming` |
+| `Notification` | `/hooks/notification` | Handle permission/idle notifications |
+| `Stop` | `/hooks/stop` | Set `done` |
+| `UserPromptSubmit` | `/hooks/user-prompt-submit` | Set `running` |
+| `PermissionRequest` | `/hooks/permission-request` | Block for overlay approval/rejection |
+
+The backend also implements `/hooks/post-tool-use-failure`, `/hooks/ping`, and `/hooks/health`. The current auto-generated Claude Code config writes the seven hooks listed above.
+
+## Approval Flow
+
+When Claude Code sends `PermissionRequest`:
+
+1. The backend stores a pending approval by `tool_use_id`.
+2. The overlay expands and shows tool name, action, risk level, and optional diff.
+3. Approve/Reject calls `submit_approval_response`.
+4. The hook response is returned to Claude Code as `hookSpecificOutput`.
+
+The generated hook timeout is 60 seconds. The backend fallback timeout is 120 seconds.
+
+## System Tray
+
+Tray menu:
+
+- `Show/Hide Overlay`
+- `Hooks -> Hook Config Mode`
+- `Hooks -> Install Hooks`
+- `Hooks -> Remove Hooks`
+- `Quit`
+
+`autoCleanup` mode removes Vibe Island hooks when exiting through the tray `Quit` action.
+
+## Optional SDK Integration
+
+Non-Claude agents can send newline-delimited JSON to the Windows named pipe:
 
 ```json
 {
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "http",
-            "url": "http://localhost:7878/hooks/pre-tool-use",
-            "timeout": 30
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "type": "http",
-            "url": "http://localhost:7878/hooks/notification"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "http",
-            "url": "http://localhost:7878/hooks/stop"
-          }
-        ]
-      }
-    ]
+  "session_id": "agent-session-1",
+  "state": "running",
+  "payload": {
+    "event_type": "session_start",
+    "label": "Custom Agent",
+    "pid": 1234
   }
 }
 ```
 
-For the full configuration with all supported hooks, see [docs/hooks-setup.md](docs/hooks-setup.md).
+SDK packages live in:
 
-### Step 3: Start Using
-
-1. Launch Vibe Island - it appears as a small bar at the top of your screen
-2. Start a Claude Code session - Vibe Island automatically shows the session state
-3. Click the overlay to expand and see all active sessions
-
-## Usage Guide
-
-### Overlay States
-
-| State | Description |
-|-------|-------------|
-| **Idle** | No active agent sessions |
-| **Running** | Agent is executing a tool |
-| **Approval** | Agent is waiting for your approval |
-| **Done** | Agent has finished a response |
-
-### Interacting with the Overlay
-
-- **Click the bar**: Expand to see all sessions
-- **Click a session**: Focus the corresponding terminal window
-- **Click outside**: Collapse the overlay
-- **Right-click tray icon**: Access menu (Show/Hide, Quit)
-
-### Approval Flow
-
-When Claude Code needs permission to execute a tool (e.g., Bash commands):
-
-1. The overlay expands automatically
-2. A panel shows the tool name and details
-3. Click **Approve** or **Reject**
-4. The decision is sent back to Claude Code
-
-### System Tray
-
-Vibe Island runs in the system tray when minimized:
-- **Left-click**: Show the overlay
-- **Right-click**: Open menu
-  - Show/Hide Overlay
-  - Quit
-
-## Hook Events
-
-| Event | When Triggered | Overlay State |
-|-------|----------------|---------------|
-| `PreToolUse` | Claude executes a tool (Write, Edit, Bash, etc.) | `running` |
-| `Notification` | Claude needs user attention (approval, error) | `approval` or current |
-| `Stop` | Claude finishes a response | `done` |
-| `SessionStart` | New Claude session begins | Shows session label |
-| `PermissionRequest` | Claude needs permission | Blocks until response |
-
-See [docs/hooks-setup.md](docs/hooks-setup.md) for the complete hook configuration.
-
-## Troubleshooting
-
-### Sessions not appearing
-
-1. Ensure Vibe Island is running (check system tray icon)
-2. Verify the hooks configuration in `.claude/settings.json`
-3. Check that port 7878 is not blocked by firewall
-4. Restart Claude Code after updating settings
-
-### Overlay not visible
-
-1. Check if the overlay is hidden (right-click tray icon > Show Overlay)
-2. Try moving your mouse to the top of the screen
-3. Check if another always-on-top app is conflicting
-
-### Port 7878 already in use
-
-1. Check what's using the port: `netstat -ano | findstr :7878`
-2. Close the conflicting application
-3. Or modify the port in `hook_server.rs` and rebuild
+- `agent-sdk/node`
+- `agent-sdk/python`
 
 ## Development
 
-### Prerequisites
+Prerequisites:
 
 - Rust 1.77+
 - Node.js 18+
-- Windows 10/11
+- Windows 10/11 for native overlay, named pipe, process watcher, and focus behavior
 
-### Commands
+Commands:
 
 ```bash
 # Start dev server (Tauri + Vite hot reload)
@@ -180,53 +130,42 @@ cd src-tauri && cargo tauri dev
 # Build for production
 cd src-tauri && cargo tauri build
 
-# Frontend only (without Tauri)
+# Frontend only
 cd frontend && npm run dev
 
-# Lint frontend
+# Frontend lint/build/test
 cd frontend && npm run lint
+cd frontend && npm run build
+cd frontend && npm test
+
+# Backend tests
+cd src-tauri && cargo test
 ```
 
-### Architecture
+## Architecture
 
-```
-Vibe Island
-├── src-tauri/              # Rust backend
-│   ├── src/
-│   │   ├── hook_server.rs  # HTTP server for Claude Code hooks
-│   │   ├── pipe_server.rs  # Named pipe for SDK fallback
-│   │   ├── process_watcher.rs  # Process detection
-│   │   ├── overlay.rs      # Win32 overlay window management
-│   │   └── lib.rs          # Tauri app setup
-│   └── tauri.conf.json     # Tauri configuration
-├── frontend/               # React frontend
-│   └── src/
-│       ├── components/     # Overlay UI components
-│       ├── hooks/          # Event listeners
-│       └── store/          # Zustand state management
-└── docs/                   # Documentation
-```
+See [architecture.md](architecture.md) and [DESIGN.md](DESIGN.md) for current implementation details and constraints.
 
-## Version History
+## Troubleshooting
 
-### v0.1.0 (Current)
+### Sessions Not Appearing
 
-- Initial release
-- Claude Code HTTP hooks integration
-- Multi-session support
-- Approval flow for tool execution
-- Click-through toggle
-- System tray support
+- Confirm Vibe Island is running in the tray.
+- Use `Hooks -> Install Hooks`, then restart Claude Code.
+- Check `http://localhost:7878/hooks/health`.
+- Confirm port 7878 is not blocked or already in use.
+
+### Approval Panel Appears But Claude Does Not Continue
+
+- Ensure `PermissionRequest` is configured with endpoint `http://localhost:7878/hooks/permission-request`.
+- Ensure the hook timeout is high enough for user interaction.
+- Use the latest docs response format in [docs/hooks-setup.md](docs/hooks-setup.md).
+
+### Overlay Not Visible
+
+- Use tray `Show/Hide Overlay`.
+- Check for another always-on-top app covering the top-center screen area.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
-## Contributing
-
-Contributions are welcome! Please open an issue or submit a pull request.
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/vibeisland/vibe-island/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/vibeisland/vibe-island/discussions)
+MIT License.

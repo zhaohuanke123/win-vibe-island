@@ -114,7 +114,7 @@
         "Add IPC command in commands.rs to handle approval responses",
         "Style the panel to match existing overlay design (glassmorphism, animations)",
         "Add keyboard shortcuts for quick approval (Enter) and rejection (Escape)",
-        "Test: trigger mock approval event via demo mode, verify panel shows and buttons respond"
+        "Test: trigger PermissionRequest approval event, verify panel shows and buttons respond"
       ],
       "status": "completed",
       "priority": "medium",
@@ -238,7 +238,7 @@
         "Verify overlay click-through toggle works smoothly",
         "Run npm run lint && npm run build - no errors",
         "Run cargo tauri build - production build succeeds",
-        "Test full end-to-end flow with demo mode in browser",
+        "Test full end-to-end flow with real Claude Code hooks",
         "Verify all features work on Windows 10 and Windows 11"
       ],
       "status": "completed",
@@ -327,7 +327,7 @@
         "Add syntax highlighting (optional)",
         "Style: red background for deletions, green for additions",
         "Integrate with PreToolUse hook data for real-time diff preview",
-        "Test with mock approval events containing diff data"
+        "Test with PermissionRequest fixtures containing diff data"
       ],
       "status": "completed",
       "priority": "medium",
@@ -729,10 +729,10 @@
       "steps": [
         "在 hook_server.rs 添加心跳检测机制",
         "定义 HookConnectionState 枚举: connected, disconnected, error",
-        "前端添加 StatusBar 组件显示连接状态（绿/红/灰）",
+        "前端添加 HookStatus 组件显示连接状态（绿/红/灰）",
         "实现自动重连逻辑（指数退避）",
         "添加错误日志存储和展示",
-        "添加 IPC 命令: get_hook_status, get_hook_errors",
+        "添加 IPC 命令: get_hook_health, get_hook_errors, clear_hook_errors",
         "测试: 模拟 Hook server 断开，验证前端状态更新"
       ],
       "status": "completed",
@@ -742,8 +742,10 @@
       ],
       "files": [
         "src-tauri/src/hook_server.rs",
-        "frontend/src/components/StatusBar.tsx",
-        "frontend/src/store/hooks.ts"
+        "src-tauri/src/commands.rs",
+        "frontend/src/components/HookStatus.tsx",
+        "frontend/src/components/HookStatus.css",
+        "frontend/src/store/sessions.ts"
       ]
     },
     {
