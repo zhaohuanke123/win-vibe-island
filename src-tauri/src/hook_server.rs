@@ -29,8 +29,8 @@ use tokio::sync::oneshot;
 /// Default port for the hook server
 pub const HOOK_SERVER_PORT: u16 = 7878;
 
-/// Default timeout for approval requests (30 seconds)
-const APPROVAL_TIMEOUT_SECS: u64 = 30;
+/// Default timeout for approval requests (120 seconds)
+const APPROVAL_TIMEOUT_SECS: u64 = 120;
 
 /// Maximum number of error logs to keep
 const MAX_ERROR_LOGS: usize = 100;
@@ -225,16 +225,25 @@ pub fn get_hook_server_status() -> HookServerStatus {
 }
 
 async fn run_hook_server(state: Arc<HookServerState>) -> Result<(), String> {
+    use tower_http::cors::{Any, CorsLayer};
+
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
     let app = Router::new()
         .route("/hooks/session-start", post(handle_session_start))
         .route("/hooks/pre-tool-use", post(handle_pre_tool_use))
         .route("/hooks/post-tool-use", post(handle_post_tool_use))
+        .route("/hooks/post-tool-use-failure", post(handle_post_tool_use_failure))
         .route("/hooks/notification", post(handle_notification))
         .route("/hooks/stop", post(handle_stop))
         .route("/hooks/user-prompt-submit", post(handle_user_prompt_submit))
         .route("/hooks/permission-request", post(handle_permission_request))
         .route("/hooks/ping", post(handle_ping))
         .route("/hooks/health", get(handle_health))
+        .layer(cors)
         .with_state(state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], HOOK_SERVER_PORT));
@@ -327,7 +336,7 @@ async fn handle_pre_tool_use(
     Json(payload): Json<HookPayload>,
 ) -> Result<StatusCode, StatusCode> {
     increment_request_count(&state);
-    
+
     log::info!(
         "PreToolUse hook received: session_id={:?}, tool={:?}",
         payload.session_id,
@@ -348,12 +357,12 @@ async fn handle_pre_tool_use(
         }),
     );
 
-    // Emit state_change to running
+    // Emit state_change to thinking (agent is about to use a tool)
     let _ = state.app_handle.emit(
         "state_change",
         &serde_json::json!({
             "session_id": session_id,
-            "state": "running",
+            "state": "thinking",
             "tool_name": payload.tool_name,
             "tool_input": payload.tool_input,
         }),
@@ -384,23 +393,83 @@ async fn handle_post_tool_use(
     Json(payload): Json<HookPayload>,
 ) -> Result<StatusCode, StatusCode> {
     increment_request_count(&state);
-    
+
     log::info!(
-        "PostToolUse hook received: session_id={:?}, tool={:?}",
+        "PostToolUse hook received: session_id={:?}, tool={:?}, duration_ms={:?}",
         payload.session_id,
-        payload.tool_name
+        payload.tool_name,
+        payload.duration_ms
     );
 
     let session_id = get_session_id(&payload);
 
-    // Emit tool_complete event
+    // Emit tool_complete event with duration
     let _ = state.app_handle.emit(
         "tool_complete",
         &serde_json::json!({
             "session_id": session_id,
             "tool_name": payload.tool_name,
             "duration_ms": payload.duration_ms,
+            "tool_response": payload.tool_response,
         }),
+    );
+
+    // Emit state_change to streaming (agent is processing the result)
+    let _ = state.app_handle.emit(
+        "state_change",
+        &serde_json::json!({
+            "session_id": session_id,
+            "state": "streaming",
+        }),
+    );
+
+    Ok(StatusCode::OK)
+}
+
+/// Handle PostToolUseFailure hook - triggered when a tool fails
+async fn handle_post_tool_use_failure(
+    State(state): State<Arc<HookServerState>>,
+    Json(payload): Json<HookPayload>,
+) -> Result<StatusCode, StatusCode> {
+    increment_request_count(&state);
+
+    log::warn!(
+        "PostToolUseFailure hook received: session_id={:?}, tool={:?}, error={:?}",
+        payload.session_id,
+        payload.tool_name,
+        payload.error
+    );
+
+    let session_id = get_session_id(&payload);
+
+    // Emit tool_error event
+    let _ = state.app_handle.emit(
+        "tool_error",
+        &serde_json::json!({
+            "session_id": session_id,
+            "tool_name": payload.tool_name,
+            "error": payload.error,
+            "duration_ms": payload.duration_ms,
+            "is_interrupt": payload.is_interrupt,
+        }),
+    );
+
+    // Emit state_change to error
+    let _ = state.app_handle.emit(
+        "state_change",
+        &serde_json::json!({
+            "session_id": session_id,
+            "state": "error",
+            "error": payload.error,
+        }),
+    );
+
+    // Add to error logs
+    add_error_log(
+        &state,
+        "tool_failure",
+        &format!("Tool {} failed", payload.tool_name.unwrap_or_default()),
+        payload.error.as_deref(),
     );
 
     Ok(StatusCode::OK)
@@ -522,16 +591,18 @@ async fn handle_permission_request(
     Json(payload): Json<HookPayload>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     increment_request_count(&state);
-    
+
     log::info!(
-        "PermissionRequest hook received: session_id={:?}, tool={:?}, tool_use_id={:?}",
+        "PermissionRequest hook received: session_id={:?}, tool={:?}, tool_use_id={:?}, full_payload={:?}",
         payload.session_id,
         payload.tool_name,
-        payload.tool_use_id
+        payload.tool_use_id,
+        payload
     );
 
     let session_id = get_session_id(&payload);
     let tool_use_id = payload.tool_use_id.clone().unwrap_or_else(|| format!("auto-{}", chrono_timestamp()));
+    log::info!("Generated tool_use_id for pending approval: {}", tool_use_id);
     let tool_name = payload.tool_name.clone().unwrap_or_else(|| "unknown".to_string());
     let tool_input = payload.tool_input.clone().unwrap_or(serde_json::json!({}));
 
@@ -620,6 +691,14 @@ async fn handle_permission_request(
                     pending.remove(&tool_use_id);
                 }
             }
+            // Notify frontend to clear the approval request
+            let _ = state.app_handle.emit(
+                "approval_timeout",
+                &serde_json::json!({
+                    "tool_use_id": tool_use_id,
+                    "session_id": session_id,
+                }),
+            );
             PermissionDecision {
                 behavior: "deny".to_string(),
                 message: Some(format!("Permission request timed out after {} seconds", APPROVAL_TIMEOUT_SECS)),
@@ -628,10 +707,18 @@ async fn handle_permission_request(
         }
     };
 
-    // Build the response JSON
+    // Build the response JSON in the correct format expected by Claude Code
+    // See: https://code.claude.com/docs/en/hooks
     let response = serde_json::json!({
-        "decision": decision
+        "hookSpecificOutput": {
+            "hookEventName": "PermissionRequest",
+            "decision": {
+                "behavior": decision.behavior
+            }
+        }
     });
+
+    log::info!("Sending permission response to Claude Code: {}", serde_json::to_string(&response).unwrap_or_default());
 
     Ok(Json(response))
 }
@@ -762,9 +849,11 @@ fn extract_diff_data(tool_name: &str, tool_input: &serde_json::Value) -> Option<
 /// Submit an approval response for a pending permission request.
 /// This is called from the frontend when the user approves or rejects an action.
 pub fn submit_approval_response(tool_use_id: &str, approved: bool) -> Result<(), String> {
+    log::info!("submit_approval_response called: tool_use_id={}, approved={}", tool_use_id, approved);
     let state_guard = HOOK_SERVER_STATE.lock();
     if let Some(ref state) = *state_guard {
         let mut pending = state.pending_approvals.lock();
+        log::info!("Pending approvals keys: {:?}", pending.keys().collect::<Vec<_>>());
         if let Some(pending_approval) = pending.remove(tool_use_id) {
             let decision = PermissionDecision {
                 behavior: if approved { "allow" } else { "deny" }.to_string(),
@@ -921,5 +1010,292 @@ pub fn clear_hook_errors() {
     if let Some(ref state) = *state_guard {
         state.error_logs.lock().clear();
         *state.error_count.lock() = 0;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_test_payload() -> HookPayload {
+        HookPayload {
+            session_id: Some("test-session-123".to_string()),
+            transcript_path: None,
+            cwd: Some("/path/to/project".to_string()),
+            hook_event_name: None,
+            source: None,
+            model: None,
+            agent_type: None,
+            agent_id: None,
+            tool_name: None,
+            tool_input: None,
+            tool_response: None,
+            tool_use_id: None,
+            prompt: None,
+            permission_mode: None,
+            reason: None,
+            notification_type: None,
+            message: None,
+            permission_suggestions: None,
+            error: None,
+            is_interrupt: None,
+            duration_ms: None,
+        }
+    }
+
+    #[test]
+    fn test_get_session_id_from_session_id() {
+        let mut payload = create_test_payload();
+        payload.session_id = Some("my-session".to_string());
+
+        let session_id = get_session_id(&payload);
+        assert_eq!(session_id, "my-session");
+    }
+
+    #[test]
+    fn test_get_session_id_from_transcript_path() {
+        let mut payload = create_test_payload();
+        payload.session_id = None;
+        payload.transcript_path = Some("/path/to/transcript.json".to_string());
+
+        let session_id = get_session_id(&payload);
+        assert_eq!(session_id, "/path/to/transcript.json");
+    }
+
+    #[test]
+    fn test_get_session_id_generates_fallback() {
+        let mut payload = create_test_payload();
+        payload.session_id = None;
+        payload.transcript_path = None;
+
+        let session_id = get_session_id(&payload);
+        assert!(session_id.starts_with("unknown-"));
+    }
+
+    #[test]
+    fn test_get_session_label_from_cwd() {
+        let mut payload = create_test_payload();
+        payload.cwd = Some("/home/user/my-project".to_string());
+
+        let label = get_session_label(&payload);
+        assert_eq!(label, "my-project");
+    }
+
+    #[test]
+    fn test_get_session_label_from_cwd_windows_path() {
+        let mut payload = create_test_payload();
+        payload.cwd = Some("C:\\Users\\test\\windows-project".to_string());
+
+        let label = get_session_label(&payload);
+        // Windows path uses backslash, split by '/' won't work
+        // The function splits by '/', so it returns the whole path
+        assert!(label.contains("windows-project"));
+    }
+
+    #[test]
+    fn test_get_session_label_default() {
+        let mut payload = create_test_payload();
+        payload.cwd = None;
+
+        let label = get_session_label(&payload);
+        assert_eq!(label, "Claude Code");
+    }
+
+    #[test]
+    fn test_determine_risk_level_bash_dangerous() {
+        let input = serde_json::json!({
+            "command": "rm -rf /"
+        });
+        let risk = determine_risk_level("Bash", &input);
+        assert_eq!(risk, "high");
+    }
+
+    #[test]
+    fn test_determine_risk_level_bash_sudo() {
+        let input = serde_json::json!({
+            "command": "sudo apt install something"
+        });
+        let risk = determine_risk_level("Bash", &input);
+        assert_eq!(risk, "high");
+    }
+
+    #[test]
+    fn test_determine_risk_level_bash_normal() {
+        let input = serde_json::json!({
+            "command": "npm install"
+        });
+        let risk = determine_risk_level("Bash", &input);
+        assert_eq!(risk, "medium");
+    }
+
+    #[test]
+    fn test_determine_risk_level_write_sensitive_file() {
+        let input = serde_json::json!({
+            "file_path": "/path/to/.env"
+        });
+        let risk = determine_risk_level("Write", &input);
+        assert_eq!(risk, "high");
+    }
+
+    #[test]
+    fn test_determine_risk_level_write_config() {
+        let input = serde_json::json!({
+            "file_path": "/path/to/config.json"
+        });
+        let risk = determine_risk_level("Write", &input);
+        assert_eq!(risk, "high");
+    }
+
+    #[test]
+    fn test_determine_risk_level_write_normal() {
+        let input = serde_json::json!({
+            "file_path": "/path/to/src/main.ts"
+        });
+        let risk = determine_risk_level("Write", &input);
+        assert_eq!(risk, "medium");
+    }
+
+    #[test]
+    fn test_determine_risk_level_read() {
+        let input = serde_json::json!({
+            "file_path": "/path/to/file.ts"
+        });
+        let risk = determine_risk_level("Read", &input);
+        assert_eq!(risk, "low");
+    }
+
+    #[test]
+    fn test_determine_risk_level_glob() {
+        let input = serde_json::json!({
+            "pattern": "**/*.ts"
+        });
+        let risk = determine_risk_level("Glob", &input);
+        assert_eq!(risk, "low");
+    }
+
+    #[test]
+    fn test_determine_risk_level_unknown() {
+        let input = serde_json::json!({});
+        let risk = determine_risk_level("UnknownTool", &input);
+        assert_eq!(risk, "medium");
+    }
+
+    #[test]
+    fn test_format_tool_action_bash() {
+        let input = serde_json::json!({
+            "command": "npm test",
+            "description": "Run tests"
+        });
+        let action = format_tool_action("Bash", &input);
+        assert_eq!(action, "Execute: npm test: Run tests");
+    }
+
+    #[test]
+    fn test_format_tool_action_bash_no_description() {
+        let input = serde_json::json!({
+            "command": "npm test"
+        });
+        let action = format_tool_action("Bash", &input);
+        assert_eq!(action, "Execute: npm test");
+    }
+
+    #[test]
+    fn test_format_tool_action_read() {
+        let input = serde_json::json!({
+            "file_path": "/path/to/file.ts"
+        });
+        let action = format_tool_action("Read", &input);
+        assert_eq!(action, "Read file: /path/to/file.ts");
+    }
+
+    #[test]
+    fn test_format_tool_action_write() {
+        let input = serde_json::json!({
+            "file_path": "/path/to/new-file.ts"
+        });
+        let action = format_tool_action("Write", &input);
+        assert_eq!(action, "Write file: /path/to/new-file.ts");
+    }
+
+    #[test]
+    fn test_format_tool_action_edit() {
+        let input = serde_json::json!({
+            "file_path": "/path/to/edit-file.ts"
+        });
+        let action = format_tool_action("Edit", &input);
+        assert_eq!(action, "Edit file: /path/to/edit-file.ts");
+    }
+
+    #[test]
+    fn test_format_tool_action_glob() {
+        let input = serde_json::json!({
+            "pattern": "**/*.test.ts"
+        });
+        let action = format_tool_action("Glob", &input);
+        assert_eq!(action, "Find files: **/*.test.ts");
+    }
+
+    #[test]
+    fn test_format_tool_action_grep() {
+        let input = serde_json::json!({
+            "pattern": "describe\\("
+        });
+        let action = format_tool_action("Grep", &input);
+        assert_eq!(action, "Search: describe\\(");
+    }
+
+    #[test]
+    fn test_format_tool_action_unknown() {
+        let input = serde_json::json!({});
+        let action = format_tool_action("CustomTool", &input);
+        assert_eq!(action, "Execute tool: CustomTool");
+    }
+
+    #[test]
+    fn test_extract_diff_data_write() {
+        let input = serde_json::json!({
+            "file_path": "/path/to/file.ts",
+            "content": "new content"
+        });
+        let diff = extract_diff_data("Write", &input);
+        assert!(diff.is_some());
+        let diff = diff.unwrap();
+        assert_eq!(diff["fileName"], "file.ts");
+        assert_eq!(diff["filePath"], "/path/to/file.ts");
+        assert_eq!(diff["oldContent"], "");
+        assert_eq!(diff["newContent"], "new content");
+    }
+
+    #[test]
+    fn test_extract_diff_data_edit() {
+        let input = serde_json::json!({
+            "file_path": "/path/to/file.ts",
+            "old_string": "old code",
+            "new_string": "new code"
+        });
+        let diff = extract_diff_data("Edit", &input);
+        assert!(diff.is_some());
+        let diff = diff.unwrap();
+        assert_eq!(diff["oldContent"], "old code");
+        assert_eq!(diff["newContent"], "new code");
+    }
+
+    #[test]
+    fn test_extract_diff_data_no_content() {
+        let input = serde_json::json!({
+            "file_path": "/path/to/file.ts"
+        });
+        let diff = extract_diff_data("Write", &input);
+        assert!(diff.is_none());
+    }
+
+    #[test]
+    fn test_extract_diff_data_non_write_tool() {
+        let input = serde_json::json!({
+            "file_path": "/path/to/file.ts",
+            "content": "content"
+        });
+        let diff = extract_diff_data("Read", &input);
+        assert!(diff.is_none());
     }
 }
