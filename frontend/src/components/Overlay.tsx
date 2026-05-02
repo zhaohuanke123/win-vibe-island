@@ -40,6 +40,13 @@ export function Overlay() {
     }
   }, [approvalRequest]);
 
+  // Update click-through mode based on expanded state
+  useEffect(() => {
+    invoke("set_window_interactive", { interactive: expanded }).catch((e) => {
+      console.error("Failed to set window interactive mode:", e);
+    });
+  }, [expanded]);
+
   const handleSessionClick = useCallback(async (session: Session) => {
     setActiveSession(session.id);
     setError(null);
@@ -89,7 +96,7 @@ export function Overlay() {
           {active ? (
             <>
               <StatusDot state={active.state} />
-              <span className="overlay__label">{active.label}</span>
+              <span className="overlay__label" title={active.label}>{active.label}</span>
               <span className="overlay__state">{active.state}</span>
             </>
           ) : (
@@ -119,7 +126,7 @@ export function Overlay() {
               >
                 <div className="overlay__session-row">
                   <StatusDot state={s.state} />
-                  <span className="overlay__session-label">{s.label}</span>
+                  <span className="overlay__session-label" title={s.label}>{s.label}</span>
                 </div>
                 {s.currentTool && (
                   <div className="overlay__session-info">

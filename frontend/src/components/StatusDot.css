@@ -1,8 +1,12 @@
 .status-dot {
   display: inline-block;
+  flex: 0 0 10px;
   width: 10px;
   height: 10px;
   border-radius: 50%;
+  /* GPU acceleration for smooth pulse animations */
+  will-change: transform, opacity;
+  transform: translateZ(0);
   transition: background-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
 }
 

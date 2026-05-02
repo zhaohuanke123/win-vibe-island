@@ -134,8 +134,27 @@ cd frontend && npm run build
 ### 技术栈
 
 - **后端**: Rust + Tauri 2.0 + `windows` crate
-- **前端**: React 19 + TypeScript + Zustand + Vite
+- **前端**: React 19 + TypeScript + Zustand + Vite + Framer Motion
 - **IPC**: Tauri commands (同步) + Tauri events (异步)
+
+### 动画系统
+
+动画系统使用 Framer Motion 实现，分为前端动画和后端窗口同步：
+
+**前端动画**：
+- `StatusDot` - 状态指示点动画（thinking 脉动、running 闪烁等）
+- `Overlay` - 展开/收缩动画（max-height 过渡）
+- GPU 加速：`will-change` + `translateZ(0)` 提示
+
+**后端同步**：
+- `update_overlay_size` - 节流窗口尺寸更新（16ms 间隔）
+- `set_window_interactive` - 点击穿透切换
+- `set_rounded_corners` - Windows 11 圆角（DWM API）
+
+**性能优化**：
+- IPC 节流：16ms 最小间隔，避免过频 Win32 调用
+- GPU 合成层：`will-change` 预创建合成层
+- CSS 过渡：使用 `cubic-bezier` 缓动曲线
 
 ### 禁止事项
 

@@ -1,13 +1,15 @@
 #[cfg(target_os = "windows")]
-use windows::Win32::UI::WindowsAndMessaging::*;
-#[cfg(target_os = "windows")]
 use windows::Win32::Foundation::*;
+#[cfg(target_os = "windows")]
+use windows::Win32::Graphics::Dwm::*;
+#[cfg(target_os = "windows")]
+use windows::Win32::Graphics::Gdi::{MonitorFromPoint, HMONITOR, MONITOR_DEFAULTTONEAREST};
 #[cfg(target_os = "windows")]
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::HiDpi::*;
 #[cfg(target_os = "windows")]
-use windows::Win32::Graphics::Gdi::{MonitorFromPoint, HMONITOR, MONITOR_DEFAULTTONEAREST};
+use windows::Win32::UI::WindowsAndMessaging::*;
 
 /// DPI scale factor (96 DPI = 1.0, 144 DPI = 1.5, 192 DPI = 2.0)
 pub type DpiScale = f64;
@@ -131,7 +133,8 @@ pub fn create_overlay_window(config: &OverlayConfig) -> Result<HWND, String> {
         let style = WS_POPUP;
 
         // Scale dimensions based on DPI
-        let (scaled_width, scaled_height) = scale_dimensions(config.width, config.height, config.dpi_scale);
+        let (scaled_width, scaled_height) =
+            scale_dimensions(config.width, config.height, config.dpi_scale);
 
         let hwnd = CreateWindowExW(
             ex_style,
@@ -146,18 +149,41 @@ pub fn create_overlay_window(config: &OverlayConfig) -> Result<HWND, String> {
             None,
             wc.hInstance,
             None,
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
 
-        SetLayeredWindowAttributes(
-            hwnd,
-            COLORREF(0),
-            config.alpha,
-            LWA_ALPHA,
-        ).map_err(|e| e.to_string())?;
+        SetLayeredWindowAttributes(hwnd, COLORREF(0), config.alpha, LWA_ALPHA)
+            .map_err(|e| e.to_string())?;
+
+        // Set rounded corners for Windows 11
+        let _ = set_rounded_corners(hwnd);
 
         let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
         Ok(hwnd)
     }
+}
+
+#[cfg(target_os = "windows")]
+/// Set rounded corners for the window (Windows 11 only)
+/// On Windows 10, this will silently fail without error
+pub fn set_rounded_corners(hwnd: HWND) -> Result<(), String> {
+    unsafe {
+        // DWMWA_WINDOW_CORNER_PREFERENCE is only available on Windows 11
+        // DWMCWP_ROUND = 2
+        let corner_pref = DWM_WINDOW_CORNER_PREFERENCE(2);
+        let result = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            &corner_pref as *const _ as _,
+            std::mem::size_of::<DWM_WINDOW_CORNER_PREFERENCE>() as u32,
+        );
+
+        // Ignore errors on Windows 10 where this API is not available
+        if result.is_err() {
+            log::debug!("Rounded corners not supported (likely Windows 10)");
+        }
+    }
+    Ok(())
 }
 
 #[cfg(target_os = "windows")]
@@ -175,7 +201,13 @@ pub fn set_interactive(hwnd: HWND, interactive: bool) -> Result<(), String> {
 }
 
 #[cfg(target_os = "windows")]
-pub fn update_overlay_position(hwnd: HWND, x: i32, y: i32, width: i32, height: i32) -> Result<(), String> {
+pub fn update_overlay_position(
+    hwnd: HWND,
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+) -> Result<(), String> {
     // Get current DPI scale for the window
     let dpi_scale = get_dpi_scale_for_window(hwnd)?;
     let (scaled_width, scaled_height) = scale_dimensions(width, height, dpi_scale);
@@ -184,9 +216,13 @@ pub fn update_overlay_position(hwnd: HWND, x: i32, y: i32, width: i32, height: i
         SetWindowPos(
             hwnd,
             HWND_TOPMOST,
-            x, y, scaled_width, scaled_height,
+            x,
+            y,
+            scaled_width,
+            scaled_height,
             SWP_NOACTIVATE,
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -207,9 +243,13 @@ pub fn update_overlay_position_with_dpi(
         SetWindowPos(
             hwnd,
             HWND_TOPMOST,
-            x, y, scaled_width, scaled_height,
+            x,
+            y,
+            scaled_width,
+            scaled_height,
             SWP_NOACTIVATE,
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
     }
     Ok(())
 }

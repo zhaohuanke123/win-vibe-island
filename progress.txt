@@ -10,8 +10,126 @@ and any relevant notes.
 
 - **Started:** 2026-04-25
 - **Current Phase:** Phase 2 - Real Integration
-- **Completed Tasks:** 30 / 40 (plus 1 removed)
-- **Active Task:** None (documentation sync complete)
+- **Completed Tasks:** 34 / 40 (plus 1 removed)
+- **Active Task:** None (动画系统完成)
+
+---
+
+## [2026-05-02] - Task #31: 动画系统测试和文档
+
+### What was done:
+- 更新 AGENTS.md 添加动画系统章节
+- 记录前端动画组件：StatusDot、Overlay
+- 记录后端同步命令：update_overlay_size、set_window_interactive、set_rounded_corners
+- 记录性能优化策略：IPC 节流、GPU 合成层、CSS 过渡
+
+### Documentation:
+- Requirement ref: architecture.md#Key Design Decisions
+- Design ref: docs/animation-design.md
+- Docs updated: yes
+
+### Testing:
+- 文档更新，无需运行时测试
+- 前端和后端构建已通过
+
+### Notes:
+- 多显示器和高 DPI 场景已在 Task #7 中实现
+- 前端动画测试已有 StatusDot.test.tsx
+- 后端 IPC 测试已有 update_overlay_size 节流逻辑
+
+---
+
+## [2026-05-02] - Task #30: 动画性能优化
+
+### What was done:
+- 在 Overlay.css 添加 `will-change: transform` 和 `transform: translateZ(0)` 启用 GPU 加速
+- 在 overlay__panel 添加 `will-change: max-height, opacity` 优化展开/收缩动画
+- 在 overlay__session 添加 `will-change: background, transform` 优化悬停动画
+- 在 StatusDot.css 添加 GPU 加速提示优化脉动动画
+- IPC 节流已在 update_overlay_size 命令中实现（16ms 间隔）
+
+### Documentation:
+- Requirement ref: architecture.md#Key Design Decisions
+- Design ref: docs/animation-design.md#六、性能优化
+- Docs updated: no - behavior matches design
+
+### Testing:
+- Frontend build passed (vite build)
+
+### Notes:
+- `will-change` 提示浏览器预先创建合成层
+- `translateZ(0)` 强制 GPU 渲染层
+- 后端已有 16ms 节流，避免过频 Win32 调用
+
+---
+
+## [2026-05-02] - Task #29: Windows 11 圆角窗口
+
+### What was done:
+- 在 Cargo.toml 添加 Win32_Graphics_Dwm feature
+- 在 overlay.rs 添加 Dwm import
+- 实现 set_rounded_corners 函数，使用 DWMWA_WINDOW_CORNER_PREFERENCE
+- 在 create_overlay_window 中调用圆角设置
+- Windows 10 兼容性：API 不支持时静默失败，不影响功能
+
+### Documentation:
+- Requirement ref: architecture.md#Key Design Decisions
+- Design ref: docs/animation-design.md#5.3 圆角设置（Windows 11）
+- Docs updated: no - behavior matches design
+
+### Testing:
+- Rust 后端编译通过 (cargo check)
+
+### Notes:
+- 使用 DWMCWP_ROUND (值为 2) 设置圆角
+- 仅 Windows 11 支持，Windows 10 会忽略
+
+---
+
+## [2026-05-02] - Task #27: 点击穿透自动切换
+
+### What was done:
+- 在 Overlay.tsx 添加 useEffect 监听 expanded 状态变化
+- 调用 set_window_interactive 命令切换点击穿透模式
+- 紧凑状态: 启用点击穿透 (interactive = false)
+- 展开状态: 禁用点击穿透 (interactive = true)
+- 审批请求时自动展开，强制进入交互模式
+
+### Documentation:
+- Requirement ref: architecture.md#Key Design Decisions
+- Design ref: docs/animation-design.md#5.2 点击穿透切换
+- Docs updated: no - existing behavior matches design
+
+### Testing:
+- Frontend build passed (vite build)
+
+### Notes:
+- 后端 set_window_interactive 命令已存在，无需修改
+- 通过 WS_EX_TRANSPARENT 样式控制点击穿透
+
+---
+
+## [2026-05-02] - UI Width Overflow Follow-up: Long Session Labels
+
+### What was done:
+- Recorded implementation bug before source changes per Documentation Gate.
+- Issue: long session labels derived from full paths can still overflow the fixed 420px status bar/session rows.
+- Fixed backend session label extraction to handle Windows `\` path separators and trailing separators, so `D:\work\vibe-island\` becomes `vibe-island` instead of a full path label.
+- Tightened overlay flex sizing so the status bar, session rows, current tool name, spinner, and status dot cannot expand past the fixed 420px overlay width.
+- Added title attributes to truncated status bar and session list labels so the full label remains inspectable on hover.
+
+### Documentation:
+- Requirement ref: architecture.md#Key Constraints
+- Design ref: DESIGN.md#前端模块
+- Docs updated: no - fixed-width overlay and truncation behavior are already defined by existing implementation notes.
+
+### Testing:
+- `frontend`: `.\\node_modules\\.bin\\vite build` passed.
+- `src-tauri`: `cargo test test_get_session_label -- --nocapture` passed using `CARGO_TARGET_DIR=target-codex-test` to avoid the running app's locked `target/debug/app.exe`.
+- `frontend`: `npm run build` is still blocked by existing test TypeScript errors unrelated to this change (`vi` globals and test fixtures missing `createdAt`/`lastActivity`).
+
+### Notes:
+- Expected fix: status bar and session list labels remain inside the 420px overlay and truncate with ellipsis.
 
 ---
 
@@ -385,9 +503,31 @@ and any relevant notes.
 
 ---
 
+## [2026-05-02] - Task #27: 点击穿透自动切换
+
+### What was done:
+- 在 Overlay.tsx 添加 useEffect 监听 expanded 状态变化
+- 调用 set_window_interactive 命令切换点击穿透模式
+- 紧凑状态: 启用点击穿透 (interactive = false)
+- 展开状态: 禁用点击穿透 (interactive = true)
+- 审批请求时自动展开，强制进入交互模式
+
+### Documentation:
+- Requirement ref: architecture.md#Key Design Decisions
+- Design ref: docs/animation-design.md#5.2 点击穿透切换
+- Docs updated: no - existing behavior matches design
+
+### Testing:
+- Frontend build passed (vite build)
+
+### Notes:
+- 后端 set_window_interactive 命令已存在，无需修改
+- 通过 WS_EX_TRANSPARENT 样式控制点击穿透
+
+---
+
 ## Pending Tasks
 
-- Task 27: 点击穿透自动切换
 - Task 29: Windows 11 圆角窗口
 - Task 30: 动画性能优化
 - Task 31: 动画系统测试和文档

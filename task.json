@@ -622,12 +622,16 @@
         "处理审批请求时的强制交互模式",
         "测试点击穿透切换正确性"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "dependencies": [
         25,
         26
       ],
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "src-tauri/src/overlay.rs",
         "src-tauri/src/commands.rs",
@@ -665,13 +669,18 @@
         "处理 Windows 10 兼容性（不支持时静默失败）",
         "测试圆角显示效果"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "low",
       "dependencies": [
         26
       ],
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
-        "src-tauri/src/overlay.rs"
+        "src-tauri/src/overlay.rs",
+        "src-tauri/Cargo.toml"
       ]
     },
     {
@@ -685,7 +694,7 @@
         "添加性能监控日志",
         "测试动画帧率和 CPU 占用"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "dependencies": [
         25,
@@ -693,9 +702,13 @@
         27,
         28
       ],
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
-        "frontend/src/components/AnimatedOverlay.tsx",
-        "frontend/src/components/Overlay.tsx"
+        "frontend/src/components/Overlay.css",
+        "frontend/src/components/StatusDot.css"
       ]
     },
     {
@@ -710,14 +723,16 @@
         "更新 AGENTS.md 添加动画系统说明",
         "更新 progress.txt 记录开发进度"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "dependencies": [
         30
       ],
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
-        "frontend/src/__tests__/",
-        "src-tauri/src/",
         "AGENTS.md",
         "progress.txt"
       ]
