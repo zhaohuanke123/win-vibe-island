@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionsStore } from "../store/sessions";
 import "./HookStatus.css";
@@ -17,6 +17,7 @@ export function HookStatus() {
   const { hookServerStatus, setHookServerStatus, addErrorLog } = useSessionsStore();
   const heartbeatRef = useRef<number | null>(null);
   const reconnectRef = useRef<number | null>(null);
+  const [consecutiveFailures, setConsecutiveFailures] = useState(0);
 
   // Heartbeat check every 5 seconds
   useEffect(() => {
@@ -24,9 +25,9 @@ export function HookStatus() {
       try {
         const response = await fetch(`http://localhost:${hookServerStatus.port}/hooks/health`, {
           method: "GET",
-          signal: AbortSignal.timeout(3000),
+          signal: AbortSignal.timeout(5000),
         });
-        
+
         if (response.ok) {
           const health: HealthResponse = await response.json();
           setHookServerStatus({
@@ -36,19 +37,30 @@ export function HookStatus() {
             uptime: health.uptimeSecs ?? undefined,
             pendingApprovals: health.pendingApprovals,
           });
+          setConsecutiveFailures(0);
         } else {
-          setHookServerStatus({
-            connectionState: "error",
-            error: `Server returned ${response.status}`,
-          });
+          const failures = consecutiveFailures + 1;
+          setConsecutiveFailures(failures);
+          // Only mark as error after 3 consecutive failures
+          if (failures >= 3) {
+            setHookServerStatus({
+              connectionState: "error",
+              error: `Server returned ${response.status}`,
+            });
+          }
         }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
-        setHookServerStatus({
-          connectionState: "disconnected",
-          error: errorMsg,
-        });
-        addErrorLog(`Hook server health check failed: ${errorMsg}`);
+        const failures = consecutiveFailures + 1;
+        setConsecutiveFailures(failures);
+        // Only mark as disconnected after 3 consecutive failures
+        if (failures >= 3) {
+          setHookServerStatus({
+            connectionState: "disconnected",
+            error: errorMsg,
+          });
+          addErrorLog(`Hook server health check failed: ${errorMsg}`);
+        }
       }
     };
 
