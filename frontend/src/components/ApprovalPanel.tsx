@@ -17,40 +17,39 @@ export function ApprovalPanel({ request, onApprovalHandled }: ApprovalPanelProps
   const handleApprove = useCallback(async () => {
     if (!request || status !== "pending") return;
 
+    console.log("[ApprovalPanel] Approving request:", request.toolUseId);
     setStatus("approving");
     try {
-      await invoke("submit_approval_response", {
+      const result = await invoke("submit_approval_response", {
         toolUseId: request.toolUseId,
         approved: true,
       });
-      setStatus("approved");
-      // Brief delay to show the approved state before closing
-      setTimeout(() => {
-        onApprovalHandled();
-      }, 500);
+      console.log("[ApprovalPanel] Approval result:", result);
+      // Clear immediately after successful approval
+      onApprovalHandled();
     } catch (error) {
-      console.error("Failed to submit approval:", error);
-      setStatus("pending");
+      console.error("[ApprovalPanel] Failed to submit approval:", error);
+      // Clear the approval request even on error (likely timed out)
+      onApprovalHandled();
     }
   }, [request, status, onApprovalHandled]);
 
   const handleReject = useCallback(async () => {
     if (!request || status !== "pending") return;
 
+    console.log("[ApprovalPanel] Rejecting request:", request.toolUseId);
     setStatus("rejecting");
     try {
       await invoke("submit_approval_response", {
         toolUseId: request.toolUseId,
         approved: false,
       });
-      setStatus("rejected");
-      // Brief delay to show the rejected state before closing
-      setTimeout(() => {
-        onApprovalHandled();
-      }, 500);
+      // Clear immediately after successful rejection
+      onApprovalHandled();
     } catch (error) {
-      console.error("Failed to submit rejection:", error);
-      setStatus("pending");
+      console.error("[ApprovalPanel] Failed to submit rejection:", error);
+      // Clear the approval request even on error
+      onApprovalHandled();
     }
   }, [request, status, onApprovalHandled]);
 

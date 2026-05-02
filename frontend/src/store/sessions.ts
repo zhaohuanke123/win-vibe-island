@@ -24,20 +24,24 @@ export interface Session {
   pid?: number;
   createdAt: number;
   lastActivity: number;
-  
+
   // 当前工具信息
   currentTool?: {
     name: string;
     input: Record<string, unknown>;
     startTime: number;
   };
-  
+
+  // 显示用的工具名称和文件路径
+  toolName?: string;
+  filePath?: string;
+
   // 工具历史（最近 20 条）
   toolHistory: ToolExecution[];
-  
+
   // 错误信息
   lastError?: string;
-  
+
   // Model 信息
   model?: string;
   source?: string;
@@ -103,7 +107,15 @@ export const useSessionsStore = create<SessionsStore>((set) => ({
   errorLogs: [],
 
   addSession: (session) =>
-    set((s) => ({ sessions: [...s.sessions, session] })),
+    set((s) => ({
+      sessions: [...s.sessions, {
+        ...session,
+        createdAt: session.createdAt || Date.now(),
+        lastActivity: session.lastActivity || Date.now(),
+        cwd: session.cwd || "",
+        toolHistory: session.toolHistory || [],
+      }]
+    })),
 
   removeSession: (id) =>
     set((s) => ({

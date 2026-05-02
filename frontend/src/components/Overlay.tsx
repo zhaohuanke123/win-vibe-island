@@ -23,7 +23,7 @@ function formatTime(timestamp: number): string {
 }
 
 export function Overlay() {
-  const { sessions, activeSessionId, setActiveSession, approvalRequest, setApprovalRequest, clearApprovalRequest } = useSessionsStore();
+  const { sessions, activeSessionId, setActiveSession, approvalRequest, clearApprovalRequest } = useSessionsStore();
   const active = sessions.find((s) => s.id === activeSessionId);
   const [expanded, setExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);

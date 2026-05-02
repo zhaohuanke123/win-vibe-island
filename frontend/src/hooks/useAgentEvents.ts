@@ -38,6 +38,15 @@ interface ToolCompleteEvent {
   session_id: string;
   tool_name?: string;
   duration_ms?: number;
+  tool_response?: Record<string, unknown>;
+}
+
+interface ToolErrorEvent {
+  session_id: string;
+  tool_name?: string;
+  error?: string;
+  duration_ms?: number;
+  is_interrupt?: boolean;
 }
 
 interface NotificationEvent {
@@ -104,8 +113,12 @@ export function useAgentEvents() {
           addSession({
             id: session_id,
             label: label || (cwd ? extractProjectName(cwd) : "Claude Code"),
+            cwd: cwd || "",
             state: "idle" as AgentState,
             pid,
+            toolHistory: [],
+            createdAt: Date.now(),
+            lastActivity: Date.now(),
           });
         }
       });
@@ -119,8 +132,10 @@ export function useAgentEvents() {
 
       // Listen for state_change events
       const unlistenState = await listen<StateChangeEvent>("state_change", (event) => {
-        const { session_id, state, tool_name, tool_input } = event.payload;
-        const validState = ["idle", "running", "approval", "done"].includes(state)
+        const { session_id, state, tool_name, tool_input, message } = event.payload;
+        // Valid states including new ones: thinking, streaming, error
+        const validStates = ["idle", "thinking", "running", "streaming", "approval", "error", "done"];
+        const validState = validStates.includes(state)
           ? state as AgentState
           : "idle";
 
@@ -130,7 +145,11 @@ export function useAgentEvents() {
           addSession({
             id: session_id,
             label: "Claude Code",
+            cwd: "",
             state: validState,
+            toolHistory: [],
+            createdAt: Date.now(),
+            lastActivity: Date.now(),
           });
         } else {
           updateSessionState(session_id, validState);
@@ -140,6 +159,11 @@ export function useAgentEvents() {
         if (tool_name) {
           const filePath = tool_input?.file_path as string | undefined;
           updateSessionInfo(session_id, { toolName: tool_name, filePath });
+        }
+
+        // If error message is provided, update lastError
+        if (state === "error" && message) {
+          updateSessionInfo(session_id, { lastError: message });
         }
       });
       unlisteners.push(unlistenState);
@@ -154,28 +178,81 @@ export function useAgentEvents() {
           addSession({
             id: session_id,
             label: "Claude Code",
-            state: "running",
+            cwd: "",
+            state: "thinking",
+            toolHistory: [],
+            createdAt: Date.now(),
+            lastActivity: Date.now(),
           });
         }
 
+        // Update with current tool info and set state to thinking
         updateSessionInfo(session_id, {
-          state: "running",
+          state: "thinking",
           toolName: tool_name,
           filePath: file_path,
+          currentTool: {
+            name: tool_name,
+            input: {},
+            startTime: Date.now(),
+          },
         });
       });
       unlisteners.push(unlistenToolUse);
 
       // Listen for tool_complete events (from PostToolUse hook)
       const unlistenToolComplete = await listen<ToolCompleteEvent>("tool_complete", (event) => {
-        const { session_id } = event.payload;
-        // Tool completed, but session might still be running
+        const { session_id, tool_name, duration_ms } = event.payload;
+        // Tool completed, add to tool history
+        if (tool_name && duration_ms) {
+          const session = useSessionsStore.getState().sessions.find(s => s.id === session_id);
+          if (session?.currentTool) {
+            // Complete the current tool execution
+            const execution = {
+              id: `tool-${Date.now()}`,
+              toolName: tool_name,
+              input: session.currentTool.input,
+              duration: duration_ms,
+              timestamp: Date.now(),
+              status: "success" as const,
+            };
+            useSessionsStore.getState().addToolExecution(session_id, execution);
+          }
+        }
+        // Clear current tool info
         updateSessionInfo(session_id, {
           toolName: undefined,
           filePath: undefined,
+          currentTool: undefined,
         });
       });
       unlisteners.push(unlistenToolComplete);
+
+      // Listen for tool_error events (from PostToolUseFailure hook)
+      const unlistenToolError = await listen<ToolErrorEvent>("tool_error", (event) => {
+        const { session_id, tool_name, error, duration_ms } = event.payload;
+        // Tool failed, add to tool history with error
+        if (tool_name) {
+          const execution = {
+            id: `tool-${Date.now()}`,
+            toolName: tool_name,
+            input: {},
+            duration: duration_ms,
+            error: error,
+            timestamp: Date.now(),
+            status: "failed" as const,
+          };
+          useSessionsStore.getState().addToolExecution(session_id, execution);
+        }
+        // Update session with error info
+        updateSessionInfo(session_id, {
+          toolName: undefined,
+          filePath: undefined,
+          currentTool: undefined,
+          lastError: error,
+        });
+      });
+      unlisteners.push(unlistenToolError);
 
       // Listen for notification events
       const unlistenNotification = await listen<NotificationEvent>("notification", (event) => {
@@ -200,6 +277,7 @@ export function useAgentEvents() {
       // Listen for permission_request events (from PermissionRequest hook)
       const unlistenPermissionRequest = await listen<PermissionRequestEvent>("permission_request", (event) => {
         const { session_id, tool_use_id, tool_name, action, risk_level, diff } = event.payload;
+        console.log("[useAgentEvents] Permission request received:", { session_id, tool_use_id, tool_name, action, risk_level });
         const session = useSessionsStore.getState().sessions.find(s => s.id === session_id);
 
         updateSessionState(session_id, "approval");
@@ -229,8 +307,12 @@ export function useAgentEvents() {
           addSession({
             id: sessionId,
             label: `${process.agent_type} (PID: ${process.pid})`,
+            cwd: "",
             state: "idle" as AgentState,
             pid: process.pid,
+            toolHistory: [],
+            createdAt: Date.now(),
+            lastActivity: Date.now(),
           });
         }
       });
@@ -243,6 +325,14 @@ export function useAgentEvents() {
         removeSession(sessionId);
       });
       unlisteners.push(unlistenProcessTerminated);
+
+      // Listen for approval_timeout events
+      const unlistenApprovalTimeout = await listen<{ tool_use_id: string; session_id: string }>("approval_timeout", (event) => {
+        console.log("[useAgentEvents] Approval timeout:", event.payload);
+        // Clear the approval request
+        setApprovalRequest(null);
+      });
+      unlisteners.push(unlistenApprovalTimeout);
     };
 
     setupListeners();
