@@ -1,10 +1,10 @@
-use crate::overlay::{self, OverlayConfig, DpiScale};
-use crate::events::{self, SessionStart, StateChange, SessionEnd};
+use crate::events::{self, SessionEnd, SessionStart, StateChange};
+use crate::hook_server;
+use crate::overlay::{self, DpiScale, OverlayConfig};
 use crate::pipe_server;
 use crate::process_watcher;
 use crate::window_focus::{self, FocusResult};
-use crate::hook_server;
-use tauri::{AppHandle, WebviewWindow, Size, LogicalSize};
+use tauri::{AppHandle, LogicalSize, Size, WebviewWindow};
 
 #[tauri::command]
 pub fn create_overlay(config: OverlayConfig) -> Result<String, String> {
@@ -36,7 +36,13 @@ pub fn set_overlay_interactive(hwnd_str: String, interactive: bool) -> Result<()
 }
 
 #[tauri::command]
-pub fn update_overlay(hwnd_str: String, x: i32, y: i32, width: i32, height: i32) -> Result<(), String> {
+pub fn update_overlay(
+    hwnd_str: String,
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         let hwnd: windows::Win32::Foundation::HWND = parse_hwnd(&hwnd_str)?;
@@ -65,29 +71,37 @@ pub fn destroy_overlay(hwnd_str: String) -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 fn parse_hwnd(s: &str) -> Result<windows::Win32::Foundation::HWND, String> {
-    let addr = s.trim_start_matches("HWND(").trim_end_matches(')').parse::<isize>().map_err(|e| e.to_string())?;
+    let addr = s
+        .trim_start_matches("HWND(")
+        .trim_end_matches(')')
+        .parse::<isize>()
+        .map_err(|e| e.to_string())?;
     Ok(windows::Win32::Foundation::HWND(addr as *mut _))
 }
 
 #[tauri::command]
-pub fn emit_test_event(app: AppHandle, event_type: String, session_id: String) -> Result<(), String> {
+pub fn emit_test_event(
+    app: AppHandle,
+    event_type: String,
+    session_id: String,
+) -> Result<(), String> {
     match event_type.as_str() {
-        "session_start" => {
-            events::emit_session_start(&app, SessionStart {
+        "session_start" => events::emit_session_start(
+            &app,
+            SessionStart {
                 session_id,
                 label: "Test Session".to_string(),
                 pid: Some(12345),
-            })
-        }
-        "state_change" => {
-            events::emit_state_change(&app, StateChange {
+            },
+        ),
+        "state_change" => events::emit_state_change(
+            &app,
+            StateChange {
                 session_id,
                 state: "running".to_string(),
-            })
-        }
-        "session_end" => {
-            events::emit_session_end(&app, SessionEnd { session_id })
-        }
+            },
+        ),
+        "session_end" => events::emit_session_end(&app, SessionEnd { session_id }),
         _ => Err(format!("Unknown event type: {}", event_type)),
     }
 }
@@ -152,10 +166,7 @@ pub fn set_process_watcher_config(
 /// This is called from the frontend when the user approves or rejects an action.
 /// The response is sent to the waiting PermissionRequest handler.
 #[tauri::command]
-pub fn submit_approval_response(
-    tool_use_id: String,
-    approved: bool,
-) -> Result<(), String> {
+pub fn submit_approval_response(tool_use_id: String, approved: bool) -> Result<(), String> {
     hook_server::submit_approval_response(&tool_use_id, approved)
 }
 
@@ -215,8 +226,8 @@ pub fn enable_dpi_awareness() -> Result<(), String> {
 pub fn set_window_interactive(window: WebviewWindow, interactive: bool) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        use windows::Win32::UI::WindowsAndMessaging::*;
         use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::WindowsAndMessaging::*;
 
         let hwnd_raw = window.hwnd().map_err(|e| e.to_string())?;
         let hwnd = HWND(hwnd_raw.0 as *mut _);
@@ -243,23 +254,23 @@ pub fn set_window_interactive(window: WebviewWindow, interactive: bool) -> Resul
 /// Set the window content area (inner size) to match the desired CSS pixel dimensions.
 /// Returns the actual inner size achieved after resizing.
 #[tauri::command]
-pub fn set_window_size(window: WebviewWindow, width: u32, height: u32, skip_center: Option<bool>) -> Result<(u32, u32), String> {
-    let target_logical = LogicalSize { width: width as f64, height: height as f64 };
-
-    // Get current outer/inner size difference (decorations, DPI adjustments, etc.)
-    let outer = window.outer_size().map_err(|e| e.to_string())?;
-    let inner = window.inner_size().map_err(|e| e.to_string())?;
-    let dw = outer.width as f64 - inner.width as f64;
-    let dh = outer.height as f64 - inner.height as f64;
-    let scale = window.scale_factor().unwrap_or(1.0);
-
-    // Compensate: set outer size = desired inner size + delta
-    let adjusted = LogicalSize {
-        width: target_logical.width + dw / scale,
-        height: target_logical.height + dh / scale,
+pub fn set_window_size(
+    window: WebviewWindow,
+    width: u32,
+    height: u32,
+    skip_center: Option<bool>,
+) -> Result<(u32, u32), String> {
+    let target_logical = LogicalSize {
+        width: width as f64,
+        height: height as f64,
     };
+
+    // For borderless transparent windows, set size directly without decoration compensation.
+    // The window has no decorations (decorations: false), so outer size should equal inner size.
+    // Previously we tried to compensate for dw/dh, but this caused width issues when sessions
+    // started due to measurement noise or DPI scaling quirks.
     window
-        .set_size(Size::Logical(adjusted))
+        .set_size(Size::Logical(target_logical))
         .map_err(|e| e.to_string())?;
 
     // Re-center horizontally at top of screen
@@ -267,14 +278,16 @@ pub fn set_window_size(window: WebviewWindow, width: u32, height: u32, skip_cent
         if let Ok(Some(monitor)) = window.primary_monitor() {
             let screen_width = monitor.size().width as f64 / monitor.scale_factor();
             let x = ((screen_width - width as f64) / 2.0) as i32;
-            let _ = window.set_position(tauri::Position::Logical(
-                tauri::LogicalPosition { x: x as f64, y: 8.0 }
-            ));
+            let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
+                x: x as f64,
+                y: 8.0,
+            }));
         }
     }
 
     // Return actual inner size for frontend verification
     let actual = window.inner_size().map_err(|e| e.to_string())?;
+    let scale = window.scale_factor().unwrap_or(1.0);
     let actual_logical = LogicalSize {
         width: actual.width as f64 / scale,
         height: actual.height as f64 / scale,
@@ -337,7 +350,10 @@ pub fn update_overlay_size(window: WebviewWindow, width: u32, height: u32) -> Re
     }
     LAST_RESIZE_MS.store(now_ms, Ordering::Relaxed);
 
-    let target_logical = LogicalSize { width: width as f64, height: height as f64 };
+    let target_logical = LogicalSize {
+        width: width as f64,
+        height: height as f64,
+    };
     let scale = window.scale_factor().unwrap_or(1.0);
 
     // Compensate for window decorations
