@@ -1,4 +1,5 @@
 use crate::events::{self, SessionEnd, SessionStart, StateChange};
+use crate::hook_config;
 use crate::hook_server;
 use crate::overlay::{self, DpiScale, OverlayConfig};
 use crate::pipe_server;
@@ -371,4 +372,41 @@ pub fn update_overlay_size(window: WebviewWindow, width: u32, height: u32) -> Re
         .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+// Hook configuration commands
+/// Check if Claude Code hooks are configured
+#[tauri::command]
+pub fn check_hook_config() -> hook_config::HookConfigStatus {
+    hook_config::check_hook_config()
+}
+
+/// Install Vibe Island hooks to Claude Code settings.json
+#[tauri::command]
+pub fn install_hooks() -> Result<String, String> {
+    hook_config::install_hooks()
+}
+
+/// Uninstall Vibe Island hooks from Claude Code settings.json
+#[tauri::command]
+pub fn uninstall_hooks() -> Result<(), String> {
+    hook_config::uninstall_hooks()
+}
+
+/// Get current hook configuration status
+#[tauri::command]
+pub fn get_hook_config_status() -> hook_config::HookConfigStatus {
+    hook_config::check_hook_config()
+}
+
+/// Set hook configuration mode (persisted to config file)
+#[tauri::command]
+pub fn set_hook_config_mode(mode: hook_config::HookConfigMode) -> Result<(), String> {
+    hook_config::set_stored_mode(mode)
+}
+
+/// Get hook configuration mode from persistent storage
+#[tauri::command]
+pub fn get_hook_config_mode() -> hook_config::HookConfigMode {
+    hook_config::get_stored_mode()
 }

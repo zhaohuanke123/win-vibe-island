@@ -87,16 +87,21 @@ pub struct PermissionDecision {
 /// Pending approval request with response channel
 struct PendingApproval {
     /// The tool use ID for correlation
+    #[allow(dead_code)]
     tool_use_id: String,
     /// Session ID
+    #[allow(dead_code)]
     session_id: String,
     /// Tool name
+    #[allow(dead_code)]
     tool_name: String,
     /// Tool input
+    #[allow(dead_code)]
     tool_input: serde_json::Value,
     /// Channel to send the response
     response_tx: oneshot::Sender<PermissionDecision>,
     /// Timestamp when the request was created
+    #[allow(dead_code)]
     created_at: std::time::Instant,
 }
 

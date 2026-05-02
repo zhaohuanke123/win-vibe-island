@@ -1,0 +1,173 @@
+.hook-config-status {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  background: rgba(30, 30, 30, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hook-config-status--configured {
+  border-color: rgba(52, 199, 89, 0.3);
+}
+
+.hook-config-status--partial {
+  border-color: rgba(255, 149, 0, 0.3);
+}
+
+.hook-config-status--not-configured {
+  border-color: rgba(255, 59, 48, 0.3);
+}
+
+.hook-config-status--loading {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.hook-config-status--error {
+  border-color: rgba(255, 59, 48, 0.5);
+}
+
+.hook-config-status__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.hook-config-status__icon {
+  font-size: 14px;
+}
+
+.hook-config-status--configured .hook-config-status__icon {
+  color: #34c759;
+}
+
+.hook-config-status--partial .hook-config-status__icon {
+  color: #ff9500;
+}
+
+.hook-config-status--not-configured .hook-config-status__icon {
+  color: #ff3b30;
+}
+
+.hook-config-status__title {
+  font-weight: 500;
+  color: #fff;
+}
+
+.hook-config-status__path,
+.hook-config-status__hooks,
+.hook-config-status__missing {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.hook-config-status__label {
+  color: rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+}
+
+.hook-config-status__value {
+  color: rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hook-config-status__hooks-list {
+  color: rgba(255, 255, 255, 0.8);
+  word-break: break-all;
+}
+
+.hook-config-status__missing .hook-config-status__hooks-list {
+  color: #ff9500;
+}
+
+.hook-config-status__mode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.hook-config-status__select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(30, 30, 30, 0.8);
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  min-width: 140px;
+}
+
+.hook-config-status__select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hook-config-status__actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.hook-config-status__button {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hook-config-status__button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.hook-config-status__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hook-config-status__button--primary {
+  background: rgba(52, 199, 89, 0.3);
+  border-color: rgba(52, 199, 89, 0.5);
+}
+
+.hook-config-status__button--primary:hover:not(:disabled) {
+  background: rgba(52, 199, 89, 0.4);
+  border-color: rgba(52, 199, 89, 0.6);
+}
+
+.hook-config-status__button--danger {
+  background: rgba(255, 59, 48, 0.2);
+  border-color: rgba(255, 59, 48, 0.4);
+}
+
+.hook-config-status__button--danger:hover:not(:disabled) {
+  background: rgba(255, 59, 48, 0.3);
+  border-color: rgba(255, 59, 48, 0.5);
+}
+
+.hook-config-status__error-msg {
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(255, 59, 48, 0.2);
+  color: #ff6b6b;
+  font-size: 11px;
+}
+
+.hook-config-status__loading {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.hook-config-status__error {
+  color: #ff6b6b;
+}

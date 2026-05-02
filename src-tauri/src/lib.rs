@@ -5,9 +5,10 @@ mod pipe_server;
 mod process_watcher;
 mod window_focus;
 mod hook_server;
+mod hook_config;
 
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, Submenu, CheckMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager, Position, PhysicalPosition,
 };
@@ -61,12 +62,33 @@ pub fn run() {
                 Err(e) => log::error!("Failed to start hook server: {}", e),
             }
 
+            // Auto-configure Claude Code hooks if needed
+            match hook_config::auto_configure_hooks() {
+                Ok(true) => log::info!("Claude Code hooks auto-configured"),
+                Ok(false) => log::info!("Claude Code hooks already configured or manual mode"),
+                Err(e) => log::warn!("Failed to auto-configure hooks: {}", e),
+            }
+
             // Create tray menu items
             let show_hide = MenuItem::with_id(app, "toggle_visibility", "Show/Hide Overlay", true, None::<&str>)?;
+
+            // Hook config mode submenu
+            let mode_auto = CheckMenuItem::with_id(app, "mode_auto", "Auto (keep on exit)", true, hook_config::get_stored_mode() == hook_config::HookConfigMode::Auto, None::<&str>)?;
+            let mode_cleanup = CheckMenuItem::with_id(app, "mode_cleanup", "Auto-cleanup (remove on exit)", true, hook_config::get_stored_mode() == hook_config::HookConfigMode::AutoCleanup, None::<&str>)?;
+            let mode_manual = CheckMenuItem::with_id(app, "mode_manual", "Manual", true, hook_config::get_stored_mode() == hook_config::HookConfigMode::Manual, None::<&str>)?;
+
+            let mode_submenu = Submenu::with_items(app, "Hook Config Mode", true, &[&mode_auto, &mode_cleanup, &mode_manual])?;
+
+            // Hook actions
+            let install_hooks = MenuItem::with_id(app, "install_hooks", "Install Hooks", true, None::<&str>)?;
+            let uninstall_hooks = MenuItem::with_id(app, "uninstall_hooks", "Remove Hooks", true, None::<&str>)?;
+
+            let hooks_submenu = Submenu::with_items(app, "Hooks", true, &[&mode_submenu, &install_hooks, &uninstall_hooks])?;
+
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
             // Build the menu
-            let menu = Menu::with_items(app, &[&show_hide, &quit])?;
+            let menu = Menu::with_items(app, &[&show_hide, &hooks_submenu, &quit])?;
 
             // Create system tray
             let _tray = TrayIconBuilder::new()
@@ -84,7 +106,41 @@ pub fn run() {
                             }
                         }
                     }
+                    "mode_auto" => {
+                        let _ = hook_config::set_stored_mode(hook_config::HookConfigMode::Auto);
+                        log::info!("Hook config mode set to: Auto");
+                    }
+                    "mode_cleanup" => {
+                        let _ = hook_config::set_stored_mode(hook_config::HookConfigMode::AutoCleanup);
+                        log::info!("Hook config mode set to: AutoCleanup");
+                    }
+                    "mode_manual" => {
+                        let _ = hook_config::set_stored_mode(hook_config::HookConfigMode::Manual);
+                        log::info!("Hook config mode set to: Manual");
+                    }
+                    "install_hooks" => {
+                        match hook_config::install_hooks() {
+                            Ok(path) => log::info!("Hooks installed to: {}", path),
+                            Err(e) => log::error!("Failed to install hooks: {}", e),
+                        }
+                    }
+                    "uninstall_hooks" => {
+                        match hook_config::uninstall_hooks() {
+                            Ok(()) => log::info!("Hooks removed"),
+                            Err(e) => log::error!("Failed to remove hooks: {}", e),
+                        }
+                    }
                     "quit" => {
+                        // Stop servers before exit
+                        let _ = hook_server::stop_hook_server();
+                        #[cfg(target_os = "windows")]
+                        let _ = pipe_server::stop_pipe_server();
+
+                        // Auto-cleanup hooks if in auto-cleanup mode
+                        let mode = hook_config::get_stored_mode();
+                        if mode == hook_config::HookConfigMode::AutoCleanup {
+                            let _ = hook_config::auto_cleanup_hooks(mode);
+                        }
                         app.exit(0);
                     }
                     _ => {}
@@ -136,6 +192,12 @@ pub fn run() {
             commands::get_hook_errors,
             commands::clear_hook_errors,
             commands::update_overlay_size,
+            commands::check_hook_config,
+            commands::install_hooks,
+            commands::uninstall_hooks,
+            commands::get_hook_config_status,
+            commands::set_hook_config_mode,
+            commands::get_hook_config_mode,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

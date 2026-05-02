@@ -7,8 +7,6 @@ use tauri::{AppHandle, Emitter};
 #[cfg(target_os = "windows")]
 use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
 
-static PIPE_SERVER_RUNNING: AtomicBool = AtomicBool::new(false);
-
 /// Pipe name for the VibeIsland event channel
 pub const PIPE_NAME: &str = r"\\.\pipe\VibeIsland";
 
@@ -137,11 +135,6 @@ pub fn get_pipe_server_status() -> PipeServerStatus {
         running,
         pipe_name: PIPE_NAME.to_string(),
     }
-}
-
-/// Check if the pipe server is running
-pub fn is_pipe_server_running() -> bool {
-    PIPE_SERVER_RUNNING.load(Ordering::SeqCst)
 }
 
 #[cfg(target_os = "windows")]
