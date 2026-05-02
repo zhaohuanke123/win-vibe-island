@@ -2,13 +2,19 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
+  padding: 4px 6px;
   border-radius: 4px;
   font-size: 11px;
   background: rgba(255, 255, 255, 0.05);
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 48px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .hook-status__dot {
+  flex: 0 0 auto;
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -40,8 +46,10 @@
 }
 
 .hook-status__error {
+  flex: 0 0 auto;
   color: #f59e0b;
   cursor: help;
+  line-height: 1;
 }
 
 .hook-status__stats {
@@ -53,6 +61,10 @@
   border-left: 1px solid rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.5);
   font-size: 10px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hook-status__stats span {
@@ -69,4 +81,9 @@
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
+}
+
+/* 紧凑模式下隐藏统计信息 */
+.overlay--compact .hook-status__stats {
+  display: none;
 }

@@ -10,8 +10,98 @@ and any relevant notes.
 
 - **Started:** 2026-04-25
 - **Current Phase:** Phase 2 - Real Integration
-- **Completed Tasks:** 29 / 38
-- **Active Task:** Task 34 - Session 详情面板
+- **Completed Tasks:** 31 / 40
+- **Active Task:** None (Tasks 39 & 40 completed)
+
+---
+
+## [2026-05-02] - UI Width Overflow Fix: Hook Status and Approval Panel
+
+### What was done:
+- Recorded implementation bug before source changes per Documentation Gate.
+- Issue: recent local UI/cache-related changes allowed Hook status content, long approval text, and diff preview rows to exceed the fixed overlay width.
+- Correction: keep the existing fixed height behavior and constrain horizontal layout instead.
+
+### Documentation:
+- Requirement ref: architecture.md#Key Design Decisions
+- Design ref: docs/animation-design.md#数据流
+- Docs updated: no - existing overlay width is already fixed by the frontend layout and Tauri window sizing.
+
+### Testing:
+- `frontend`: `.\\node_modules\\.bin\\vite build` passed.
+
+### Notes:
+- Expected fix: overlay height remains on the existing fixed collapsed/expanded sizes; overflow is handled by truncation, wrapping, or internal horizontal scroll inside the constrained 420px width.
+
+---
+
+## [2026-05-02] - UI Corner Radius Fix: Approval Expanded Overlay
+
+### What was done:
+- Recorded implementation bug before source changes per Documentation Gate.
+- Issue: when an approval request expands the overlay, the visible overlay surface can lose rounded corners because the bar and panel backgrounds are rendered as separate blocks without a shared clipping container.
+
+### Documentation:
+- Requirement ref: architecture.md#Key Design Decisions
+- Design ref: docs/animation-design.md#四、前端实现
+- Docs updated: no - existing visual design already expects a rounded overlay surface.
+
+### Testing:
+- `frontend`: `.\\node_modules\\.bin\\vite build` passed.
+
+### Notes:
+- Expected fix: keep the current fixed window height behavior; preserve rounded outer corners whenever approval content is visible.
+
+---
+
+## [2026-05-02] - Task #39 & #40: Hook 自动配置与清理
+
+### What was done:
+- 创建 src-tauri/src/hook_config.rs 模块
+- 实现 check_hook_config 命令 - 检查 settings.json 中是否包含 Vibe Island hooks
+- 实现 install_hooks 命令 - 读取现有 settings.json，合并 Vibe Island hooks，创建备份
+- 实现 uninstall_hooks 命令 - 从 settings.json 中移除 Vibe Island hooks
+- 实现 get_hook_config_status 命令 - 返回配置状态
+- 实现 set_hook_config_mode 命令 - 设置配置模式
+- 在 lib.rs setup 中调用 auto_configure_hooks，启动时自动配置
+- 在 quit 事件中调用 auto_cleanup_hooks，退出时自动清理（仅在 auto-cleanup 模式）
+- 添加 dirs 依赖用于获取用户主目录
+- 创建前端 HookConfigStatus 组件，支持配置状态显示和模式切换
+
+### Documentation:
+- Requirement ref: architecture.md#IPC Commands
+- Design ref: docs/hooks-setup.md#Automatic Hook Configuration
+- Docs updated: yes
+
+### Testing:
+- Rust 后端编译通过 (cargo check)
+- 前端构建通过 (vite build)
+
+### Notes:
+- 支持三种配置模式：auto（默认，启动配置但不清理）、auto-cleanup（启动配置退出清理）、manual（手动管理）
+- 备份文件位置：~/.claude/settings.json.vibe-island-backup
+- 自动配置仅在 hooks 未配置时执行
+- 退出清理仅在 auto-cleanup 模式下执行
+- **重要安全特性**：merge_hooks 不会覆盖用户已有的非 Vibe Island hook 配置
+  - 如果用户已配置同名 hook（如 SessionStart）指向其他服务，会跳过不覆盖
+  - 只更新已指向 Vibe Island 的 hook
+  - 添加缺失的 hook
+
+### What was done:
+- 添加 Task #39: Hook 自动配置 - 启动检查与配置
+- 添加 Task #40: Hook 自动清理 - 退出时移除配置
+- 更新 docs/hooks-setup.md 添加 Automatic Hook Configuration 章节
+- 更新 architecture.md IPC Commands 表格添加新命令
+
+### Documentation:
+- Requirement ref: architecture.md#IPC Commands
+- Design ref: docs/hooks-setup.md#Automatic Hook Configuration
+- Docs updated: yes
+
+### Notes:
+- 用户请求：软件启动时检查 Hook 配置是否存在，自动进行配置；软件退出时自动清理之前安装的 Hook
+- 支持三种配置模式：auto（默认）、auto-cleanup、manual
+- 配置前创建备份文件 ~/.claude/settings.json.vibe-island-backup
 
 ---
 

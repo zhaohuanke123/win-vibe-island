@@ -103,6 +103,10 @@ error (red)     - Error occurred
 | `submit_approval_response` | Submit approval/rejection |
 | `get_hook_health` | Get hook server status |
 | `update_overlay_size` | Update overlay dimensions |
+| `check_hook_config` | Check if Claude Code hooks are configured |
+| `install_hooks` | Install hook configuration to settings.json |
+| `uninstall_hooks` | Remove Vibe Island hooks from settings.json |
+| `get_hook_config_status` | Get current hook configuration status |
 
 ### Tauri Events (Backend → Frontend)
 

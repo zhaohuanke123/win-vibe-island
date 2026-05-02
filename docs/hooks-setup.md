@@ -169,12 +169,50 @@ Each Claude Code terminal/window is tracked as a separate session using the `ses
 
 Unlike other integration approaches, this method requires no additional npm packages or Python modules. Just add the configuration and Vibe Island will automatically display your Claude Code sessions.
 
+## Automatic Hook Configuration
+
+Vibe Island can automatically configure Claude Code hooks on startup and clean them up on exit.
+
+### How It Works
+
+1. **Startup**: Vibe Island checks if hooks are configured in `.claude/settings.json`
+2. **Auto-configure**: If not configured, it adds the required hook configuration
+3. **Exit**: Optionally removes Vibe Island hooks when the app closes
+
+### Configuration Modes
+
+| Mode | Behavior |
+|------|----------|
+| `auto` (default) | Configure hooks on startup, keep on exit |
+| `auto-cleanup` | Configure on startup, remove on exit |
+| `manual` | Don't auto-configure, user manages settings |
+
+### Settings Location
+
+Vibe Island looks for Claude Code settings in:
+1. User-level: `~/.claude/settings.json` (recommended)
+2. Project-level: `.claude/settings.json` (per-project override)
+
+### IPC Commands
+
+| Command | Description |
+|---------|-------------|
+| `check_hook_config` | Check if hooks are configured |
+| `install_hooks` | Install hook configuration |
+| `uninstall_hooks` | Remove Vibe Island hooks |
+| `get_hook_config_status` | Get current hook configuration status |
+
+### Backup
+
+Before modifying settings.json, Vibe Island creates a backup at `~/.claude/settings.json.vibe-island-backup`.
+
 ## Troubleshooting
 
 ### Sessions not appearing
 - Ensure Vibe Island is running (check system tray)
 - Verify port 7878 is not blocked by firewall
 - Check Claude Code settings.json location: `~/.claude/settings.json` or `.claude/settings.json`
+- Use "Check Hook Config" in the overlay to verify configuration
 
 ### All sessions mixed together
 - This was a bug in earlier versions - ensure you have the latest version

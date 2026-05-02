@@ -7,6 +7,10 @@
   font-size: 11px;
   max-height: 200px;
   overflow-y: auto;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  box-sizing: border-box;
 }
 
 .diff-viewer__header {
@@ -23,12 +27,18 @@
 }
 
 .diff-viewer__file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: rgba(255, 255, 255, 0.9);
   font-weight: 500;
 }
 
 .diff-viewer__content {
   padding: 4px 0;
+  width: max-content;
+  min-width: 100%;
 }
 
 .diff-viewer__line {
@@ -37,6 +47,7 @@
   padding: 1px 0;
   min-height: 18px;
   line-height: 16px;
+  min-width: max-content;
 }
 
 .diff-viewer__line--remove {
@@ -59,12 +70,14 @@
   color: rgba(255, 255, 255, 0.35);
   background: rgba(0, 0, 0, 0.1);
   user-select: none;
+  flex: 0 0 auto;
 }
 
 .diff-viewer__line-num--new {
   width: 28px;
   min-width: 28px;
   border-left: 1px solid rgba(255, 255, 255, 0.1);
+  flex: 0 0 auto;
 }
 
 .diff-viewer__line-prefix {
@@ -72,6 +85,7 @@
   min-width: 12px;
   text-align: center;
   font-weight: bold;
+  flex: 0 0 auto;
 }
 
 .diff-viewer__line--remove .diff-viewer__line-prefix {
@@ -83,11 +97,9 @@
 }
 
 .diff-viewer__line-content {
-  flex: 1;
+  flex: 0 0 auto;
   padding: 0 8px;
   white-space: pre;
-  overflow: hidden;
-  text-overflow: ellipsis;
   color: rgba(255, 255, 255, 0.85);
 }
 

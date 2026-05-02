@@ -108,32 +108,9 @@ export function HookStatus() {
     unknown: "Checking...",
   }[hookServerStatus.connectionState];
 
-  // Format uptime as human readable
-  const formatUptime = (secs: number): string => {
-    if (secs < 60) return `${secs}s`;
-    if (secs < 3600) return `${Math.floor(secs / 60)}m ${secs % 60}s`;
-    const hours = Math.floor(secs / 3600);
-    const mins = Math.floor((secs % 3600) / 60);
-    return `${hours}h ${mins}m`;
-  };
-
   return (
     <div className={statusClass}>
-      <span className="hook-status__dot" />
-      <span className="hook-status__text">{statusText}</span>
-      {hookServerStatus.connectionState === "connected" && (
-        <span className="hook-status__stats">
-          {hookServerStatus.requestCount !== undefined && (
-            <span title="Total requests">📊{hookServerStatus.requestCount}</span>
-          )}
-          {hookServerStatus.pendingApprovals !== undefined && hookServerStatus.pendingApprovals > 0 && (
-            <span title="Pending approvals">⏳{hookServerStatus.pendingApprovals}</span>
-          )}
-          {hookServerStatus.uptime !== undefined && (
-            <span title="Uptime">⏱️{formatUptime(hookServerStatus.uptime)}</span>
-          )}
-        </span>
-      )}
+      <span className="hook-status__dot" title={statusText} />
       {hookServerStatus.error && (
         <span className="hook-status__error" title={hookServerStatus.error}>⚠</span>
       )}

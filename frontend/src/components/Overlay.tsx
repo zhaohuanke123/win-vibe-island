@@ -11,7 +11,7 @@ type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored";
 
 // Window dimensions
 const BAR_HEIGHT = 60;
-const EXPANDED_HEIGHT = 500;
+const EXPANDED_HEIGHT = 600;
 const WINDOW_WIDTH = 420;
 
 function formatTime(timestamp: number): string {
@@ -83,6 +83,7 @@ export function Overlay() {
 
   return (
     <div className={`overlay ${expanded ? "overlay--expanded" : ""}`}>
+      <div className="overlay__shell">
         <div className="overlay__bar" onClick={() => setExpanded(!expanded)}>
           {isLoading && <span className="overlay__spinner" />}
           {active ? (
@@ -137,5 +138,6 @@ export function Overlay() {
           </div>
         </div>
       </div>
+    </div>
   );
 }
