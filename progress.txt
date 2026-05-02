@@ -337,8 +337,50 @@
   - 添加 `.hook-status__stats` 样式
 
 ### 待完成
-- [ ] 在 Windows 环境编译测试
-- [ ] 验证前端显示效果
+- [x] 在 Windows 环境编译测试
+- [x] 验证前端显示效果
 - [ ] 实现 Task 33: Session 详情/分组/搜索
+
+### 完成的补充工作
+- 添加 `get_hook_health`、`get_hook_errors`、`clear_hook_errors` IPC 命令
+- 注册新命令到 lib.rs invoke_handler
+- 添加 `pending_approvals` 字段到 HookHealthStatus
+- 修复前端 HealthResponse 字段名匹配后端 camelCase 序列化
+- 将 HookStatus 组件集成到 Overlay.tsx
+
+---
+
+## 2026-04-28: Tasks 24, 25, 26, 28 - 动画系统基础
+
+### Task 24: 添加 Framer Motion 动画依赖
+- `npm install framer-motion`
+- 创建 `frontend/src/config/animation.ts` 配置文件
+  - 弹簧动画参数（stiffness, damping, mass）
+  - 动画时长常量
+  - 缓动曲线
+  - IPC 节流间隔（16ms）
+
+### Task 25: 实现 AnimatedOverlay 组件
+- 创建 `frontend/src/components/AnimatedOverlay.tsx`
+  - 使用 Framer Motion `motion.div` 实现展开/收缩弹簧动画
+  - `onUpdate` 回调通过节流 IPC 同步窗口尺寸
+  - 折叠高度 60px，展开高度 500px，宽度 420px
+- 创建 `frontend/src/hooks/useThrottledCallback.ts`
+  - 通用节流 Hook，控制 IPC 调用频率
+- 集成到 Overlay.tsx，替换手动 `set_window_size` 调用
+
+### Task 26: 实现后端 update_overlay_size 命令
+- 在 commands.rs 添加 `update_overlay_size` IPC 命令
+  - 内置 16ms 节流检查（AtomicI64）
+  - 只调整尺寸不重新居中（动画场景）
+  - 补偿窗口装饰边距
+- 注册到 lib.rs invoke_handler
+
+### Task 28: 实现 StatusDot 状态动画
+- 使用 Framer Motion 重写 StatusDot 组件
+  - 弹簧动画背景色过渡
+  - thinking 状态 scale 脉动动画（1 → 1.3 → 1 循环）
+- 扩展 AgentState 支持新状态：thinking, streaming, error
+- 每个状态对应独立颜色
 
 ---

@@ -4,11 +4,13 @@ import { useSessionsStore } from "../store/sessions";
 import "./HookStatus.css";
 
 interface HealthResponse {
-  status: string;
-  uptime_secs: number;
-  request_count: number;
-  pending_approvals: number;
-  last_heartbeat: number;
+  state: string;
+  port: number;
+  lastHeartbeat: number | null;
+  uptimeSecs: number | null;
+  totalRequests: number;
+  errorCount: number;
+  pendingApprovals: number;
 }
 
 export function HookStatus() {
@@ -29,10 +31,10 @@ export function HookStatus() {
           const health: HealthResponse = await response.json();
           setHookServerStatus({
             connectionState: "connected",
-            lastHeartbeat: health.last_heartbeat * 1000, // Convert to ms
-            requestCount: health.request_count,
-            uptime: health.uptime_secs,
-            pendingApprovals: health.pending_approvals,
+            lastHeartbeat: health.lastHeartbeat ? health.lastHeartbeat * 1000 : undefined,
+            requestCount: health.totalRequests,
+            uptime: health.uptimeSecs ?? undefined,
+            pendingApprovals: health.pendingApprovals,
           });
         } else {
           setHookServerStatus({

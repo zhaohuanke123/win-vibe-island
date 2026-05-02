@@ -67,6 +67,7 @@ pub struct HookHealthStatus {
     pub uptime_secs: Option<u64>,
     pub total_requests: u64,
     pub error_count: u64,
+    pub pending_approvals: usize,
 }
 
 /// Response to a permission request
@@ -808,7 +809,8 @@ async fn handle_health(State(state): State<Arc<HookServerState>>) -> Json<HookHe
     let total_requests = *state.total_requests.lock();
     let error_count = *state.error_count.lock();
     let last_heartbeat = *state.last_heartbeat.lock();
-    
+    let pending_approvals = state.pending_approvals.lock().len();
+
     Json(HookHealthStatus {
         state: state_type,
         port: HOOK_SERVER_PORT,
@@ -816,6 +818,7 @@ async fn handle_health(State(state): State<Arc<HookServerState>>) -> Json<HookHe
         uptime_secs: Some(uptime),
         total_requests,
         error_count,
+        pending_approvals,
     })
 }
 
@@ -841,13 +844,13 @@ fn add_error_log(state: &HookServerState, error_type: &str, message: &str, detai
     
     // Add to error logs (most recent first)
     let mut logs = state.error_logs.lock();
-    logs.push_front(log_entry);
-    
+    logs.push_front(log_entry.clone());
+
     // Keep only the most recent errors
     if logs.len() > MAX_ERROR_LOGS {
         logs.pop_back();
     }
-    
+
     // Emit error event to frontend
     let _ = state.app_handle.emit("hook_error", &serde_json::json!({
         "timestamp": log_entry.timestamp,
@@ -877,7 +880,8 @@ pub fn get_hook_health() -> HookHealthStatus {
         let total_requests = *state.total_requests.lock();
         let error_count = *state.error_count.lock();
         let last_heartbeat = *state.last_heartbeat.lock();
-        
+        let pending_approvals = state.pending_approvals.lock().len();
+
         HookHealthStatus {
             state: state_type,
             port: HOOK_SERVER_PORT,
@@ -885,6 +889,7 @@ pub fn get_hook_health() -> HookHealthStatus {
             uptime_secs: Some(uptime),
             total_requests,
             error_count,
+            pending_approvals,
         }
     } else {
         HookHealthStatus {
@@ -894,6 +899,7 @@ pub fn get_hook_health() -> HookHealthStatus {
             uptime_secs: None,
             total_requests: 0,
             error_count: 0,
+            pending_approvals: 0,
         }
     }
 }

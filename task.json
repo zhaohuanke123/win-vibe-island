@@ -23,7 +23,14 @@
       "status": "completed",
       "priority": "critical",
       "dependencies": [],
-      "files": ["src-tauri/src/lib.rs", "src-tauri/src/events.rs", "src-tauri/src/commands.rs", "src-tauri/tauri.conf.json", "frontend/src/hooks/useAgentEvents.ts", "frontend/src/App.tsx"]
+      "files": [
+        "src-tauri/src/lib.rs",
+        "src-tauri/src/events.rs",
+        "src-tauri/src/commands.rs",
+        "src-tauri/tauri.conf.json",
+        "frontend/src/hooks/useAgentEvents.ts",
+        "frontend/src/App.tsx"
+      ]
     },
     {
       "id": 2,
@@ -31,7 +38,9 @@
       "description": "DELETED: Demo mode was removed to simplify the codebase. Testing should be done with real Claude Code hooks.",
       "status": "removed",
       "priority": "high",
-      "dependencies": [1],
+      "dependencies": [
+        1
+      ],
       "files": []
     },
     {
@@ -52,8 +61,14 @@
       ],
       "status": "completed",
       "priority": "high",
-      "dependencies": [1],
-      "files": ["src-tauri/src/pipe_server.rs", "src-tauri/src/lib.rs", "src-tauri/Cargo.toml"]
+      "dependencies": [
+        1
+      ],
+      "files": [
+        "src-tauri/src/pipe_server.rs",
+        "src-tauri/src/lib.rs",
+        "src-tauri/Cargo.toml"
+      ]
     },
     {
       "id": 4,
@@ -71,8 +86,14 @@
       ],
       "status": "completed",
       "priority": "medium",
-      "dependencies": [1],
-      "files": ["src-tauri/src/process_watcher.rs", "src-tauri/src/lib.rs", "src-tauri/Cargo.toml"]
+      "dependencies": [
+        1
+      ],
+      "files": [
+        "src-tauri/src/process_watcher.rs",
+        "src-tauri/src/lib.rs",
+        "src-tauri/Cargo.toml"
+      ]
     },
     {
       "id": 5,
@@ -90,8 +111,14 @@
       ],
       "status": "completed",
       "priority": "medium",
-      "dependencies": [1],
-      "files": ["frontend/src/components/ApprovalPanel.tsx", "frontend/src/components/Overlay.tsx", "src-tauri/src/commands.rs"]
+      "dependencies": [
+        1
+      ],
+      "files": [
+        "frontend/src/components/ApprovalPanel.tsx",
+        "frontend/src/components/Overlay.tsx",
+        "src-tauri/src/commands.rs"
+      ]
     },
     {
       "id": 6,
@@ -112,8 +139,14 @@
       ],
       "status": "completed",
       "priority": "low",
-      "dependencies": [1],
-      "files": ["src-tauri/src/window_focus.rs", "src-tauri/src/commands.rs", "frontend/src/components/Overlay.tsx"]
+      "dependencies": [
+        1
+      ],
+      "files": [
+        "src-tauri/src/window_focus.rs",
+        "src-tauri/src/commands.rs",
+        "frontend/src/components/Overlay.tsx"
+      ]
     },
     {
       "id": 7,
@@ -131,8 +164,13 @@
       ],
       "status": "completed",
       "priority": "medium",
-      "dependencies": [1],
-      "files": ["src-tauri/src/overlay.rs", "src-tauri/src/lib.rs"]
+      "dependencies": [
+        1
+      ],
+      "files": [
+        "src-tauri/src/overlay.rs",
+        "src-tauri/src/lib.rs"
+      ]
     },
     {
       "id": 8,
@@ -151,8 +189,12 @@
       ],
       "status": "completed",
       "priority": "low",
-      "dependencies": [3],
-      "files": ["agent-sdk/node/"]
+      "dependencies": [
+        3
+      ],
+      "files": [
+        "agent-sdk/node/"
+      ]
     },
     {
       "id": 9,
@@ -170,8 +212,12 @@
       ],
       "status": "completed",
       "priority": "low",
-      "dependencies": [3],
-      "files": ["agent-sdk/python/"]
+      "dependencies": [
+        3
+      ],
+      "files": [
+        "agent-sdk/python/"
+      ]
     },
     {
       "id": 10,
@@ -190,8 +236,14 @@
       ],
       "status": "completed",
       "priority": "medium",
-      "dependencies": [1, 5, 7],
-      "files": ["frontend/src/"]
+      "dependencies": [
+        1,
+        5,
+        7
+      ],
+      "files": [
+        "frontend/src/"
+      ]
     },
     {
       "id": 11,
@@ -208,8 +260,14 @@
       ],
       "status": "completed",
       "priority": "critical",
-      "dependencies": [1],
-      "files": ["src-tauri/src/hook_server.rs", "frontend/src/hooks/useAgentEvents.ts", "frontend/src/store/sessions.ts"]
+      "dependencies": [
+        1
+      ],
+      "files": [
+        "src-tauri/src/hook_server.rs",
+        "frontend/src/hooks/useAgentEvents.ts",
+        "frontend/src/store/sessions.ts"
+      ]
     },
     {
       "id": 12,
@@ -224,8 +282,13 @@
       ],
       "status": "completed",
       "priority": "high",
-      "dependencies": [11],
-      "files": ["README.md", "docs/hooks-setup.md"]
+      "dependencies": [
+        11
+      ],
+      "files": [
+        "README.md",
+        "docs/hooks-setup.md"
+      ]
     },
     {
       "id": 13,
@@ -239,8 +302,13 @@
       ],
       "status": "completed",
       "priority": "low",
-      "dependencies": [3],
-      "files": ["agent-sdk/node/", "agent-sdk/python/"]
+      "dependencies": [
+        3
+      ],
+      "files": [
+        "agent-sdk/node/",
+        "agent-sdk/python/"
+      ]
     },
     {
       "id": 14,
@@ -256,8 +324,14 @@
       ],
       "status": "completed",
       "priority": "medium",
-      "dependencies": [5, 11],
-      "files": ["frontend/src/components/DiffViewer.tsx", "frontend/src/components/ApprovalPanel.tsx"]
+      "dependencies": [
+        5,
+        11
+      ],
+      "files": [
+        "frontend/src/components/DiffViewer.tsx",
+        "frontend/src/components/ApprovalPanel.tsx"
+      ]
     },
     {
       "id": 15,
@@ -274,8 +348,17 @@
       ],
       "status": "completed",
       "priority": "low",
-      "dependencies": [10, 11, 12],
-      "files": ["README.md", "src-tauri/tauri.conf.json", "CHANGELOG.md", "docs/release-process.md"]
+      "dependencies": [
+        10,
+        11,
+        12
+      ],
+      "files": [
+        "README.md",
+        "src-tauri/tauri.conf.json",
+        "CHANGELOG.md",
+        "docs/release-process.md"
+      ]
     },
     {
       "id": 16,
@@ -293,8 +376,14 @@
       ],
       "status": "completed",
       "priority": "critical",
-      "dependencies": [1],
-      "files": ["src-tauri/src/hook_server.rs", "frontend/src/hooks/useAgentEvents.ts", "frontend/src/store/sessions.ts"]
+      "dependencies": [
+        1
+      ],
+      "files": [
+        "src-tauri/src/hook_server.rs",
+        "frontend/src/hooks/useAgentEvents.ts",
+        "frontend/src/store/sessions.ts"
+      ]
     },
     {
       "id": 17,
@@ -309,8 +398,12 @@
       ],
       "status": "completed",
       "priority": "high",
-      "dependencies": [5],
-      "files": ["frontend/src/components/Overlay.tsx"]
+      "dependencies": [
+        5
+      ],
+      "files": [
+        "frontend/src/components/Overlay.tsx"
+      ]
     },
     {
       "id": 18,
@@ -328,8 +421,16 @@
       ],
       "status": "completed",
       "priority": "critical",
-      "dependencies": [11, 17],
-      "files": ["src-tauri/src/hook_server.rs", "frontend/src/hooks/useAgentEvents.ts", "frontend/src/components/ApprovalPanel.tsx", "frontend/src/store/sessions.ts"]
+      "dependencies": [
+        11,
+        17
+      ],
+      "files": [
+        "src-tauri/src/hook_server.rs",
+        "frontend/src/hooks/useAgentEvents.ts",
+        "frontend/src/components/ApprovalPanel.tsx",
+        "frontend/src/store/sessions.ts"
+      ]
     },
     {
       "id": 19,
@@ -346,8 +447,13 @@
       ],
       "status": "completed",
       "priority": "high",
-      "dependencies": [18],
-      "files": ["src-tauri/src/hook_server.rs", "src-tauri/src/commands.rs"]
+      "dependencies": [
+        18
+      ],
+      "files": [
+        "src-tauri/src/hook_server.rs",
+        "src-tauri/src/commands.rs"
+      ]
     },
     {
       "id": 20,
@@ -362,8 +468,13 @@
       ],
       "status": "completed",
       "priority": "medium",
-      "dependencies": [18],
-      "files": ["docs/hooks-setup.md", "README.md"]
+      "dependencies": [
+        18
+      ],
+      "files": [
+        "docs/hooks-setup.md",
+        "README.md"
+      ]
     },
     {
       "id": 21,
@@ -379,7 +490,9 @@
       "status": "completed",
       "priority": "high",
       "dependencies": [],
-      "files": ["docs/research-dynamic-island-animation.md"]
+      "files": [
+        "docs/research-dynamic-island-animation.md"
+      ]
     },
     {
       "id": 22,
@@ -395,7 +508,9 @@
       "status": "completed",
       "priority": "high",
       "dependencies": [],
-      "files": ["docs/research-windows-window-management.md"]
+      "files": [
+        "docs/research-windows-window-management.md"
+      ]
     },
     {
       "id": 23,
@@ -412,8 +527,15 @@
       ],
       "status": "completed",
       "priority": "critical",
-      "dependencies": [21, 22],
-      "files": ["docs/animation-design.md", "docs/research-dynamic-island-animation.md", "docs/research-windows-window-management.md"]
+      "dependencies": [
+        21,
+        22
+      ],
+      "files": [
+        "docs/animation-design.md",
+        "docs/research-dynamic-island-animation.md",
+        "docs/research-windows-window-management.md"
+      ]
     },
     {
       "id": 24,
@@ -427,10 +549,15 @@
         "定义动画时长常量",
         "验证依赖安装成功"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
-      "dependencies": [23],
-      "files": ["frontend/package.json", "frontend/src/config/animation.ts"]
+      "dependencies": [
+        23
+      ],
+      "files": [
+        "frontend/package.json",
+        "frontend/src/config/animation.ts"
+      ]
     },
     {
       "id": 25,
@@ -444,10 +571,16 @@
         "集成到现有 Overlay.tsx",
         "测试动画流畅性"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
-      "dependencies": [24],
-      "files": ["frontend/src/components/AnimatedOverlay.tsx", "frontend/src/components/Overlay.tsx", "frontend/src/hooks/useThrottledCallback.ts"]
+      "dependencies": [
+        24
+      ],
+      "files": [
+        "frontend/src/components/AnimatedOverlay.tsx",
+        "frontend/src/components/Overlay.tsx",
+        "frontend/src/hooks/useThrottledCallback.ts"
+      ]
     },
     {
       "id": 26,
@@ -461,10 +594,15 @@
         "注册命令到 Tauri builder",
         "测试 IPC 调用正确性"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
-      "dependencies": [23],
-      "files": ["src-tauri/src/commands.rs", "src-tauri/src/lib.rs"]
+      "dependencies": [
+        23
+      ],
+      "files": [
+        "src-tauri/src/commands.rs",
+        "src-tauri/src/lib.rs"
+      ]
     },
     {
       "id": 27,
@@ -479,8 +617,15 @@
       ],
       "status": "pending",
       "priority": "medium",
-      "dependencies": [25, 26],
-      "files": ["src-tauri/src/overlay.rs", "src-tauri/src/commands.rs", "frontend/src/components/Overlay.tsx"]
+      "dependencies": [
+        25,
+        26
+      ],
+      "files": [
+        "src-tauri/src/overlay.rs",
+        "src-tauri/src/commands.rs",
+        "frontend/src/components/Overlay.tsx"
+      ]
     },
     {
       "id": 28,
@@ -493,10 +638,14 @@
         "添加动画配置参数",
         "测试各状态动画效果"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
-      "dependencies": [24],
-      "files": ["frontend/src/components/StatusDot.tsx"]
+      "dependencies": [
+        24
+      ],
+      "files": [
+        "frontend/src/components/StatusDot.tsx"
+      ]
     },
     {
       "id": 29,
@@ -511,8 +660,12 @@
       ],
       "status": "pending",
       "priority": "low",
-      "dependencies": [26],
-      "files": ["src-tauri/src/overlay.rs"]
+      "dependencies": [
+        26
+      ],
+      "files": [
+        "src-tauri/src/overlay.rs"
+      ]
     },
     {
       "id": 30,
@@ -527,8 +680,16 @@
       ],
       "status": "pending",
       "priority": "medium",
-      "dependencies": [25, 26, 27, 28],
-      "files": ["frontend/src/components/AnimatedOverlay.tsx", "frontend/src/components/Overlay.tsx"]
+      "dependencies": [
+        25,
+        26,
+        27,
+        28
+      ],
+      "files": [
+        "frontend/src/components/AnimatedOverlay.tsx",
+        "frontend/src/components/Overlay.tsx"
+      ]
     },
     {
       "id": 31,
@@ -544,8 +705,15 @@
       ],
       "status": "pending",
       "priority": "medium",
-      "dependencies": [30],
-      "files": ["frontend/src/__tests__/", "src-tauri/src/", "AGENTS.md", "progress.txt"]
+      "dependencies": [
+        30
+      ],
+      "files": [
+        "frontend/src/__tests__/",
+        "src-tauri/src/",
+        "AGENTS.md",
+        "progress.txt"
+      ]
     },
     {
       "id": 32,
@@ -560,10 +728,16 @@
         "添加 IPC 命令: get_hook_status, get_hook_errors",
         "测试: 模拟 Hook server 断开，验证前端状态更新"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "critical",
-      "dependencies": [11],
-      "files": ["src-tauri/src/hook_server.rs", "frontend/src/components/StatusBar.tsx", "frontend/src/store/hooks.ts"]
+      "dependencies": [
+        11
+      ],
+      "files": [
+        "src-tauri/src/hook_server.rs",
+        "frontend/src/components/StatusBar.tsx",
+        "frontend/src/store/hooks.ts"
+      ]
     },
     {
       "id": 33,
@@ -580,8 +754,14 @@
       ],
       "status": "pending",
       "priority": "critical",
-      "dependencies": [32],
-      "files": ["src-tauri/src/hook_server.rs", "frontend/src/store/sessions.ts", "frontend/src/components/StatusDot.tsx"]
+      "dependencies": [
+        32
+      ],
+      "files": [
+        "src-tauri/src/hook_server.rs",
+        "frontend/src/store/sessions.ts",
+        "frontend/src/components/StatusDot.tsx"
+      ]
     },
     {
       "id": 34,
@@ -598,8 +778,13 @@
       ],
       "status": "pending",
       "priority": "high",
-      "dependencies": [33],
-      "files": ["frontend/src/components/SessionDetail.tsx", "frontend/src/components/Overlay.tsx"]
+      "dependencies": [
+        33
+      ],
+      "files": [
+        "frontend/src/components/SessionDetail.tsx",
+        "frontend/src/components/Overlay.tsx"
+      ]
     },
     {
       "id": 35,
@@ -616,8 +801,13 @@
       ],
       "status": "pending",
       "priority": "high",
-      "dependencies": [34],
-      "files": ["frontend/src/components/SessionList.tsx", "frontend/src/store/sessions.ts"]
+      "dependencies": [
+        34
+      ],
+      "files": [
+        "frontend/src/components/SessionList.tsx",
+        "frontend/src/store/sessions.ts"
+      ]
     },
     {
       "id": 36,
@@ -634,8 +824,14 @@
       ],
       "status": "pending",
       "priority": "high",
-      "dependencies": [35],
-      "files": ["src-tauri/src/commands.rs", "src-tauri/src/session_store.rs", "frontend/src/store/sessions.ts"]
+      "dependencies": [
+        35
+      ],
+      "files": [
+        "src-tauri/src/commands.rs",
+        "src-tauri/src/session_store.rs",
+        "frontend/src/store/sessions.ts"
+      ]
     },
     {
       "id": 37,
@@ -652,8 +848,13 @@
       ],
       "status": "pending",
       "priority": "medium",
-      "dependencies": [34],
-      "files": ["frontend/src/components/ToolExecutionDetail.tsx", "frontend/src/store/sessions.ts"]
+      "dependencies": [
+        34
+      ],
+      "files": [
+        "frontend/src/components/ToolExecutionDetail.tsx",
+        "frontend/src/store/sessions.ts"
+      ]
     },
     {
       "id": 38,
@@ -670,8 +871,13 @@
       ],
       "status": "pending",
       "priority": "medium",
-      "dependencies": [37],
-      "files": ["frontend/src/components/ActivityTimeline.tsx", "frontend/src/store/timeline.ts"]
+      "dependencies": [
+        37
+      ],
+      "files": [
+        "frontend/src/components/ActivityTimeline.tsx",
+        "frontend/src/store/timeline.ts"
+      ]
     }
   ]
 }

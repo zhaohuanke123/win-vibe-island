@@ -1,5 +1,15 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://localhost:7878/hooks/session-start"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "*",
@@ -8,6 +18,17 @@
             "type": "http",
             "url": "http://localhost:7878/hooks/pre-tool-use",
             "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://localhost:7878/hooks/post-tool-use"
           }
         ]
       }
@@ -28,6 +49,28 @@
           {
             "type": "http",
             "url": "http://localhost:7878/hooks/stop"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://localhost:7878/hooks/user-prompt-submit"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://localhost:7878/hooks/permission-request",
+            "timeout": 60
           }
         ]
       }

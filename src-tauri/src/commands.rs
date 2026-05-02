@@ -300,3 +300,59 @@ pub fn start_hook_server(app: AppHandle) -> Result<(), String> {
 pub fn stop_hook_server() -> Result<(), String> {
     hook_server::stop_hook_server()
 }
+
+/// Get hook server health status
+#[tauri::command]
+pub fn get_hook_health() -> hook_server::HookHealthStatus {
+    hook_server::get_hook_health()
+}
+
+/// Get hook server error logs
+#[tauri::command]
+pub fn get_hook_errors(limit: Option<usize>) -> Vec<hook_server::HookErrorLog> {
+    hook_server::get_hook_errors(limit.unwrap_or(50))
+}
+
+/// Clear hook server error logs
+#[tauri::command]
+pub fn clear_hook_errors() {
+    hook_server::clear_hook_errors()
+}
+
+/// Lightweight resize for animation sync. Throttled to ~16ms intervals.
+/// Unlike `set_window_size`, this only changes size without re-centering.
+#[tauri::command]
+pub fn update_overlay_size(window: WebviewWindow, width: u32, height: u32) -> Result<(), String> {
+    use std::sync::atomic::{AtomicI64, Ordering};
+    use std::time::SystemTime;
+
+    static LAST_RESIZE_MS: AtomicI64 = AtomicI64::new(0);
+    let now_ms = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let last = LAST_RESIZE_MS.load(Ordering::Relaxed);
+    if now_ms - last < 16 {
+        return Ok(());
+    }
+    LAST_RESIZE_MS.store(now_ms, Ordering::Relaxed);
+
+    let target_logical = LogicalSize { width: width as f64, height: height as f64 };
+    let scale = window.scale_factor().unwrap_or(1.0);
+
+    // Compensate for window decorations
+    let outer = window.outer_size().map_err(|e| e.to_string())?;
+    let inner = window.inner_size().map_err(|e| e.to_string())?;
+    let dw = outer.width as f64 - inner.width as f64;
+    let dh = outer.height as f64 - inner.height as f64;
+
+    let adjusted = LogicalSize {
+        width: target_logical.width + dw / scale,
+        height: target_logical.height + dh / scale,
+    };
+    window
+        .set_size(Size::Logical(adjusted))
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
