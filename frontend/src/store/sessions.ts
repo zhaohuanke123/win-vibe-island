@@ -4,6 +4,31 @@ export type AgentState = "idle" | "thinking" | "running" | "streaming" | "approv
 
 export type HookConnectionState = "connected" | "disconnected" | "error" | "unknown";
 
+// Approval type for different request types
+export type ApprovalType = "permission" | "question" | "plan";
+
+// Approval type constants for consistent usage across frontend
+export const APPROVAL_TYPES = {
+  PERMISSION: "permission" as ApprovalType,
+  QUESTION: "question" as ApprovalType,
+  PLAN: "plan" as ApprovalType,
+} as const;
+
+// Question option for AskUserQuestion tool
+export interface QuestionOption {
+  label: string;
+  description?: string;
+  preview?: string;
+}
+
+// Question for AskUserQuestion tool
+export interface Question {
+  question: string;
+  header: string;
+  options: QuestionOption[];
+  multiSelect: boolean;
+}
+
 export interface ToolExecution {
   id: string;
   toolName: string;
@@ -57,11 +82,20 @@ export interface ApprovalRequest {
   toolUseId: string;
   sessionId: string;
   sessionLabel: string;
-  toolName?: string;
-  action: string;
-  riskLevel: "low" | "medium" | "high";
+  approvalType: ApprovalType;
   timestamp: number;
+
+  // Permission request fields (existing)
+  toolName?: string;
+  action?: string;
+  riskLevel?: "low" | "medium" | "high";
   diff?: DiffData;
+
+  // Question fields - for AskUserQuestion tool
+  questions?: Question[];
+
+  // Plan fields - for ExitPlanMode tool
+  planContent?: string;
 }
 
 export interface HookServerStatus {

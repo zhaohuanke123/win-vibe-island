@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { useSessionsStore } from "../store/sessions";
 import type { AgentState } from "../store/sessions";
+import { APPROVAL_TYPES } from "../store/sessions";
 
 interface SessionStartEvent {
   session_id: string;
@@ -61,8 +62,9 @@ interface PermissionRequestEvent {
   tool_use_id: string;
   tool_name: string;
   tool_input?: Record<string, unknown>;
-  action: string;
-  risk_level: "low" | "medium" | "high";
+  approval_type?: "permission" | "question" | "plan";
+  action?: string;
+  risk_level?: "low" | "medium" | "high";
   diff?: {
     fileName: string;
     filePath: string;
@@ -70,6 +72,19 @@ interface PermissionRequestEvent {
     newContent: string;
   };
   permission_suggestions?: Record<string, unknown>[];
+  // Question fields for AskUserQuestion
+  questions?: Array<{
+    question: string;
+    header: string;
+    options: Array<{
+      label: string;
+      description?: string;
+      preview?: string;
+    }>;
+    multiSelect: boolean;
+  }>;
+  // Plan fields for ExitPlanMode
+  plan_content?: string;
 }
 
 // Process Watcher events
@@ -265,6 +280,7 @@ export function useAgentEvents() {
               toolUseId: `notification-${Date.now()}`,
               sessionId: session_id,
               sessionLabel: useSessionsStore.getState().sessions.find(s => s.id === session_id)?.label || "Claude Code",
+              approvalType: APPROVAL_TYPES.PERMISSION,
               action: message,
               riskLevel: "medium",
               timestamp: Date.now(),
@@ -276,26 +292,45 @@ export function useAgentEvents() {
 
       // Listen for permission_request events (from PermissionRequest hook)
       const unlistenPermissionRequest = await listen<PermissionRequestEvent>("permission_request", (event) => {
-        const { session_id, tool_use_id, tool_name, action, risk_level, diff } = event.payload;
-        console.log("[useAgentEvents] Permission request received:", { session_id, tool_use_id, tool_name, action, risk_level });
+        const { session_id, tool_use_id, tool_name, approval_type, action, risk_level, diff, questions, plan_content } = event.payload;
+        console.log("[useAgentEvents] Permission request received:", {
+          session_id,
+          tool_use_id,
+          tool_name,
+          approval_type,
+          action,
+          risk_level,
+          questions,
+          plan_content,
+          fullPayload: event.payload
+        });
         const session = useSessionsStore.getState().sessions.find(s => s.id === session_id);
 
         updateSessionState(session_id, "approval");
 
-        setApprovalRequest({
+        const approvalRequest = {
           toolUseId: tool_use_id,
           sessionId: session_id,
           sessionLabel: session?.label || "Claude Code",
+          approvalType: approval_type || APPROVAL_TYPES.PERMISSION,
+          timestamp: Date.now(),
+          // Permission fields
           toolName: tool_name,
           action: action,
           riskLevel: risk_level,
-          timestamp: Date.now(),
           diff: diff ? {
             fileName: diff.fileName,
             oldContent: diff.oldContent,
             newContent: diff.newContent,
           } : undefined,
-        });
+          // Question fields
+          questions: questions,
+          // Plan fields
+          planContent: plan_content,
+        };
+
+        console.log("[useAgentEvents] Setting approval request:", approvalRequest);
+        setApprovalRequest(approvalRequest);
       });
       unlisteners.push(unlistenPermissionRequest);
 

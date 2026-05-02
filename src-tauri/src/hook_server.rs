@@ -12,6 +12,7 @@
 //! - UserPromptSubmit: When user submits a prompt
 //! - PermissionRequest: When Claude needs permission to execute a tool
 
+use crate::approval_types::approval_types;
 use axum::{
     extract::State,
     http::StatusCode,
@@ -601,6 +602,10 @@ async fn handle_user_prompt_submit(
 
 /// Handle PermissionRequest hook - triggered when Claude needs permission to execute a tool
 /// This handler BLOCKS until the user responds or times out.
+///
+/// Supports two types of requests:
+/// - "permission": Standard tool approval (Bash, Write, Edit, etc.)
+/// - "question": AskUserQuestion tool with clarifying questions
 async fn handle_permission_request(
     State(state): State<Arc<HookServerState>>,
     Json(payload): Json<HookPayload>,
@@ -620,15 +625,35 @@ async fn handle_permission_request(
         .tool_use_id
         .clone()
         .unwrap_or_else(|| format!("auto-{}", chrono_timestamp()));
-    log::info!(
-        "Generated tool_use_id for pending approval: {}",
-        tool_use_id
-    );
     let tool_name = payload
         .tool_name
         .clone()
         .unwrap_or_else(|| "unknown".to_string());
     let tool_input = payload.tool_input.clone().unwrap_or(serde_json::json!({}));
+
+    // Determine approval type based on tool_name
+    let approval_type = approval_types::from_tool_name(&tool_name);
+
+    log::info!(
+        "PermissionRequest details: tool_name={}, approval_type={}, tool_use_id={}",
+        tool_name,
+        approval_type,
+        tool_use_id
+    );
+
+    // Extract questions if this is an AskUserQuestion tool
+    let questions = if approval_type == approval_types::QUESTION {
+        extract_questions(&tool_input)
+    } else {
+        None
+    };
+
+    // Extract plan content if this is an ExitPlanMode tool
+    let plan_content = if approval_type == approval_types::PLAN {
+        tool_input.get("plan").and_then(|v| v.as_str()).map(|s| s.to_string())
+    } else {
+        None
+    };
 
     // Determine risk level based on tool name and input
     let risk_level = determine_risk_level(&tool_name, &tool_input);
@@ -661,7 +686,7 @@ async fn handle_permission_request(
         }
     }
 
-    // Emit permission_request event to frontend
+    // Emit permission_request event to frontend with approval_type and questions
     let _ = state.app_handle.emit(
         "permission_request",
         &serde_json::json!({
@@ -669,6 +694,9 @@ async fn handle_permission_request(
             "tool_use_id": tool_use_id,
             "tool_name": tool_name,
             "tool_input": tool_input,
+            "approval_type": approval_type,
+            "questions": questions,
+            "plan_content": plan_content,
             "action": action,
             "risk_level": risk_level,
             "diff": diff,
@@ -742,14 +770,26 @@ async fn handle_permission_request(
 
     // Build the response JSON in the correct format expected by Claude Code
     // See: https://code.claude.com/docs/en/hooks
-    let response = serde_json::json!({
-        "hookSpecificOutput": {
-            "hookEventName": "PermissionRequest",
-            "decision": {
-                "behavior": decision.behavior
+    let response = if let Some(ref updated_input) = decision.updated_input {
+        serde_json::json!({
+            "hookSpecificOutput": {
+                "hookEventName": "PermissionRequest",
+                "decision": {
+                    "behavior": decision.behavior,
+                    "updatedInput": updated_input
+                }
             }
-        }
-    });
+        })
+    } else {
+        serde_json::json!({
+            "hookSpecificOutput": {
+                "hookEventName": "PermissionRequest",
+                "decision": {
+                    "behavior": decision.behavior
+                }
+            }
+        })
+    };
 
     log::info!(
         "Sending permission response to Claude Code: {}",
@@ -901,13 +941,64 @@ fn extract_diff_data(tool_name: &str, tool_input: &serde_json::Value) -> Option<
     }
 }
 
+/// Extract questions from AskUserQuestion tool input
+/// Returns an array of questions with their options
+fn extract_questions(tool_input: &serde_json::Value) -> Option<Vec<serde_json::Value>> {
+    let questions_array = tool_input.get("questions").and_then(|v| v.as_array())?;
+
+    let questions: Vec<serde_json::Value> = questions_array
+        .iter()
+        .map(|q| {
+            let question = q.get("question").and_then(|v| v.as_str()).unwrap_or("");
+            let header = q.get("header").and_then(|v| v.as_str()).unwrap_or("");
+            let multi_select = q.get("multiSelect").and_then(|v| v.as_bool()).unwrap_or(false);
+
+            let options = q.get("options")
+                .and_then(|v| v.as_array())
+                .map(|opts| {
+                    opts.iter()
+                        .map(|opt| {
+                            serde_json::json!({
+                                "label": opt.get("label").and_then(|v| v.as_str()).unwrap_or(""),
+                                "description": opt.get("description").and_then(|v| v.as_str()),
+                                "preview": opt.get("preview").and_then(|v| v.as_str()),
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+
+            serde_json::json!({
+                "question": question,
+                "header": header,
+                "multiSelect": multi_select,
+                "options": options,
+            })
+        })
+        .collect();
+
+    if questions.is_empty() {
+        None
+    } else {
+        Some(questions)
+    }
+}
+
 /// Submit an approval response for a pending permission request.
 /// This is called from the frontend when the user approves or rejects an action.
-pub fn submit_approval_response(tool_use_id: &str, approved: bool) -> Result<(), String> {
+///
+/// For AskUserQuestion, pass answers as Some(answers_json) to include user selections.
+/// For regular approvals, pass None for answers.
+pub fn submit_approval_response(
+    tool_use_id: &str,
+    approved: bool,
+    answers: Option<serde_json::Value>,
+) -> Result<(), String> {
     log::info!(
-        "submit_approval_response called: tool_use_id={}, approved={}",
+        "submit_approval_response called: tool_use_id={}, approved={}, answers={:?}",
         tool_use_id,
-        approved
+        approved,
+        answers
     );
     let state_guard = HOOK_SERVER_STATE.lock();
     if let Some(ref state) = *state_guard {
@@ -917,10 +1008,22 @@ pub fn submit_approval_response(tool_use_id: &str, approved: bool) -> Result<(),
             pending.keys().collect::<Vec<_>>()
         );
         if let Some(pending_approval) = pending.remove(tool_use_id) {
+            // Build updated_input if answers are provided
+            let updated_input = if let Some(ref ans) = answers {
+                // Include both questions (from original input) and answers
+                let questions = pending_approval.tool_input.get("questions").cloned();
+                Some(serde_json::json!({
+                    "questions": questions.unwrap_or(serde_json::json!([])),
+                    "answers": ans,
+                }))
+            } else {
+                None
+            };
+
             let decision = PermissionDecision {
                 behavior: if approved { "allow" } else { "deny" }.to_string(),
                 message: None,
-                updated_input: None,
+                updated_input,
             };
             pending_approval
                 .response_tx

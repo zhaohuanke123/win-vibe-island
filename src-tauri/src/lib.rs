@@ -1,3 +1,4 @@
+mod approval_types;
 mod commands;
 mod events;
 mod hook_config;
