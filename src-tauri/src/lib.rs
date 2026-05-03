@@ -243,6 +243,12 @@ pub fn run() {
             commands::update_app_config,
             commands::reset_app_config,
             commands::reload_app_config,
+            commands::simulate_session_start,
+            commands::simulate_permission_request,
+            commands::simulate_state_change,
+            commands::simulate_session_end,
+            commands::test_reset_sessions,
+            commands::get_window_geometry,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

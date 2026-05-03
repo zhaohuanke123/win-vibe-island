@@ -6,9 +6,10 @@ export type AgentState = "idle" | "thinking" | "running" | "streaming" | "approv
 
 interface StatusDotProps {
   state: AgentState;
+  "data-testid"?: string;
 }
 
-export function StatusDot({ state }: StatusDotProps) {
+export function StatusDot({ state, "data-testid": testId }: StatusDotProps) {
   const getStateColor = useConfigStore((s) => s.getStateColor);
   const getAnimationDuration = useConfigStore((s) => s.getAnimationDuration);
   const getSpringConfig = useConfigStore((s) => s.getSpringConfig);
@@ -92,6 +93,7 @@ export function StatusDot({ state }: StatusDotProps) {
   return (
     <motion.span
       className={`status-dot status-dot--${state}`}
+      data-testid={testId}
       animate={getAnimation()}
       transition={getTransition()}
     />

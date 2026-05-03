@@ -13,7 +13,11 @@ interface HealthResponse {
   pendingApprovals: number;
 }
 
-export function HookStatus() {
+interface HookStatusProps {
+  "data-testid"?: string;
+}
+
+export function HookStatus({ "data-testid": testId }: HookStatusProps = {}) {
   const { hookServerStatus, setHookServerStatus, addErrorLog } = useSessionsStore();
   const heartbeatRef = useRef<number | null>(null);
   const reconnectRef = useRef<number | null>(null);
@@ -109,7 +113,7 @@ export function HookStatus() {
   }[hookServerStatus.connectionState];
 
   return (
-    <div className={statusClass}>
+    <div className={statusClass} data-testid={testId}>
       <span className="hook-status__dot" title={statusText} />
       {hookServerStatus.error && (
         <span className="hook-status__error" title={hookServerStatus.error}>⚠</span>

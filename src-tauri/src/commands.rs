@@ -5,7 +5,8 @@ use crate::overlay::{self, DpiScale, OverlayConfig};
 use crate::pipe_server;
 use crate::process_watcher;
 use crate::window_focus::{self, FocusResult};
-use tauri::{AppHandle, LogicalSize, Size, WebviewWindow};
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, LogicalSize, Size, WebviewWindow};
 
 #[cfg(target_os = "windows")]
 fn apply_window_round_region(window: &WebviewWindow, radius: u32) -> Result<(), String> {
@@ -517,4 +518,142 @@ pub fn reset_app_config(section: Option<String>) -> Result<crate::config::AppCon
 #[tauri::command]
 pub fn reload_app_config() -> Result<crate::config::AppConfig, String> {
     crate::config::reload_config()
+}
+
+// =============================================================================
+// Test API Commands — only functional in debug builds
+// =============================================================================
+
+/// Simulate a session_start event — uses the same emit format as hook_server.rs
+#[tauri::command]
+pub fn simulate_session_start(
+    app: AppHandle,
+    session_id: String,
+    label: String,
+    cwd: Option<String>,
+) -> Result<(), String> {
+    #[cfg(not(debug_assertions))]
+    return Err("Test commands disabled in release build".into());
+
+    app.emit("session_start", serde_json::json!({
+        "session_id": session_id,
+        "label": label,
+        "cwd": cwd,
+        "source": "test",
+    }))
+    .map_err(|e| e.to_string())
+}
+
+/// Simulate a permission_request event — uses the same emit format as hook_server.rs
+#[tauri::command]
+pub fn simulate_permission_request(
+    app: AppHandle,
+    session_id: String,
+    tool_use_id: String,
+    tool_name: String,
+    tool_input: Option<serde_json::Value>,
+    action: Option<String>,
+    risk_level: Option<String>,
+    approval_type: Option<String>,
+) -> Result<(), String> {
+    #[cfg(not(debug_assertions))]
+    return Err("Test commands disabled in release build".into());
+
+    let tool_input_val = tool_input.unwrap_or(serde_json::json!({}));
+    let risk = risk_level.unwrap_or_else(|| "medium".into());
+    let atype = approval_type.unwrap_or_else(|| "permission".into());
+
+    app.emit("permission_request", serde_json::json!({
+        "session_id": session_id,
+        "tool_use_id": tool_use_id,
+        "tool_name": tool_name,
+        "tool_input": tool_input_val,
+        "approval_type": atype,
+        "action": action.unwrap_or_default(),
+        "risk_level": risk,
+    }))
+    .map_err(|e| e.to_string())
+}
+
+/// Simulate a state_change event
+#[tauri::command]
+pub fn simulate_state_change(
+    app: AppHandle,
+    session_id: String,
+    state: String,
+    tool_name: Option<String>,
+    tool_input: Option<serde_json::Value>,
+) -> Result<(), String> {
+    #[cfg(not(debug_assertions))]
+    return Err("Test commands disabled in release build".into());
+
+    app.emit("state_change", serde_json::json!({
+        "session_id": session_id,
+        "state": state,
+        "tool_name": tool_name,
+        "tool_input": tool_input,
+    }))
+    .map_err(|e| e.to_string())
+}
+
+/// Simulate a session_end event
+#[tauri::command]
+pub fn simulate_session_end(
+    app: AppHandle,
+    session_id: String,
+) -> Result<(), String> {
+    #[cfg(not(debug_assertions))]
+    return Err("Test commands disabled in release build".into());
+
+    app.emit("session_end", serde_json::json!({
+        "session_id": session_id,
+    }))
+    .map_err(|e| e.to_string())
+}
+
+/// Reset all test state — emits test_reset event for frontend to clear Zustand,
+/// and clears Rust-side pending approvals.
+#[tauri::command]
+pub fn test_reset_sessions(app: AppHandle) -> Result<(), String> {
+    #[cfg(not(debug_assertions))]
+    return Err("Test commands disabled in release build".into());
+
+    app.emit("test_reset", serde_json::json!({}))
+        .map_err(|e| e.to_string())
+}
+
+/// Window geometry for testing
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowGeometry {
+    pub width: u32,
+    pub height: u32,
+    pub x: i32,
+    pub y: i32,
+    pub scale_factor: f64,
+    pub is_visible: bool,
+    pub is_focused: bool,
+}
+
+/// Get window geometry for testing
+#[tauri::command]
+pub fn get_window_geometry(window: WebviewWindow) -> Result<WindowGeometry, String> {
+    #[cfg(not(debug_assertions))]
+    return Err("Test commands disabled in release build".into());
+
+    let size = window.outer_size().map_err(|e| e.to_string())?;
+    let pos = window.outer_position().map_err(|e| e.to_string())?;
+    let visible = window.is_visible().map_err(|e| e.to_string())?;
+    let focused = window.is_focused().map_err(|e| e.to_string())?;
+    let scale = window.scale_factor().map_err(|e| e.to_string())?;
+
+    Ok(WindowGeometry {
+        width: size.width,
+        height: size.height,
+        x: pos.x,
+        y: pos.y,
+        scale_factor: scale,
+        is_visible: visible,
+        is_focused: focused,
+    })
 }

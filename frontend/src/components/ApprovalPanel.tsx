@@ -357,7 +357,7 @@ function PermissionPanel({ request, onHandled }: { request: ApprovalRequest; onH
   const isComplete = status === "approved" || status === "rejected";
 
   return (
-    <div className={`approval-panel ${isComplete ? `approval-panel--${status}` : ""}`}>
+    <div className={`approval-panel ${isComplete ? `approval-panel--${status}` : ""}`} data-testid="approval-panel">
       <div className="approval-panel__header">
         <span className="approval-panel__icon">!</span>
         <span className="approval-panel__title">Approval Required</span>
@@ -383,13 +383,14 @@ function PermissionPanel({ request, onHandled }: { request: ApprovalRequest; onH
       )}
 
       <div className="approval-panel__footer">
-        <span className={`approval-panel__risk ${getRiskLevelClass()}`}>
+        <span className={`approval-panel__risk ${getRiskLevelClass()}`} data-testid="risk-level">
           {request.riskLevel?.toUpperCase() || "MEDIUM"} RISK
         </span>
 
         <div className="approval-panel__buttons">
           <button
             className="approval-panel__btn approval-panel__btn--reject"
+            data-testid="reject-btn"
             onClick={handleReject}
             disabled={isLoading || isComplete}
           >
@@ -402,6 +403,7 @@ function PermissionPanel({ request, onHandled }: { request: ApprovalRequest; onH
           </button>
           <button
             className="approval-panel__btn approval-panel__btn--approve"
+            data-testid="approve-btn"
             onClick={handleApprove}
             disabled={isLoading || isComplete}
           >

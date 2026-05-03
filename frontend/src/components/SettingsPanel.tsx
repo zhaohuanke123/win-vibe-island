@@ -62,7 +62,7 @@ export function SettingsPanel() {
   };
 
   return (
-    <div className="settings-panel">
+    <div className="settings-panel" data-testid="settings-panel">
       <div className="settings-panel__header">
         <h3>Settings</h3>
       </div>

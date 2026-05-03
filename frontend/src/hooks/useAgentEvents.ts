@@ -387,6 +387,16 @@ export function useAgentEvents() {
         setApprovalRequest(null);
       });
       unlisteners.push(unlistenApprovalTimeout);
+
+      // Listen for test_reset event — clear all sessions for testing
+      const unlistenTestReset = await listen("test_reset", () => {
+        useSessionsStore.setState({
+          sessions: [],
+          activeSessionId: null,
+          approvalRequest: null,
+        });
+      });
+      unlisteners.push(unlistenTestReset);
     };
 
     setupListeners();
