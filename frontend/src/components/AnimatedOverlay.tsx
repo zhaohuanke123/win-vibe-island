@@ -5,7 +5,6 @@ import { OVERLAY_DIMENSIONS, SIZE_SYNC_THROTTLE_MS, SPRING_CONFIG } from "../con
 
 interface AnimatedOverlayProps {
   isExpanded: boolean;
-  expandedHeight?: number;
   className?: string;
   children: React.ReactNode;
 }
@@ -25,23 +24,10 @@ function toNumber(value: number | string | undefined): number | null {
   return null;
 }
 
-function clampExpandedHeight(height: number | undefined): number {
-  const minHeight = OVERLAY_DIMENSIONS.expanded.minHeight;
-  const maxHeight = OVERLAY_DIMENSIONS.expanded.maxHeight;
-  if (typeof height !== "number" || !Number.isFinite(height)) return minHeight;
-  return Math.min(maxHeight, Math.max(minHeight, height));
-}
-
-export function AnimatedOverlay({ isExpanded, expandedHeight, className, children }: AnimatedOverlayProps) {
+export function AnimatedOverlay({ isExpanded, className, children }: AnimatedOverlayProps) {
   const lastSyncRef = useRef(0);
   const hasInitializedRef = useRef(false);
-  const dimensions = isExpanded
-    ? {
-        width: OVERLAY_DIMENSIONS.expanded.width,
-        height: clampExpandedHeight(expandedHeight),
-        borderRadius: OVERLAY_DIMENSIONS.expanded.borderRadius,
-      }
-    : OVERLAY_DIMENSIONS.compact;
+  const dimensions = isExpanded ? OVERLAY_DIMENSIONS.expanded : OVERLAY_DIMENSIONS.compact;
   const transition: Transition = {
     type: "spring",
     ...(isExpanded ? SPRING_CONFIG.expand : SPRING_CONFIG.collapse),

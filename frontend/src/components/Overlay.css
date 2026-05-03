@@ -111,7 +111,7 @@
 /* Panel content enters through Framer Motion; window size is animated by AnimatedOverlay. */
 .overlay__panel {
   width: 100%;
-  max-height: calc(600px - 52px);
+  height: calc(100% - 52px);
   max-width: 100%;
   min-width: 0;
   padding: 8px;
@@ -119,19 +119,8 @@
   border-radius: 0 0 18px 18px;
   backdrop-filter: blur(12px);
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
   transform-origin: top center;
   will-change: transform, opacity;
-}
-
-.overlay__panel-content {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-height: 0;
-  max-width: 100%;
-  overflow: hidden;
 }
 
 /* Sessions header */
@@ -146,11 +135,10 @@
 
 /* Scrollable session list */
 .overlay__sessions-list {
-  flex: 1 1 auto;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  max-height: 420px;
+  max-height: 220px;
   overflow-y: auto;
   overflow-x: hidden;
   padding-bottom: 4px;
@@ -321,10 +309,10 @@
 /* Panel footer with settings button */
 .overlay__panel-footer {
   display: flex;
-  flex: 0 0 auto;
   justify-content: flex-end;
   padding: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: auto;
 }
 
 .overlay__settings-btn {

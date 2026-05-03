@@ -305,8 +305,8 @@
 
 | 状态 | 窗口高度 | 交互模式 | 触发条件 |
 |------|----------|----------|----------|
-| 折叠 (collapsed) | 52px | 可交互 | 默认状态 |
-| 展开 (expanded) | 内容自适应，180px-600px | 可交互 | 点击 bar / 收到 approval 请求 |
+| 折叠 (collapsed) | 60px | 点击穿透 | 默认状态 |
+| 展开 (expanded) | 600px | 可交互 | 点击 bar / 收到 approval 请求 |
 
 ### 5.2 Session 数据结构
 
@@ -440,7 +440,6 @@ interface ApprovalRequest {
 | `APPROVAL_TIMEOUT_SECS` | 120 | 权限请求超时时间 |
 | `MAX_ERROR_LOGS` | 100 | 最大错误日志条数 |
 | `poll_interval_ms` | 5000 | Process Watcher 轮询间隔 |
-| `BAR_HEIGHT` | 52px | 折叠状态窗口高度 |
-| `EXPANDED_MIN_HEIGHT` | 180px | 展开状态最小窗口高度 |
-| `EXPANDED_MAX_HEIGHT` | 600px | 展开状态最大窗口高度 |
+| `BAR_HEIGHT` | 60px | 折叠状态窗口高度 |
+| `EXPANDED_HEIGHT` | 600px | 展开状态窗口高度 |
 | `WINDOW_WIDTH` | 420px | 窗口宽度 |

@@ -131,19 +131,12 @@ export const EASING = {
 
 ### 3.3 明显弹性灵动岛尺寸
 
-Overlay 主动画由 Framer Motion 驱动，并通过 `update_overlay_size` 同步 Tauri 窗口真实宽高。紧凑态不再保持 420px 固定宽度，而是收成可点击小胶囊；展开态从窗口中心向两侧弹性扩展，并根据实际面板内容自适应高度。
+Overlay 主动画由 Framer Motion 驱动，并通过 `update_overlay_size` 同步 Tauri 窗口真实宽高。紧凑态不再保持 420px 固定宽度，而是收成可点击小胶囊；展开态从窗口中心向两侧弹性扩展。
 
 | 状态 | 宽度 | 高度 | 圆角 | 行为 |
 |------|------|------|------|------|
 | compact | 236px | 52px | 26px | 仅显示状态点、会话标签和 Hook 小点，可点击展开 |
-| expanded | 420px | 内容自适应，最小 180px，最大 600px | 18px | 显示审批面板和 session 列表，内容过长时内部滚动 |
-
-展开态高度测量规则：
-
-- 前端使用 `ResizeObserver` 测量展开面板的 `scrollHeight`，总高度为 bar 52px + panel 内容高度。
-- 实际同步给 Tauri 的高度必须限制在 180px 到 600px 之间。
-- session 数量较少时窗口应贴合内容，不能保留大块空白；session 或审批内容较多时面板达到上限后由 session list / 内部内容滚动。
-- 底部圆角由外层 shell 的 `border-radius`、`clipPath` 和 mask 裁剪保证，不依赖额外底部留白。
+| expanded | 420px | 600px | 18px | 显示审批面板和 session 列表 |
 
 弹簧参数：
 
@@ -197,8 +190,7 @@ export function AnimatedOverlay({ isExpanded, children }: AnimatedOverlayProps) 
     },
     expanded: {
       width: 420,
-      minHeight: 180,
-      maxHeight: 600,
+      height: 600,
       borderRadius: 18,
     },
   }
