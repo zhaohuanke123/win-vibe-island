@@ -561,6 +561,7 @@ async fn handle_stop(
     let session_id = get_session_id(&payload);
 
     // Emit state_change to done/idle
+    // Frontend will play notification sound based on user settings
     let _ = state.app_handle.emit(
         "state_change",
         &serde_json::json!({
@@ -569,11 +570,6 @@ async fn handle_stop(
             "reason": payload.reason,
         }),
     );
-
-    // Play notification sound on task completion
-    // TODO: Get user's preferred sound from settings
-    let sound = crate::audio::NotificationSound::default();
-    let _ = crate::audio::play_sound(sound);
 
     Ok(StatusCode::OK)
 }
