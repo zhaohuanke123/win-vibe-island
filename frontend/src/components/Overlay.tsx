@@ -5,6 +5,7 @@ import { AnimatedOverlay } from "./AnimatedOverlay";
 import { StatusDot } from "./StatusDot";
 import { ApprovalPanel } from "./ApprovalPanel";
 import { HookStatus } from "./HookStatus";
+import { SettingsPanel } from "./SettingsPanel";
 import { useSessionsStore } from "../store/sessions";
 import type { Session } from "../store/sessions";
 import "./Overlay.css";
@@ -23,6 +24,7 @@ export function Overlay() {
   const { sessions, activeSessionId, setActiveSession, approvalRequest, clearApprovalRequest } = useSessionsStore();
   const active = sessions.find((s) => s.id === activeSessionId);
   const [expanded, setExpanded] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hadApprovalRequestRef = useRef(false);
@@ -114,51 +116,65 @@ export function Overlay() {
                   <span>{error}</span>
                 </div>
               )}
-              {approvalRequest && (
-                <ApprovalPanel key={approvalRequest.timestamp} request={approvalRequest} onApprovalHandled={handleApprovalHandled} />
-              )}
-              {sessions.length > 0 && (
-                <div className="overlay__sessions-header">Sessions ({sessions.length})</div>
-              )}
-              <motion.div
-                className="overlay__sessions-list"
-                initial="hidden"
-                animate="show"
-                variants={{
-                  hidden: {},
-                  show: { transition: { staggerChildren: 0.035 } },
-                }}
-              >
-                {sessions.map((s) => (
+              {showSettings ? (
+                <SettingsPanel />
+              ) : (
+                <>
+                  {approvalRequest && (
+                    <ApprovalPanel key={approvalRequest.timestamp} request={approvalRequest} onApprovalHandled={handleApprovalHandled} />
+                  )}
+                  {sessions.length > 0 && (
+                    <div className="overlay__sessions-header">Sessions ({sessions.length})</div>
+                  )}
                   <motion.div
-                    key={s.id}
-                    className={`overlay__session ${s.id === activeSessionId ? "overlay__session--active" : ""}`}
-                    onClick={() => handleSessionClick(s)}
+                    className="overlay__sessions-list"
+                    initial="hidden"
+                    animate="show"
                     variants={{
-                      hidden: { opacity: 0, y: 6 },
-                      show: { opacity: 1, y: 0 },
+                      hidden: {},
+                      show: { transition: { staggerChildren: 0.035 } },
                     }}
-                    transition={{ duration: 0.16, ease: "easeOut" }}
                   >
-                    <div className="overlay__session-row">
-                      <StatusDot state={s.state} />
-                      <span className="overlay__session-label" title={s.label}>{s.label}</span>
-                    </div>
-                    {s.currentTool && (
-                      <div className="overlay__session-info">
-                        <span className="overlay__session-tool">{s.currentTool.name}</span>
-                        {(s.currentTool.input?.file_path as string) && <span className="overlay__session-file">{(s.currentTool.input.file_path as string).split("/").pop()}</span>}
-                      </div>
-                    )}
-                    {s.lastActivity && (
-                      <div className="overlay__session-time">{formatTime(s.lastActivity)}</div>
+                    {sessions.map((s) => (
+                      <motion.div
+                        key={s.id}
+                        className={`overlay__session ${s.id === activeSessionId ? "overlay__session--active" : ""}`}
+                        onClick={() => handleSessionClick(s)}
+                        variants={{
+                          hidden: { opacity: 0, y: 6 },
+                          show: { opacity: 1, y: 0 },
+                        }}
+                        transition={{ duration: 0.16, ease: "easeOut" }}
+                      >
+                        <div className="overlay__session-row">
+                          <StatusDot state={s.state} />
+                          <span className="overlay__session-label" title={s.label}>{s.label}</span>
+                        </div>
+                        {s.currentTool && (
+                          <div className="overlay__session-info">
+                            <span className="overlay__session-tool">{s.currentTool.name}</span>
+                            {(s.currentTool.input?.file_path as string) && <span className="overlay__session-file">{(s.currentTool.input.file_path as string).split("/").pop()}</span>}
+                          </div>
+                        )}
+                        {s.lastActivity && (
+                          <div className="overlay__session-time">{formatTime(s.lastActivity)}</div>
+                        )}
+                      </motion.div>
+                    ))}
+                    {sessions.length === 0 && !error && (
+                      <div className="overlay__empty">Waiting for agent sessions...</div>
                     )}
                   </motion.div>
-                ))}
-                {sessions.length === 0 && !error && (
-                  <div className="overlay__empty">Waiting for agent sessions...</div>
-                )}
-              </motion.div>
+                </>
+              )}
+              <div className="overlay__panel-footer">
+                <button
+                  className="overlay__settings-btn"
+                  onClick={() => setShowSettings(!showSettings)}
+                >
+                  {showSettings ? "← Back" : "⚙ Settings"}
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
