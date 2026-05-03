@@ -83,27 +83,37 @@ export function Overlay() {
     }
   }, [sessions, activeSessionId, setActiveSession]);
 
-  // Measure panel content height when expanded (session list only, not approval/settings)
+  // Measure panel content height when expanded.
+  // Uses ResizeObserver to wait for width animation to complete before measuring,
+  // since width (236→420) and height animate simultaneously in Tauri.
   useEffect(() => {
-    if (!expanded) return;
+    if (!expanded || !panelRef.current) return;
 
-    let f1 = 0, f2 = 0, cancelled = false;
-    f1 = requestAnimationFrame(() => {
-      f2 = requestAnimationFrame(() => {
-        if (cancelled || !panelRef.current) return;
-        const panel = panelRef.current;
-        const prev = panel.style.height;
-        panel.style.height = "auto";
-        const contentH = panel.scrollHeight;
-        panel.style.height = prev;
+    const panel = panelRef.current;
+    let raf = 0;
+
+    const measure = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        if (!panelRef.current) return;
+        const p = panelRef.current;
+        const prev = p.style.height;
+        p.style.height = "auto";
+        const contentH = p.scrollHeight;
+        p.style.height = prev;
         const next = Math.min(EXPANDED_MAX, Math.max(EXPANDED_MIN, BAR_HEIGHT + contentH));
         setMeasuredHeight((h) => (Math.abs(h - next) < 1 ? h : next));
       });
-    });
+    };
+
+    measure();
+
+    const observer = new ResizeObserver(() => measure());
+    observer.observe(panel);
+
     return () => {
-      cancelled = true;
-      cancelAnimationFrame(f1);
-      cancelAnimationFrame(f2);
+      cancelAnimationFrame(raf);
+      observer.disconnect();
     };
   }, [expanded, approvalRequest, showSettings, sessions.length]);
 
