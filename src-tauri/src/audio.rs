@@ -132,8 +132,14 @@ fn ensure_audio_thread() -> Option<Sender<AudioCommand>> {
 
 /// Get the sounds directory path
 fn get_sounds_dir() -> PathBuf {
-    // Sounds are embedded in the app, but we also support custom sounds
-    // First try the app resource directory
+    // In development mode, sounds are in src-tauri/sounds/
+    // Check for development path first (relative to current working directory)
+    let dev_sounds_dir = PathBuf::from("src-tauri/sounds");
+    if dev_sounds_dir.exists() {
+        return dev_sounds_dir;
+    }
+
+    // In production mode, sounds are next to the executable
     if let Some(exe_path) = std::env::current_exe().ok() {
         let exe_dir = exe_path.parent().unwrap_or(&exe_path);
         let sounds_dir = exe_dir.join("sounds");
@@ -142,7 +148,13 @@ fn get_sounds_dir() -> PathBuf {
         }
     }
 
-    // Fallback: create sounds dir in app config directory
+    // Fallback: check if sounds dir exists in current directory
+    let local_sounds = PathBuf::from("sounds");
+    if local_sounds.exists() {
+        return local_sounds;
+    }
+
+    // Last fallback: app config directory (for user custom sounds)
     if let Some(config_dir) = dirs::config_dir() {
         let sounds_dir = config_dir.join("vibe-island").join("sounds");
         let _ = fs::create_dir_all(&sounds_dir);
