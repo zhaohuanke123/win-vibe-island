@@ -183,12 +183,20 @@ export function useAgentEvents() {
         }
 
         // Play notification sound when task completes (done state)
+        // Use debounce to prevent duplicate plays from React strict mode or rapid events
         if (state === "done") {
-          const savedSound = localStorage.getItem("notificationSound") || "hero";
-          if (savedSound !== "none") {
-            invoke("play_notification_sound", { sound: savedSound }).catch((e) =>
-              console.error("Failed to play notification sound:", e)
-            );
+          const now = Date.now();
+          const lastPlayTime = parseInt(localStorage.getItem("lastSoundPlayTime") || "0");
+          const debounceMs = 1000; // 1 second debounce
+
+          if (now - lastPlayTime > debounceMs) {
+            localStorage.setItem("lastSoundPlayTime", now.toString());
+            const savedSound = localStorage.getItem("notificationSound") || "hero";
+            if (savedSound !== "none") {
+              invoke("play_notification_sound", { sound: savedSound }).catch((e) =>
+                console.error("Failed to play notification sound:", e)
+              );
+            }
           }
         }
       });
