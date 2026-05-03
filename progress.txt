@@ -15,38 +15,6 @@ and any relevant notes.
 
 ---
 
-## [2026-05-03] - Task #43 Follow-up: Overlay height regression
-
-### What was done:
-- Documentation Gate completed before source edits.
-- Recorded implementation bug:
-  - Task #43 measured expanded height from a panel already compressed by flex/overflow.
-  - The overlay can stay near the 180px minimum, causing session content to scroll too early.
-  - The footer/settings button can be clipped by the animated shell instead of remaining visible.
-- Updated `docs/animation-design.md` to clarify natural-height measurement and footer visibility requirements.
-- Reworked `Overlay.tsx` measurement to use natural content height, footer height, and capped internal scroll-region sizing.
-- Restored panel fill behavior in CSS so the footer stays inside the visible animated shell.
-- Added a focused `calculateOverlayLayout` regression test for min-height, fitting content, and max-height overflow cases.
-
-### Documentation:
-- Requirement ref: docs/animation-design.md#三动画参数配置
-- Design ref: docs/animation-design.md#33-明显弹性灵动岛尺寸
-- Docs updated: yes
-
-### Testing:
-- `frontend`: `npx tsc --noEmit --project tsconfig.app.json` passed.
-- `frontend`: `npx vitest run src/__tests__/components/overlayLayout.test.ts` passed, 3 tests.
-- `frontend`: `npx vitest run` passed, 59 tests.
-- `frontend`: `npm run build` passed.
-- `git diff --check` passed.
-
-### Notes:
-- This is an implementation bug in the existing content-adaptive height behavior, not a new feature.
-- Existing unrelated `src-tauri/Cargo.toml` working tree changes must be left untouched.
-- Vitest and Vite build required elevated execution because sandboxed runs failed while loading config with `spawn EPERM`.
-
----
-
 ## [2026-05-03] - Task #43: Overlay 展开态内容自适应高度
 
 ### What was done:
