@@ -16,7 +16,7 @@ pub use loader::{get_config, reload_config, reset_config, update_config};
 pub use types::*;
 
 /// Configuration file version for migration purposes
-pub const CONFIG_VERSION: u32 = 1;
+pub const CONFIG_VERSION: u32 = 2;
 
 /// Default configuration file name
 pub const CONFIG_FILE_NAME: &str = "vibe-island-config.json";

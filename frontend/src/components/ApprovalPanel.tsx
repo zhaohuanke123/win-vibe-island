@@ -118,137 +118,141 @@ function QuestionPanel({ request, onHandled }: { request: ApprovalRequest; onHan
   // Render Plan mode with special UI
   if (isPlanMode) {
     return (
-      <div className="approval-panel approval-panel--plan">
+      <div className="approval-panel approval-panel--plan" data-testid="approval-panel">
         <div className="approval-panel__header">
           <span className="approval-panel__icon">📋</span>
           <span className="approval-panel__title">Plan</span>
         </div>
 
-        <div className="approval-panel__session">
-          <span className="approval-panel__label">{request.sessionLabel}</span>
-        </div>
+        <div className="approval-panel__body">
+          <div className="approval-panel__session">
+            <span className="approval-panel__label">{request.sessionLabel}</span>
+          </div>
 
-        {request.questions.map((q: Question, qIndex: number) => {
-          // Find the option with plan steps (usually "Approve Plan")
-          const planOption = q.options.find(opt =>
-            opt.label.toLowerCase().includes("approve") ||
-            opt.label.toLowerCase().includes("proceed")
-          );
-          const steps = planOption ? parsePlanSteps(planOption.description || "") : [];
+          {request.questions.map((q: Question, qIndex: number) => {
+            // Find the option with plan steps (usually "Approve Plan")
+            const planOption = q.options.find(opt =>
+              opt.label.toLowerCase().includes("approve") ||
+              opt.label.toLowerCase().includes("proceed")
+            );
+            const steps = planOption ? parsePlanSteps(planOption.description || "") : [];
 
-          return (
-            <div key={qIndex} className="approval-panel__question-block">
-              <div className="approval-panel__question-header">
-                <span className="approval-panel__question-text">{q.question}</span>
-              </div>
-
-              {steps.length > 0 && (
-                <div className="approval-panel__plan-steps">
-                  {steps.map((step, stepIndex) => (
-                    <div key={stepIndex} className="approval-panel__plan-step">
-                      <span className="approval-panel__plan-step-number">{step.number}</span>
-                      <span className="approval-panel__plan-step-content">{step.title}</span>
-                    </div>
-                  ))}
+            return (
+              <div key={qIndex} className="approval-panel__question-block">
+                <div className="approval-panel__question-header">
+                  <span className="approval-panel__question-text">{q.question}</span>
                 </div>
-              )}
 
-              <div className="approval-panel__plan-actions">
-                {q.options.map((opt: QuestionOption, optIndex: number) => {
-                  // Determine button style based on label
-                  let btnClass = "approval-panel__btn approval-panel__btn--skip";
-                  if (opt.label.toLowerCase().includes("approve") || opt.label.toLowerCase().includes("proceed")) {
-                    btnClass = "approval-panel__btn approval-panel__btn--proceed";
-                  } else if (opt.label.toLowerCase().includes("modify")) {
-                    btnClass = "approval-panel__btn approval-panel__btn--modify";
-                  }
+                {steps.length > 0 && (
+                  <div className="approval-panel__plan-steps">
+                    {steps.map((step, stepIndex) => (
+                      <div key={stepIndex} className="approval-panel__plan-step">
+                        <span className="approval-panel__plan-step-number">{step.number}</span>
+                        <span className="approval-panel__plan-step-content">{step.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-                  return (
-                    <button
-                      key={optIndex}
-                      className={btnClass}
-                      onClick={() => {
-                        setAnswers({ [q.question]: opt.label });
-                        // Auto-submit for plan actions
-                        invoke("submit_approval_response", {
-                          toolUseId: request.toolUseId,
-                          approved: opt.label.toLowerCase().includes("approve") ||
-                                    opt.label.toLowerCase().includes("proceed"),
-                          answers: { [q.question]: opt.label },
-                        }).then(() => onHandled()).catch((error) => {
-                          console.error("[PlanPanel] Failed to submit:", error);
-                          onHandled();
-                        });
-                      }}
-                      disabled={status !== "pending"}
-                    >
-                      {status === "submitting" ? (
-                        <span className="approval-panel__spinner" />
-                      ) : (
-                        opt.label
-                      )}
-                    </button>
-                  );
-                })}
+                <div className="approval-panel__plan-actions">
+                  {q.options.map((opt: QuestionOption, optIndex: number) => {
+                    // Determine button style based on label
+                    let btnClass = "approval-panel__btn approval-panel__btn--skip";
+                    if (opt.label.toLowerCase().includes("approve") || opt.label.toLowerCase().includes("proceed")) {
+                      btnClass = "approval-panel__btn approval-panel__btn--proceed";
+                    } else if (opt.label.toLowerCase().includes("modify")) {
+                      btnClass = "approval-panel__btn approval-panel__btn--modify";
+                    }
+
+                    return (
+                      <button
+                        key={optIndex}
+                        className={btnClass}
+                        onClick={() => {
+                          setAnswers({ [q.question]: opt.label });
+                          // Auto-submit for plan actions
+                          invoke("submit_approval_response", {
+                            toolUseId: request.toolUseId,
+                            approved: opt.label.toLowerCase().includes("approve") ||
+                                      opt.label.toLowerCase().includes("proceed"),
+                            answers: { [q.question]: opt.label },
+                          }).then(() => onHandled()).catch((error) => {
+                            console.error("[PlanPanel] Failed to submit:", error);
+                            onHandled();
+                          });
+                        }}
+                        disabled={status !== "pending"}
+                      >
+                        {status === "submitting" ? (
+                          <span className="approval-panel__spinner" />
+                        ) : (
+                          opt.label
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     );
   }
 
   // Regular question mode
   return (
-    <div className="approval-panel approval-panel--question">
+    <div className="approval-panel approval-panel--question" data-testid="approval-panel">
       <div className="approval-panel__header">
         <span className="approval-panel__icon">?</span>
         <span className="approval-panel__title">Question</span>
       </div>
 
-      <div className="approval-panel__session">
-        <span className="approval-panel__label">{request.sessionLabel}</span>
-      </div>
+      <div className="approval-panel__body">
+        <div className="approval-panel__session">
+          <span className="approval-panel__label">{request.sessionLabel}</span>
+        </div>
 
-      <div className="approval-panel__questions">
-        {request.questions.map((q: Question, qIndex: number) => (
-          <div key={qIndex} className="approval-panel__question-block">
-            <div className="approval-panel__question-header">
-              <span className="approval-panel__question-tag">{q.header}</span>
-              <span className="approval-panel__question-text">{q.question}</span>
-            </div>
+        <div className="approval-panel__questions">
+          {request.questions.map((q: Question, qIndex: number) => (
+            <div key={qIndex} className="approval-panel__question-block">
+              <div className="approval-panel__question-header">
+                <span className="approval-panel__question-tag">{q.header}</span>
+                <span className="approval-panel__question-text">{q.question}</span>
+              </div>
 
-            <div className="approval-panel__options">
-              {q.options.map((opt: QuestionOption, optIndex: number) => (
-                <button
-                  key={optIndex}
-                  className={`approval-panel__option ${
-                    answers[q.question] === opt.label ? "approval-panel__option--selected" : ""
-                  }`}
-                  onClick={() => handleOptionSelect(q.question, opt.label)}
-                  disabled={status !== "pending"}
-                >
-                  <span className="approval-panel__option-label">{opt.label}</span>
-                  {opt.description && (
-                    <span className="approval-panel__option-desc">{opt.description}</span>
-                  )}
-                </button>
-              ))}
+              <div className="approval-panel__options">
+                {q.options.map((opt: QuestionOption, optIndex: number) => (
+                  <button
+                    key={optIndex}
+                    className={`approval-panel__option ${
+                      answers[q.question] === opt.label ? "approval-panel__option--selected" : ""
+                    }`}
+                    onClick={() => handleOptionSelect(q.question, opt.label)}
+                    disabled={status !== "pending"}
+                  >
+                    <span className="approval-panel__option-label">{opt.label}</span>
+                    {opt.description && (
+                      <span className="approval-panel__option-desc">{opt.description}</span>
+                    )}
+                  </button>
+                ))}
 
-              {/* Custom input option */}
-              <div className="approval-panel__custom-input">
-                <input
-                  type="text"
-                  placeholder="Or type your own answer..."
-                  value={customInputs[q.question] || ""}
-                  onChange={(e) => handleCustomInputChange(q.question, e.target.value)}
-                  disabled={status !== "pending"}
-                  className="approval-panel__text-input"
-                />
+                {/* Custom input option */}
+                <div className="approval-panel__custom-input">
+                  <input
+                    type="text"
+                    placeholder="Or type your own answer..."
+                    value={customInputs[q.question] || ""}
+                    onChange={(e) => handleCustomInputChange(q.question, e.target.value)}
+                    disabled={status !== "pending"}
+                    className="approval-panel__text-input"
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       <div className="approval-panel__footer">
@@ -363,24 +367,26 @@ function PermissionPanel({ request, onHandled }: { request: ApprovalRequest; onH
         <span className="approval-panel__title">Approval Required</span>
       </div>
 
-      <div className="approval-panel__session">
-        <span className="approval-panel__label">{request.sessionLabel}</span>
-        {request.toolName && (
-          <span className="approval-panel__tool-name">[{request.toolName}]</span>
+      <div className="approval-panel__body">
+        <div className="approval-panel__session">
+          <span className="approval-panel__label">{request.sessionLabel}</span>
+          {request.toolName && (
+            <span className="approval-panel__tool-name">[{request.toolName}]</span>
+          )}
+        </div>
+
+        <div className="approval-panel__action">
+          {request.action}
+        </div>
+
+        {request.diff && (
+          <DiffViewer
+            oldContent={request.diff.oldContent}
+            newContent={request.diff.newContent}
+            fileName={request.diff.fileName}
+          />
         )}
       </div>
-
-      <div className="approval-panel__action">
-        {request.action}
-      </div>
-
-      {request.diff && (
-        <DiffViewer
-          oldContent={request.diff.oldContent}
-          newContent={request.diff.newContent}
-          fileName={request.diff.fileName}
-        />
-      )}
 
       <div className="approval-panel__footer">
         <span className={`approval-panel__risk ${getRiskLevelClass()}`} data-testid="risk-level">
@@ -492,17 +498,19 @@ function PlanPanel({ request, onHandled }: { request: ApprovalRequest; onHandled
   };
 
   return (
-    <div className="approval-panel approval-panel--plan">
+    <div className="approval-panel approval-panel--plan" data-testid="approval-panel">
       <div className="approval-panel__header">
         <span className="approval-panel__icon">📋</span>
         <span className="approval-panel__title">Plan</span>
       </div>
 
-      <div className="approval-panel__session">
-        <span className="approval-panel__label">{request.sessionLabel}</span>
-      </div>
+      <div className="approval-panel__body">
+        <div className="approval-panel__session">
+          <span className="approval-panel__label">{request.sessionLabel}</span>
+        </div>
 
-      {renderPlanContent()}
+        {renderPlanContent()}
+      </div>
 
       <div className="approval-panel__footer">
         <div className="approval-panel__buttons">

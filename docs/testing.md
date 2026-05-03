@@ -8,7 +8,7 @@
 |------|------|------|
 | 浏览器模式 | Test Bridge `simulateEvent()` | 快速验证 UI 逻辑、DOM 渲染、data-testid |
 | Tauri 真实 hook | curl → hook server:7878 | 验证真实业务入口、Rust 处理、前端状态更新 |
-| Native 窗口 | PowerShell Win32 探测 | 验证真实窗口尺寸（compact=52px, approval=600px） |
+| Native 窗口 | PowerShell Win32 探测 | 验证真实窗口尺寸（compact=52px, approval=720px） |
 
 ### 调用链路
 
@@ -158,7 +158,7 @@ powershell -ExecutionPolicy Bypass -File tests/scripts/hook/run-overlay-height-r
 3. curl 发送 6 个 session_start
 4. 探测自适应高度
 5. curl 发送 permission_request
-6. 探测 approval 展开高度 ≈ 600px
+6. 探测 approval 展开高度 ≈ 720px
 7. 等待 approval 超时/完成
 8. 探测收缩后回到 compact
 9. 输出 PASS/FAIL 汇总
@@ -247,7 +247,7 @@ await invoke("get_window_geometry")  // → { width, height, x, y, scaleFactor, 
 | `simulateEvent()` → Zustand → DOM | ✅ 已验证 | 浏览器模式快速验证 UI |
 | curl → hook server:7878 → Rust → `app.emit()` → 前端 | ✅ 已验证 | 真实业务入口 |
 | data-testid 可定位 | ✅ 已验证 | 14/14 全部通过 |
-| Native 窗口几何 | ✅ 已验证 | compact=52px, approval=600px, collapse=52px |
+| Native 窗口几何 | ✅ 已验证 | compact=52px, approval=720px, collapse=52px |
 | `invoke("simulate_*")` → Rust → emit → 前端 | ❌ 未覆盖 | 需要 Tauri WebView 上下文或 tauri-driver |
 
 ---

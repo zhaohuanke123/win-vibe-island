@@ -25,3 +25,4 @@ Thumbs.db
 .agents/
 .playwright-mcp/
 skills-lock.json
+*.log

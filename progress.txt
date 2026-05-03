@@ -15,6 +15,33 @@ and any relevant notes.
 
 ---
 
+## [2026-05-03] - Approval/Question Focus Layout Fix
+
+### Documentation Gate:
+- User requested a new approval/question overlay layout behavior.
+- Existing docs still defined a compact 420x600 expanded overlay, which is too small for approval/question flows when multiple sessions exist.
+- Updated `DESIGN.md` and `docs/animation-design.md` before source edits to define 600x720 approval/question focus mode and single-main-scroll behavior.
+
+### Planned correction:
+- Approval/question/plan requests use a dedicated focus layout.
+- Full session list is replaced by a light session context summary while approval is pending.
+- ApprovalPanel keeps header/actions fixed and scrolls only the main content body, avoiding nested outer scrollbars.
+
+### What was done:
+- Added approval focus mode in `Overlay.tsx`: approval/question/plan requests render a dedicated 600x720 layout with a compact session context summary.
+- Hid Settings/Activity footer controls while approval focus mode is active.
+- Refactored `ApprovalPanel` so permission, question, and plan variants share a fixed header/footer with one scrollable body.
+- Removed nested `max-height` scroll containers from action, question, and plan content; diff viewer keeps its own code-oriented scrolling.
+- Updated frontend and backend overlay defaults to 600x720 expanded mode.
+- Bumped config version to 2 and migrated existing version 1 overlay defaults from 420x600 to 600x720 when they still match old defaults.
+- Updated testing docs and the overlay height regression script to expect the new approval height.
+
+### Testing:
+- `frontend`: `npm run build` passed after rerunning outside the sandbox because the first Vite config load failed with sandbox `spawn EPERM`.
+- `src-tauri`: `cargo check` passed.
+
+---
+
 ## [2026-05-03] - Task #38: 活动时间线
 
 ### What was done:

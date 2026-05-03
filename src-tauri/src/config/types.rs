@@ -206,9 +206,9 @@ fn default_overlay_x() -> i32 { 100 }
 fn default_overlay_y() -> i32 { 100 }
 fn default_compact_width() -> i32 { 320 }
 fn default_compact_height() -> i32 { 56 }
-fn default_expanded_width() -> i32 { 420 }
+fn default_expanded_width() -> i32 { 600 }
 fn default_expanded_min_height() -> i32 { 180 }
-fn default_expanded_max_height() -> i32 { 600 }
+fn default_expanded_max_height() -> i32 { 720 }
 fn default_alpha() -> u8 { 240 }
 fn default_compact_radius() -> u32 { 26 }
 fn default_expanded_radius() -> u32 { 18 }

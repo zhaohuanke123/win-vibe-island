@@ -173,6 +173,23 @@ fn migrate_config(version: u32, raw: serde_json::Value) -> Result<serde_json::Va
             Ok(migrated)
         }
         1 => {
+            log::info!("Migrating config from version 1 to {}", CONFIG_VERSION);
+            let mut migrated = raw;
+            if let Some(obj) = migrated.as_object_mut() {
+                obj.insert("version".to_string(), serde_json::json!(CONFIG_VERSION));
+
+                if let Some(overlay) = obj.get_mut("overlay").and_then(|v| v.as_object_mut()) {
+                    if overlay.get("expandedWidth").and_then(|v| v.as_i64()) == Some(420) {
+                        overlay.insert("expandedWidth".to_string(), serde_json::json!(600));
+                    }
+                    if overlay.get("expandedMaxHeight").and_then(|v| v.as_i64()) == Some(600) {
+                        overlay.insert("expandedMaxHeight".to_string(), serde_json::json!(720));
+                    }
+                }
+            }
+            Ok(migrated)
+        }
+        2 => {
             // Current version - no migration needed
             Ok(raw)
         }

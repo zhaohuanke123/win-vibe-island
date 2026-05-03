@@ -125,6 +125,65 @@
   will-change: transform, opacity;
 }
 
+.overlay--approval-mode .overlay__panel {
+  gap: 10px;
+  padding: 10px;
+}
+
+.overlay__approval-focus {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.overlay__approval-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 8px 10px;
+  color: #9ca3af;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+
+.overlay__approval-context-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.overlay__approval-context-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #d1d5db;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.overlay__approval-context-state,
+.overlay__approval-context-count {
+  flex: 0 0 auto;
+  color: #6b7280;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.overlay__approval-context-state {
+  color: #f59e0b;
+}
+
 /* Sessions header */
 .overlay__sessions-header {
   font-size: 11px;

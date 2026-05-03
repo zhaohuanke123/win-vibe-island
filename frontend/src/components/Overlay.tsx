@@ -17,11 +17,13 @@ type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored";
 
 const BAR_HEIGHT = 52;
 const EXPANDED_MIN = 400;
-const EXPANDED_MAX = 600;
+const EXPANDED_MAX = 720;
+const APPROVAL_FOCUS_HEIGHT = 720;
 
 export function Overlay() {
   const { sessions, activeSessionId, setActiveSession, approvalRequest, clearApprovalRequest } = useSessionsStore();
   const active = sessions.find((s) => s.id === activeSessionId);
+  const approvalSession = approvalRequest ? sessions.find((s) => s.id === approvalRequest.sessionId) ?? null : null;
   const [expanded, setExpanded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
@@ -101,7 +103,7 @@ export function Overlay() {
 
   // Measure panel content height when expanded.
   // Uses ResizeObserver to wait for width animation to complete before measuring,
-  // since width (236→420) and height animate simultaneously in Tauri.
+  // since width (236→600) and height animate simultaneously in Tauri.
   useEffect(() => {
     if (!expanded || !panelRef.current) return;
 
@@ -141,12 +143,17 @@ export function Overlay() {
 
   const clearError = useCallback(() => { setError(null); }, []);
 
-  const shouldUseAdaptiveHeight = !approvalRequest && !showSettings && !showActivity;
-  const overlayExpandedHeight = shouldUseAdaptiveHeight ? measuredHeight : EXPANDED_MAX;
+  const isApprovalMode = Boolean(approvalRequest);
+  const shouldUseAdaptiveHeight = !isApprovalMode && !showSettings && !showActivity;
+  const overlayExpandedHeight = isApprovalMode
+    ? APPROVAL_FOCUS_HEIGHT
+    : shouldUseAdaptiveHeight
+      ? measuredHeight
+      : EXPANDED_MAX;
 
   return (
     <AnimatedOverlay
-      className={`overlay ${expanded ? "overlay--expanded" : "overlay--compact"}`}
+      className={`overlay ${expanded ? "overlay--expanded" : "overlay--compact"}${isApprovalMode ? " overlay--approval-mode" : ""}`}
       data-testid="overlay"
       isExpanded={expanded}
       expandedHeight={expanded ? overlayExpandedHeight : undefined}
@@ -182,7 +189,24 @@ export function Overlay() {
                   <span>{error}</span>
                 </div>
               )}
-              {showSettings ? (
+              {isApprovalMode && approvalRequest ? (
+                <div className="overlay__approval-focus" data-testid="approval-focus">
+                  <div className="overlay__approval-context" data-testid="approval-context">
+                    <div className="overlay__approval-context-main">
+                      <span className="overlay__approval-context-label" title={approvalRequest.sessionLabel}>
+                        {approvalRequest.sessionLabel}
+                      </span>
+                      {approvalSession && (
+                        <span className="overlay__approval-context-state">{approvalSession.state}</span>
+                      )}
+                    </div>
+                    <span className="overlay__approval-context-count">
+                      {sessions.length} session{sessions.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <ApprovalPanel key={approvalRequest.timestamp} request={approvalRequest} onApprovalHandled={handleApprovalHandled} />
+                </div>
+              ) : showSettings ? (
                 <SettingsPanel />
               ) : showActivity ? (
                 <ActivityTimeline data-testid="activity-timeline" />
@@ -204,22 +228,24 @@ export function Overlay() {
                   )}
                 </>
               )}
-              <div className="overlay__panel-footer">
-                <button
-                  className="overlay__settings-btn"
-                  data-testid="settings-btn"
-                  onClick={() => { setShowSettings(!showSettings); setShowActivity(false); setViewingSessionId(null); }}
-                >
-                  {showSettings ? "← Back" : "⚙ Settings"}
-                </button>
-                <button
-                  className="overlay__settings-btn"
-                  data-testid="activity-btn"
-                  onClick={() => { setShowActivity(!showActivity); setShowSettings(false); setViewingSessionId(null); }}
-                >
-                  {showActivity ? "← Back" : "📊 Activity"}
-                </button>
-              </div>
+              {!isApprovalMode && (
+                <div className="overlay__panel-footer">
+                  <button
+                    className="overlay__settings-btn"
+                    data-testid="settings-btn"
+                    onClick={() => { setShowSettings(!showSettings); setShowActivity(false); setViewingSessionId(null); }}
+                  >
+                    {showSettings ? "← Back" : "⚙ Settings"}
+                  </button>
+                  <button
+                    className="overlay__settings-btn"
+                    data-testid="activity-btn"
+                    onClick={() => { setShowActivity(!showActivity); setShowSettings(false); setViewingSessionId(null); }}
+                  >
+                    {showActivity ? "← Back" : "📊 Activity"}
+                  </button>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

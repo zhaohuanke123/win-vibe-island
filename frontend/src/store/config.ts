@@ -122,7 +122,7 @@ export interface UiDimensions {
 // ============================================================================
 
 const DEFAULT_CONFIG: AppConfig = {
-  version: 1,
+  version: 2,
   hookServer: {
     port: 7878,
     approvalTimeoutSecs: 120,
@@ -140,9 +140,9 @@ const DEFAULT_CONFIG: AppConfig = {
     defaultY: 100,
     compactWidth: 320,
     compactHeight: 56,
-    expandedWidth: 420,
+    expandedWidth: 600,
     expandedMinHeight: 180,
-    expandedMaxHeight: 600,
+    expandedMaxHeight: 720,
     alpha: 240,
     compactBorderRadius: 26,
     expandedBorderRadius: 18,

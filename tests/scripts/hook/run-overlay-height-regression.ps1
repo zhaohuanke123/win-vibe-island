@@ -100,7 +100,7 @@ Start-Sleep -Milliseconds 800
 
 [void][NativeWin]::GetWindowRect($hwnd, [ref]$rect)
 $h = $rect.Bottom - $rect.Top
-Write-Result "6 sessions adaptive height" ($h -gt $compactH -and $h -le 600) "height=${h}px (compact=${compactH}, should grow but <= 600)"
+Write-Result "6 sessions adaptive height" ($h -gt $compactH -and $h -le 720) "height=${h}px (compact=${compactH}, should grow but <= 720)"
 Write-Host "  6 sessions: $($rect.Right - $rect.Left)x${h} px"
 Write-Host ""
 
@@ -123,7 +123,7 @@ Start-Sleep -Milliseconds 1500
 
 [void][NativeWin]::GetWindowRect($hwnd, [ref]$rect)
 $h = $rect.Bottom - $rect.Top
-Write-Result "Approval expanded" ($h -gt 200) "height=${h}px (should be > 200)"
+Write-Result "Approval expanded" ($h -gt 650 -and $h -le 760) "height=${h}px (should be near 720)"
 Write-Host "  Approval visible: $($rect.Right - $rect.Left)x${h} px"
 
 $result = Receive-Job $job -Wait -AutoRemoveJob -ErrorAction SilentlyContinue

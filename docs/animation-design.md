@@ -131,12 +131,12 @@ export const EASING = {
 
 ### 3.3 明显弹性灵动岛尺寸
 
-Overlay 主动画由 Framer Motion 驱动，并通过 `update_overlay_size` 同步 Tauri 窗口真实宽高。紧凑态不再保持 420px 固定宽度，而是收成可点击小胶囊；展开态从窗口中心向两侧弹性扩展。
+Overlay 主动画由 Framer Motion 驱动，并通过 `update_overlay_size` 同步 Tauri 窗口真实宽高。紧凑态不再保持 420px 固定宽度，而是收成可点击小胶囊；展开态从窗口中心向两侧弹性扩展。审批/问答请求出现时使用 600x720 专注模式，审批内容优先于 session 列表。
 
 | 状态 | 宽度 | 高度 | 圆角 | 行为 |
 |------|------|------|------|------|
 | compact | 236px | 52px | 26px | 仅显示状态点、会话标签和 Hook 小点，可点击展开 |
-| expanded | 420px | 600px | 18px | 显示审批面板和 session 列表 |
+| expanded | 600px | 720px | 18px | 普通展开内容；审批/问答时进入专注处理模式 |
 
 弹簧参数：
 
@@ -161,7 +161,9 @@ export const SPRING_CONFIG = {
 - 后端以当前窗口中心点为锚点重新计算 X 坐标，避免从左侧单边展开或收缩
 - 胶囊态保持主窗口可交互，不启用点击穿透
 - 外层容器同时动画 `borderRadius` 和 `clipPath`，实际黑色 surface 只由 shell 绘制；bar/panel 保持透明，避免子层背景覆盖父层底部圆角
-- 审批请求到达时延后一帧触发展开，保证从胶囊态到展开态有可见 spring 动画；审批处理或超时清理后自动收回胶囊
+- 审批请求到达时延后一帧触发展开，保证从胶囊态到 600x720 专注模式有可见 spring 动画；审批处理或超时清理后自动收回胶囊
+- 审批/问答/Plan 模式只显示轻量 session 上下文摘要，不渲染完整 session 列表，避免压缩主任务内容
+- 审批面板内部保留一个主滚动区域；外层 Overlay 不显示第二层滚动条
 
 ## 四、前端实现
 
@@ -189,8 +191,8 @@ export function AnimatedOverlay({ isExpanded, children }: AnimatedOverlayProps) 
       borderRadius: 26,
     },
     expanded: {
-      width: 420,
-      height: 600,
+      width: 600,
+      height: 720,
       borderRadius: 18,
     },
   }

@@ -1,6 +1,10 @@
 .approval-panel {
-  margin-top: 8px;
-  padding: 12px;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  margin-top: 10px;
+  padding: 14px;
   background: rgba(17, 17, 17, 0.95);
   border-radius: 8px;
   border: 1px solid rgba(245, 158, 11, 0.3);
@@ -10,7 +14,7 @@
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  overflow-x: hidden;
+  overflow: hidden;
   overflow-wrap: anywhere;
 }
 
@@ -71,7 +75,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  flex: 0 0 auto;
+  margin-bottom: 10px;
 }
 
 .approval-panel__icon {
@@ -93,8 +98,38 @@
   font-size: 13px;
 }
 
+.approval-panel__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.approval-panel__body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.approval-panel__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.approval-panel__body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 2px;
+}
+
+.approval-panel__body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
 .approval-panel__session {
-  margin-bottom: 8px;
+  flex: 0 0 auto;
+  margin-bottom: 10px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -122,12 +157,11 @@
   color: #e5e7eb;
   font-size: 13px;
   line-height: 1.4;
-  margin-bottom: 12px;
-  padding: 8px;
+  margin-bottom: 14px;
+  padding: 10px;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 4px;
-  max-height: 120px;
-  overflow-y: auto;
+  overflow-y: visible;
   overflow-x: hidden;
   word-break: break-word;
   min-width: 0;
@@ -140,9 +174,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex: 0 0 auto;
   min-width: 0;
   max-width: 100%;
   flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .approval-panel__risk {
@@ -215,9 +253,8 @@
 }
 
 .approval-panel__shortcuts {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  flex: 0 0 auto;
+  margin-top: 8px;
   font-size: 10px;
   color: #6b7280;
   text-align: center;
@@ -282,29 +319,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-bottom: 12px;
-  max-height: 300px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 4px;
-}
-
-.approval-panel__questions::-webkit-scrollbar {
-  width: 4px;
-}
-
-.approval-panel__questions::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 2px;
-}
-
-.approval-panel__questions::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
-}
-
-.approval-panel__questions::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  margin-bottom: 4px;
+  overflow: visible;
 }
 
 .approval-panel__question-block {
@@ -459,24 +475,7 @@
   flex-direction: column;
   gap: 8px;
   margin: 12px 0;
-  max-height: 300px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 4px;
-}
-
-.approval-panel__plan-steps::-webkit-scrollbar {
-  width: 4px;
-}
-
-.approval-panel__plan-steps::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 2px;
-}
-
-.approval-panel__plan-steps::-webkit-scrollbar-thumb {
-  background: rgba(168, 85, 247, 0.3);
-  border-radius: 2px;
+  overflow: visible;
 }
 
 .approval-panel__plan-step {
@@ -529,8 +528,7 @@
 
 /* Plan content markdown styles */
 .approval-panel__plan-content {
-  max-height: 300px;
-  overflow-y: auto;
+  overflow-y: visible;
   overflow-x: hidden;
   padding: 12px;
   background: rgba(168, 85, 247, 0.05);
@@ -539,20 +537,6 @@
   color: #e5e7eb;
   font-size: 13px;
   line-height: 1.6;
-}
-
-.approval-panel__plan-content::-webkit-scrollbar {
-  width: 4px;
-}
-
-.approval-panel__plan-content::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 2px;
-}
-
-.approval-panel__plan-content::-webkit-scrollbar-thumb {
-  background: rgba(168, 85, 247, 0.3);
-  border-radius: 2px;
 }
 
 .approval-panel__plan-content h1,
