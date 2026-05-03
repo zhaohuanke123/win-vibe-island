@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { AnimatePresence, motion } from "framer-motion";
 import { AnimatedOverlay } from "./AnimatedOverlay";
@@ -7,19 +7,12 @@ import { ApprovalPanel } from "./ApprovalPanel";
 import { HookStatus } from "./HookStatus";
 import { SettingsPanel } from "./SettingsPanel";
 import { OVERLAY_DIMENSIONS } from "../config/animation";
+import { calculateOverlayLayout, type OverlayLayoutResult } from "./overlayLayout";
 import { useSessionsStore } from "../store/sessions";
 import type { Session } from "../store/sessions";
 import "./Overlay.css";
 
 type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored";
-const OVERLAY_BAR_HEIGHT = OVERLAY_DIMENSIONS.compact.height;
-
-function clampExpandedHeight(height: number): number {
-  return Math.min(
-    OVERLAY_DIMENSIONS.expanded.maxHeight,
-    Math.max(OVERLAY_DIMENSIONS.expanded.minHeight, height),
-  );
-}
 
 function formatTime(timestamp: number): string {
   const now = Date.now();
@@ -36,8 +29,15 @@ export function Overlay() {
   const [showSettings, setShowSettings] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expandedHeight, setExpandedHeight] = useState<number>(OVERLAY_DIMENSIONS.expanded.minHeight);
+  const [overlayLayout, setOverlayLayout] = useState<OverlayLayoutResult>(() => ({
+    expandedHeight: OVERLAY_DIMENSIONS.expanded.minHeight,
+    contentMaxHeight: OVERLAY_DIMENSIONS.expanded.maxHeight - OVERLAY_DIMENSIONS.compact.height,
+    scrollRegionMaxHeight: OVERLAY_DIMENSIONS.expanded.maxHeight - OVERLAY_DIMENSIONS.compact.height,
+  }));
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const sessionsListRef = useRef<HTMLDivElement | null>(null);
+  const footerRef = useRef<HTMLDivElement | null>(null);
   const hadApprovalRequestRef = useRef(false);
 
   // Note: approval_request events are handled by useAgentEvents hook
@@ -88,40 +88,76 @@ export function Overlay() {
     }
   }, [sessions, activeSessionId, setActiveSession]);
 
-  const measureExpandedHeight = useCallback(() => {
+  const measureExpandedLayout = useCallback(() => {
     const panel = panelRef.current;
-    if (!panel) return;
+    const content = contentRef.current;
+    const footer = footerRef.current;
+    if (!panel || !content || !footer) return;
 
-    const nextHeight = clampExpandedHeight(OVERLAY_BAR_HEIGHT + panel.scrollHeight);
-    setExpandedHeight((currentHeight) => (
-      Math.abs(currentHeight - nextHeight) < 1 ? currentHeight : nextHeight
+    const styles = window.getComputedStyle(panel);
+    const panelPaddingY =
+      Number.parseFloat(styles.paddingTop || "0") + Number.parseFloat(styles.paddingBottom || "0");
+
+    const footerHeight = footer.getBoundingClientRect().height || footer.offsetHeight;
+    const sessionsList = sessionsListRef.current;
+    const visibleScrollRegionHeight = sessionsList
+      ? sessionsList.getBoundingClientRect().height || sessionsList.clientHeight
+      : content.getBoundingClientRect().height || content.clientHeight;
+    const scrollRegionNaturalHeight = sessionsList ? sessionsList.scrollHeight : content.scrollHeight;
+    const contentNaturalHeight = sessionsList
+      ? content.scrollHeight - visibleScrollRegionHeight + scrollRegionNaturalHeight
+      : content.scrollHeight;
+
+    const nextLayout = calculateOverlayLayout({
+      panelPaddingY,
+      contentNaturalHeight,
+      footerHeight,
+      scrollRegionNaturalHeight,
+    });
+
+    setOverlayLayout((currentLayout) => (
+      Math.abs(currentLayout.expandedHeight - nextLayout.expandedHeight) < 1
+        && Math.abs(currentLayout.contentMaxHeight - nextLayout.contentMaxHeight) < 1
+        && Math.abs(currentLayout.scrollRegionMaxHeight - nextLayout.scrollRegionMaxHeight) < 1
+        ? currentLayout
+        : nextLayout
     ));
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!expanded) return;
 
-    const frame = window.requestAnimationFrame(measureExpandedHeight);
+    measureExpandedLayout();
+    const frame = window.requestAnimationFrame(measureExpandedLayout);
     const panel = panelRef.current;
+    const content = contentRef.current;
+    const sessionsList = sessionsListRef.current;
+    const footer = footerRef.current;
     if (!panel || typeof ResizeObserver === "undefined") {
       return () => window.cancelAnimationFrame(frame);
     }
 
-    const observer = new ResizeObserver(() => measureExpandedHeight());
+    const observer = new ResizeObserver(() => measureExpandedLayout());
     observer.observe(panel);
-    Array.from(panel.children).forEach((child) => observer.observe(child));
+    if (content) {
+      observer.observe(content);
+      Array.from(content.children).forEach((child) => observer.observe(child));
+    }
+    if (sessionsList) observer.observe(sessionsList);
+    if (footer) observer.observe(footer);
 
     return () => {
       window.cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [approvalRequest, expanded, measureExpandedHeight, showSettings]);
+  }, [approvalRequest, expanded, measureExpandedLayout, showSettings]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!expanded) return;
-    const frame = window.requestAnimationFrame(measureExpandedHeight);
+    measureExpandedLayout();
+    const frame = window.requestAnimationFrame(measureExpandedLayout);
     return () => window.cancelAnimationFrame(frame);
-  }, [approvalRequest, error, expanded, measureExpandedHeight, sessions, showSettings]);
+  }, [approvalRequest, error, expanded, measureExpandedLayout, sessions, showSettings]);
 
   const handleApprovalHandled = () => {
     clearApprovalRequest();
@@ -129,11 +165,15 @@ export function Overlay() {
   };
 
   const clearError = useCallback(() => { setError(null); }, []);
+  const panelStyle = {
+    "--overlay-panel-content-max-height": `${overlayLayout.contentMaxHeight}px`,
+    "--overlay-scroll-region-max-height": `${overlayLayout.scrollRegionMaxHeight}px`,
+  } as CSSProperties;
 
   return (
     <AnimatedOverlay
       className={`overlay ${expanded ? "overlay--expanded" : "overlay--compact"}`}
-      expandedHeight={expandedHeight}
+      expandedHeight={overlayLayout.expandedHeight}
       isExpanded={expanded}
     >
       <div className="overlay__shell">
@@ -156,6 +196,7 @@ export function Overlay() {
             <motion.div
               className="overlay__panel"
               ref={panelRef}
+              style={panelStyle}
               initial={{ opacity: 0, y: -10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.985 }}
@@ -168,11 +209,11 @@ export function Overlay() {
                 </div>
               )}
               {showSettings ? (
-                <div className="overlay__panel-content">
+                <div className="overlay__panel-content overlay__panel-content--scrollable" ref={contentRef}>
                   <SettingsPanel />
                 </div>
               ) : (
-                <div className="overlay__panel-content">
+                <div className="overlay__panel-content" ref={contentRef}>
                   {approvalRequest && (
                     <ApprovalPanel key={approvalRequest.timestamp} request={approvalRequest} onApprovalHandled={handleApprovalHandled} />
                   )}
@@ -181,6 +222,7 @@ export function Overlay() {
                   )}
                   <motion.div
                     className="overlay__sessions-list"
+                    ref={sessionsListRef}
                     initial="hidden"
                     animate="show"
                     variants={{
@@ -220,7 +262,7 @@ export function Overlay() {
                   </motion.div>
                 </div>
               )}
-              <div className="overlay__panel-footer">
+              <div className="overlay__panel-footer" ref={footerRef}>
                 <button
                   className="overlay__settings-btn"
                   onClick={() => setShowSettings(!showSettings)}

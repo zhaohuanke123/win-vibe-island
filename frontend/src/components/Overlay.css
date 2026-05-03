@@ -111,7 +111,7 @@
 /* Panel content enters through Framer Motion; window size is animated by AnimatedOverlay. */
 .overlay__panel {
   width: 100%;
-  max-height: calc(600px - 52px);
+  height: calc(100% - 52px);
   max-width: 100%;
   min-width: 0;
   padding: 8px;
@@ -130,8 +130,27 @@
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
+  max-height: var(--overlay-panel-content-max-height, none);
   max-width: 100%;
   overflow: hidden;
+}
+
+.overlay__panel-content--scrollable {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.overlay__panel-content--scrollable::-webkit-scrollbar {
+  width: 4px;
+}
+
+.overlay__panel-content--scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overlay__panel-content--scrollable::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
 }
 
 /* Sessions header */
@@ -146,11 +165,11 @@
 
 /* Scrollable session list */
 .overlay__sessions-list {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  max-height: 420px;
+  max-height: var(--overlay-scroll-region-max-height, 420px);
   overflow-y: auto;
   overflow-x: hidden;
   padding-bottom: 4px;
