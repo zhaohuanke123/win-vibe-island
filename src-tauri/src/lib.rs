@@ -8,6 +8,7 @@ mod hook_server;
 mod overlay;
 mod pipe_server;
 mod process_watcher;
+mod session_store;
 mod window_focus;
 
 use tauri::{
@@ -249,6 +250,9 @@ pub fn run() {
             commands::simulate_session_end,
             commands::test_reset_sessions,
             commands::get_window_geometry,
+            commands::save_sessions,
+            commands::load_sessions,
+            commands::get_session_store_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

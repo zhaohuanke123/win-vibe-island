@@ -10,10 +10,179 @@ and any relevant notes.
 
 - **Started:** 2026-04-25
 - **Current Phase:** Phase 2 - Real Integration
-- **Completed Tasks:** 36 / 41 (plus 1 removed)
+- **Completed Tasks:** 40 / 41 (plus 1 removed)
 - **Active Task:** None
 
 ---
+
+## [2026-05-03] - Task #38: 活动时间线
+
+### What was done:
+- 创建 `frontend/src/store/timeline.ts` Zustand store：
+  - `timeRange` 状态支持 1h / 6h / 24h / all 筛选
+  - `getTimeRangeMs` / `getTimeRangeOptions` 辅助函数
+- 创建 `frontend/src/components/ActivityTimeline.tsx` 组件：
+  - 从所有 sessions 的 toolHistory 聚合全局工具调用
+  - 按时间戳倒序排列（最新在前）
+  - 时间范围筛选下拉（1小时/6小时/24小时/全部）
+  - 每个条目显示：时间、所属 session、工具详情
+  - 点击条目通过 ToolExecutionDetail 展开查看完整信息
+  - 导出功能：JSON 格式（含完整 input/output/error）或 Markdown 表格
+  - 导出确认对话框，通过 Blob URL 触发下载
+- 创建 `frontend/src/components/ActivityTimeline.css`：暗色主题、滚动条
+- 集成到 `Overlay.tsx`：
+  - 底部新增 "📊 Activity" 按钮
+  - 点击切换 ActivityTimeline 视图
+  - 与 Settings 面板互斥
+  - ResizeObserver 自动适应高度
+
+### Documentation:
+- Requirement ref: task.json#38
+- Design ref: architecture.md#Activity Timeline
+- Docs updated: no - behavior defined in task description
+
+### Testing:
+- Frontend build passed (vite build)
+
+### Notes:
+- 时间线数据从 sessions store 的 toolHistory 派生，无需额外存储
+- 导出文件命名格式：vibe-island-activity-<timestamp>.json/.md
+
+---
+
+## [2026-05-03] - Task #37: 工具执行详情
+
+### What was done:
+- 创建 `frontend/src/components/ToolExecutionDetail.tsx` 组件：
+  - 每个工具执行条目可点击展开/折叠（带箭头动画）
+  - 展开后显示：JSON 格式化的输入参数 (pre + syntax colors)
+  - 输出摘要（截断到 2000 字符）
+  - 错误信息红色高亮块（red background + border）
+  - 执行 ID 元信息
+- 创建 `frontend/src/components/ToolExecutionDetail.css`：状态颜色条、代码样式、滚动条
+- 集成到 `SessionDetail.tsx`：替换静态 history items 为交互式 ToolExecutionDetail
+
+### Documentation:
+- Requirement ref: task.json#37
+- Design ref: architecture.md#Tool Execution Detail
+- Docs updated: no - behavior defined in task description
+
+### Testing:
+- Frontend build passed (vite build)
+
+### Notes:
+- 展开状态由 ToolExecutionDetail 内部管理，互不干扰
+- 代码块使用等宽字体（Cascadia Code / Fira Code / Consolas fallback）
+- 输入/输出 JSON 自动格式化（2-space indent）
+
+---
+
+## [2026-05-03] - Task #36: Session 持久化
+
+### What was done:
+- 创建 `src-tauri/src/session_store.rs` 模块：
+  - `save_sessions(sessions_json)` - 保存前端传来的 JSON 到 `config_dir/vibe-island/sessions.json`
+  - `load_sessions()` - 从文件加载 JSON，过期 7 天的 session 自动清理
+  - 加载时将 session state 重置为 "done"（历史 sessions 不显示为活跃状态）
+  - `get_session_path_info()` - 返回存储路径用于调试
+- 添加 3 个 IPC 命令在 `commands.rs`：
+  - `save_sessions` - 接收 JSON 字符串并持久化
+  - `load_sessions` - 返回 JSON 字符串
+  - `get_session_store_path` - 返回存储路径
+- 在 `lib.rs` 注册 `session_store` 模块和 3 个命令
+- 创建 `frontend/src/hooks/useSessionPersistence.ts`：
+  - 启动时调用 `load_sessions` 恢复历史 sessions
+  - 每 30 秒自动持久化当前 sessions
+  - 页面卸载时（beforeunload）fire-and-forget 保存
+  - 组件卸载时同步保存
+  - `serializeSession` 过滤瞬态字段（currentTool 不持久化）
+  - 跳过已存在的 session（避免覆盖实时 hook 数据）
+- 在 `App.tsx` 集成 `useSessionPersistence` hook
+
+### Documentation:
+- Requirement ref: task.json#36
+- Design ref: architecture.md#Session 持久化
+- Docs updated: no - behavior defined in task description
+
+### Testing:
+- Frontend build passed (vite build)
+- Rust backend: cargo check passed
+
+### Notes:
+- 存储路径: `%APPDATA%/vibe-island/sessions.json`
+- 过期策略: 最后活动时间超过 7 天自动清理
+- 恢复的 session state 设为 "done"（不作为活跃 session）
+- 自动保存间隔 30 秒，最小化磁盘 I/O
+- beforeunload 使用 fire-and-forget，可能不会在窗口关闭前完成（可接受的权衡）
+
+---
+
+## [2026-05-03] - Task #35: Session 分组与搜索
+
+### What was done:
+- 创建 `frontend/src/components/SessionList.tsx` 组件，替代 Overlay 中内联的 sessions 渲染：
+  - 搜索框：按 session label 实时过滤（大小写不敏感）
+  - 状态筛选下拉：All / Running / Thinking / Streaming / Approval / Error / Done / Idle
+  - 排序切换按钮：按最近活动时间 / 按创建时间
+  - 分组开关：按 cwd 自动分组，显示项目名和 session 数量
+  - 分组折叠/展开：点击组头折叠，带动画过渡（Framer Motion AnimatePresence）
+  - 空状态显示："No matching sessions"（有 sessions 但无匹配）/ "Waiting for agent sessions..."（无 sessions）
+- 创建 `frontend/src/components/SessionList.css`：暗色主题工具栏、搜索框、分组头部、滚动条
+- 集成到 `Overlay.tsx`：用 `<SessionList>` 替换原来的内联 sessions 映射和 motion.div
+- 移除 Overlay.tsx 中的 `formatTime` 函数（已移至 SessionList）
+- SessionList 使用 useMemo 优化过滤和分组计算
+
+### Documentation:
+- Requirement ref: task.json#35
+- Design ref: architecture.md#Session 分组与搜索
+- Docs updated: no - behavior defined in task description
+
+### Testing:
+- Frontend build passed (vite build)
+
+### Notes:
+- 搜索和过滤仅在前端执行，不修改 store
+- 分组使用 Map 按 cwd 聚合，组件内部管理折叠状态
+- 项目名提取函数 `extractProjectName` 取路径最后两段用于更清晰的上下文
+
+---
+
+## [2026-05-03] - Task #34: Session 详情面板
+
+### What was done:
+- 创建 `frontend/src/components/SessionDetail.tsx` 组件：
+  - 显示 session 基本状态（label, state color dot）
+  - 显示完整 cwd 路径、创建时间、最近活动时间
+  - 显示 PID、Model、Source 等元信息
+  - 显示当前工具卡片（工具名、输入预览、运行时长）
+  - 显示最近错误信息（红色高亮）
+  - 工具执行历史列表（最近 10 条，按时间倒序）
+  - 每条历史记录显示：工具名、状态标签、耗时
+  - 输入参数预览（截断 80 字符）
+  - 历史条目左侧颜色条：success=绿, failed=红, running/pending=蓝
+- 创建 `frontend/src/components/SessionDetail.css`：暗色主题、BEM 命名、滚动条样式
+- 集成到 `Overlay.tsx`：
+  - 新增 `viewingSessionId` 状态管理
+  - 展开模式下点击 session → 显示 SessionDetail 替代 session 列表
+  - 再次点击同一 session → 返回列表
+  - Back 按钮返回 session 列表
+  - 叠加层折叠时清空详情视图
+  - session 被移除时自动清空详情视图
+  - ResizeObserver 自动适应详情面板高度
+- 所有动画使用 Framer Motion（slide in/out）
+
+### Documentation:
+- Requirement ref: architecture.md#Session detail panel
+- Design ref: architecture.md#Session detail panel
+- Docs updated: no - behavior defined in task description
+
+### Testing:
+- Frontend build passed (vite build)
+
+### Notes:
+- SessionDetail 使用独立滚动区域，不影响外层 Overlay 滚动
+- 工具历史显示最近 10 条，store 中保留 20 条
+- 审批面板在详情视图中依然显示在顶部
 
 ## [2026-05-03] - Task #42: 任务完成提示音功能
 
@@ -606,8 +775,4 @@ and any relevant notes.
 
 ## Pending Tasks
 
-- Task 34: Session 详情面板
-- Task 35: Session 分组与搜索
-- Task 36: Session 持久化
-- Task 37: 工具执行详情
-- Task 38: 活动时间线
+All tasks completed.

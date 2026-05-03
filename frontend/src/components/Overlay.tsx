@@ -6,6 +6,9 @@ import { StatusDot } from "./StatusDot";
 import { ApprovalPanel } from "./ApprovalPanel";
 import { HookStatus } from "./HookStatus";
 import { SettingsPanel } from "./SettingsPanel";
+import { SessionDetail } from "./SessionDetail";
+import { SessionList } from "./SessionList";
+import { ActivityTimeline } from "./ActivityTimeline";
 import { useSessionsStore } from "../store/sessions";
 import type { Session } from "../store/sessions";
 import "./Overlay.css";
@@ -16,19 +19,14 @@ const BAR_HEIGHT = 52;
 const EXPANDED_MIN = 400;
 const EXPANDED_MAX = 600;
 
-function formatTime(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
-  if (diff < 60000) return "just now";
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  return `${Math.floor(diff / 3600000)}h ago`;
-}
-
 export function Overlay() {
   const { sessions, activeSessionId, setActiveSession, approvalRequest, clearApprovalRequest } = useSessionsStore();
   const active = sessions.find((s) => s.id === activeSessionId);
   const [expanded, setExpanded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
+  const [viewingSessionId, setViewingSessionId] = useState<string | null>(null);
+  const viewingSession = viewingSessionId ? sessions.find((s) => s.id === viewingSessionId) ?? null : null;
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hadApprovalRequestRef = useRef(false);
@@ -60,9 +58,27 @@ export function Overlay() {
     });
   }, []);
 
+  // Collapse clears detail view; removed sessions clear detail view
+  useEffect(() => {
+    if (!expanded) {
+      setViewingSessionId(null);
+    }
+  }, [expanded]);
+
+  useEffect(() => {
+    if (viewingSessionId && !sessions.find((s) => s.id === viewingSessionId)) {
+      setViewingSessionId(null);
+    }
+  }, [sessions, viewingSessionId]);
+
   const handleSessionClick = useCallback(async (session: Session) => {
     setActiveSession(session.id);
     setError(null);
+
+    if (expanded) {
+      setViewingSessionId((prev) => (prev === session.id ? null : session.id));
+    }
+
     if (session.pid) {
       setIsLoading(true);
       try {
@@ -75,7 +91,7 @@ export function Overlay() {
         setIsLoading(false);
       }
     }
-  }, [setActiveSession]);
+  }, [setActiveSession, expanded]);
 
   useEffect(() => {
     if (sessions.length > 0 && !activeSessionId) {
@@ -102,6 +118,7 @@ export function Overlay() {
         const contentH = p.scrollHeight;
         p.style.height = prev;
         const next = Math.min(EXPANDED_MAX, Math.max(EXPANDED_MIN, BAR_HEIGHT + contentH));
+        console.log(`[measure] contentH=${contentH} BAR_HEIGHT=${BAR_HEIGHT} next=${next} sessions=${sessions.length}`);
         setMeasuredHeight((h) => (Math.abs(h - next) < 1 ? h : next));
       });
     };
@@ -115,7 +132,7 @@ export function Overlay() {
       cancelAnimationFrame(raf);
       observer.disconnect();
     };
-  }, [expanded, approvalRequest, showSettings, sessions.length]);
+  }, [expanded, approvalRequest, showSettings, showActivity, sessions.length, viewingSessionId]);
 
   const handleApprovalHandled = () => {
     clearApprovalRequest();
@@ -124,7 +141,7 @@ export function Overlay() {
 
   const clearError = useCallback(() => { setError(null); }, []);
 
-  const shouldUseAdaptiveHeight = !approvalRequest && !showSettings;
+  const shouldUseAdaptiveHeight = !approvalRequest && !showSettings && !showActivity;
   const overlayExpandedHeight = shouldUseAdaptiveHeight ? measuredHeight : EXPANDED_MAX;
 
   return (
@@ -167,65 +184,40 @@ export function Overlay() {
               )}
               {showSettings ? (
                 <SettingsPanel />
+              ) : showActivity ? (
+                <ActivityTimeline data-testid="activity-timeline" />
               ) : (
                 <>
                   {approvalRequest && (
                     <ApprovalPanel key={approvalRequest.timestamp} request={approvalRequest} onApprovalHandled={handleApprovalHandled} />
                   )}
-                  {sessions.length > 0 && (
-                    <div className="overlay__sessions-header" data-testid="sessions-header">Sessions ({sessions.length})</div>
+                  {viewingSession ? (
+                    <SessionDetail session={viewingSession} onBack={() => setViewingSessionId(null)} data-testid="session-detail" />
+                  ) : (
+                    <SessionList
+                      sessions={sessions}
+                      activeSessionId={activeSessionId}
+                      viewingSessionId={viewingSessionId}
+                      onSessionClick={handleSessionClick}
+                      data-testid="sessions-list"
+                    />
                   )}
-                  <motion.div
-                    className="overlay__sessions-list"
-                    data-testid="sessions-list"
-                    initial="hidden"
-                    animate="show"
-                    variants={{
-                      hidden: {},
-                      show: { transition: { staggerChildren: 0.035 } },
-                    }}
-                  >
-                    {sessions.map((s) => (
-                      <motion.div
-                        key={s.id}
-                        className={`overlay__session ${s.id === activeSessionId ? "overlay__session--active" : ""}`}
-                        data-testid="session-item"
-                        data-session-id={s.id}
-                        onClick={() => handleSessionClick(s)}
-                        variants={{
-                          hidden: { opacity: 0, y: 6 },
-                          show: { opacity: 1, y: 0 },
-                        }}
-                        transition={{ duration: 0.16, ease: "easeOut" }}
-                      >
-                        <div className="overlay__session-row">
-                          <StatusDot state={s.state} data-testid="status-dot" />
-                          <span className="overlay__session-label" title={s.label}>{s.label}</span>
-                        </div>
-                        {s.currentTool && (
-                          <div className="overlay__session-info">
-                            <span className="overlay__session-tool">{s.currentTool.name}</span>
-                            {(s.currentTool.input?.file_path as string) && <span className="overlay__session-file">{(s.currentTool.input.file_path as string).split("/").pop()}</span>}
-                          </div>
-                        )}
-                        {s.lastActivity && (
-                          <div className="overlay__session-time">{formatTime(s.lastActivity)}</div>
-                        )}
-                      </motion.div>
-                    ))}
-                    {sessions.length === 0 && !error && (
-                      <div className="overlay__empty" data-testid="sessions-empty">Waiting for agent sessions...</div>
-                    )}
-                  </motion.div>
                 </>
               )}
               <div className="overlay__panel-footer">
                 <button
                   className="overlay__settings-btn"
                   data-testid="settings-btn"
-                  onClick={() => setShowSettings(!showSettings)}
+                  onClick={() => { setShowSettings(!showSettings); setShowActivity(false); setViewingSessionId(null); }}
                 >
                   {showSettings ? "← Back" : "⚙ Settings"}
+                </button>
+                <button
+                  className="overlay__settings-btn"
+                  data-testid="activity-btn"
+                  onClick={() => { setShowActivity(!showActivity); setShowSettings(false); setViewingSessionId(null); }}
+                >
+                  {showActivity ? "← Back" : "📊 Activity"}
                 </button>
               </div>
             </motion.div>

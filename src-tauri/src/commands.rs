@@ -4,6 +4,7 @@ use crate::hook_server;
 use crate::overlay::{self, DpiScale, OverlayConfig};
 use crate::pipe_server;
 use crate::process_watcher;
+use crate::session_store;
 use crate::window_focus::{self, FocusResult};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, LogicalSize, Size, WebviewWindow};
@@ -293,9 +294,10 @@ pub fn set_window_interactive(window: WebviewWindow, interactive: bool) -> Resul
     }
 }
 
-/// Set the main window size and optionally re-center it horizontally at the top of the screen
-/// Set the window content area (inner size) to match the desired CSS pixel dimensions.
-/// Returns the actual inner size achieved after resizing.
+/// Set the main window size and optionally re-center it horizontally at the top of the screen.
+/// Uses physical pixel sizing with DPI-aware scaling to ensure the WebView viewport
+/// matches the requested CSS pixel dimensions on high-DPI displays.
+/// Returns the actual logical (CSS) size achieved after resizing.
 #[tauri::command]
 pub fn set_window_size(
     window: WebviewWindow,
@@ -303,17 +305,28 @@ pub fn set_window_size(
     height: u32,
     skip_center: Option<bool>,
 ) -> Result<(u32, u32), String> {
-    let target_logical = LogicalSize {
-        width: width as f64,
-        height: height as f64,
+    // Read actual DPI scale from the window HWND
+    #[cfg(target_os = "windows")]
+    let dpi_scale: f64 = {
+        use windows::Win32::Foundation::HWND;
+        let hwnd_raw = window.hwnd().map_err(|e| e.to_string())?;
+        let hwnd = HWND(hwnd_raw.0 as *mut _);
+        overlay::get_dpi_scale_for_window(hwnd).unwrap_or(1.0)
     };
+    #[cfg(not(target_os = "windows"))]
+    let dpi_scale: f64 = window.scale_factor().unwrap_or(1.0);
+
+    let physical_width = ((width as f64) * dpi_scale).round() as u32;
+    let physical_height = ((height as f64) * dpi_scale).round() as u32;
 
     // For borderless transparent windows, set size directly without decoration compensation.
     // The window has no decorations (decorations: false), so outer size should equal inner size.
-    // Previously we tried to compensate for dw/dh, but this caused width issues when sessions
-    // started due to measurement noise or DPI scaling quirks.
+    use tauri::PhysicalSize;
     window
-        .set_size(Size::Logical(target_logical))
+        .set_size(Size::Physical(PhysicalSize {
+            width: physical_width,
+            height: physical_height,
+        }))
         .map_err(|e| e.to_string())?;
 
     #[cfg(target_os = "windows")]
@@ -325,21 +338,22 @@ pub fn set_window_size(
     // Re-center horizontally at top of screen
     if skip_center != Some(true) {
         if let Ok(Some(monitor)) = window.primary_monitor() {
-            let screen_width = monitor.size().width as f64 / monitor.scale_factor();
-            let x = ((screen_width - width as f64) / 2.0) as i32;
-            let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
-                x: x as f64,
-                y: 8.0,
+            let screen_width_physical = monitor.size().width as f64;
+            let screen_center_x = screen_width_physical / 2.0;
+            let x = (screen_center_x - physical_width as f64 / 2.0) as i32;
+            use tauri::PhysicalPosition;
+            let _ = window.set_position(tauri::Position::Physical(PhysicalPosition {
+                x,
+                y: (8.0 * dpi_scale).round() as i32,
             }));
         }
     }
 
-    // Return actual inner size for frontend verification
+    // Return actual logical (CSS pixel) size for frontend verification
     let actual = window.inner_size().map_err(|e| e.to_string())?;
-    let scale = window.scale_factor().unwrap_or(1.0);
     let actual_logical = LogicalSize {
-        width: actual.width as f64 / scale,
-        height: actual.height as f64 / scale,
+        width: actual.width as f64 / dpi_scale,
+        height: actual.height as f64 / dpi_scale,
     };
     Ok((actual_logical.width as u32, actual_logical.height as u32))
 }
@@ -384,6 +398,12 @@ pub fn clear_hook_errors() {
 /// Lightweight resize for animation sync. Throttled to ~16ms intervals.
 /// Unlike `set_window_size`, this does not recenter on the monitor unless
 /// `anchor_center` is true, in which case it preserves the current center x.
+///
+/// The frontend sends CSS pixel dimensions. On high-DPI displays (144 DPI = 1.5x),
+/// Tauri's `set_size(Size::Logical(...))` may not apply DPI scaling correctly with
+/// `SetProcessDpiAwarenessContext(PMv2)`. We read the actual monitor DPI from the
+/// window HWND and convert to physical pixels to ensure the WebView viewport
+/// matches the requested CSS dimensions.
 #[tauri::command]
 pub fn update_overlay_size(
     window: WebviewWindow,
@@ -406,25 +426,44 @@ pub fn update_overlay_size(
     }
     LAST_RESIZE_MS.store(now_ms, Ordering::Relaxed);
 
-    let target_logical = LogicalSize {
-        width: width as f64,
-        height: height as f64,
+    // Read actual DPI scale from the window HWND to avoid Tauri Logical/Physical conversion quirks
+    #[cfg(target_os = "windows")]
+    let dpi_scale: f64 = {
+        use windows::Win32::Foundation::HWND;
+        let hwnd_raw = window.hwnd().map_err(|e| e.to_string())?;
+        let hwnd = HWND(hwnd_raw.0 as *mut _);
+        overlay::get_dpi_scale_for_window(hwnd).unwrap_or(1.0)
     };
+    #[cfg(not(target_os = "windows"))]
+    let dpi_scale: f64 = window.scale_factor().unwrap_or(1.0);
 
-    let target_x = if anchor_center.unwrap_or(false) {
-        let scale = window.scale_factor().unwrap_or(1.0);
+    let physical_width = ((width as f64) * dpi_scale).round() as u32;
+    let physical_height = ((height as f64) * dpi_scale).round() as u32;
+
+    log::info!(
+        "update_overlay_size: CSS({}x{}) DPI({}) -> Physical({}x{}), inner_before=({:?})",
+        width, height, dpi_scale, physical_width, physical_height,
+        window.inner_size()
+    );
+
+    let target_x: Option<i32> = if anchor_center.unwrap_or(false) {
         let position = window.outer_position().map_err(|e| e.to_string())?;
         let current_size = window.outer_size().map_err(|e| e.to_string())?;
-        let current_width = current_size.width as f64 / scale;
-        let current_x = position.x as f64 / scale;
-        let center_x = current_x + current_width / 2.0;
-        Some(center_x - target_logical.width / 2.0)
+        let current_width_logical = current_size.width as f64 / dpi_scale;
+        let current_x_logical = position.x as f64 / dpi_scale;
+        let center_x = current_x_logical + current_width_logical / 2.0;
+        let logical_width = width as f64;
+        Some(((center_x - logical_width / 2.0) * dpi_scale).round() as i32)
     } else {
         None
     };
 
+    use tauri::PhysicalSize;
     window
-        .set_size(Size::Logical(target_logical))
+        .set_size(Size::Physical(PhysicalSize {
+            width: physical_width,
+            height: physical_height,
+        }))
         .map_err(|e| e.to_string())?;
 
     #[cfg(target_os = "windows")]
@@ -434,10 +473,11 @@ pub fn update_overlay_size(
     }
 
     if let Some(x) = target_x {
+        use tauri::PhysicalPosition;
         window
-            .set_position(tauri::Position::Logical(tauri::LogicalPosition {
+            .set_position(tauri::Position::Physical(PhysicalPosition {
                 x,
-                y: 8.0,
+                y: (8.0 * dpi_scale).round() as i32,
             }))
             .map_err(|e| e.to_string())?;
     }
@@ -656,4 +696,23 @@ pub fn get_window_geometry(window: WebviewWindow) -> Result<WindowGeometry, Stri
         is_visible: visible,
         is_focused: focused,
     })
+}
+
+// Session store commands
+/// Save sessions to persistent storage (JSON string from frontend)
+#[tauri::command]
+pub fn save_sessions(sessions_json: String) -> Result<(), String> {
+    session_store::save_sessions(sessions_json)
+}
+
+/// Load sessions from persistent storage (returns JSON string)
+#[tauri::command]
+pub fn load_sessions() -> Result<String, String> {
+    session_store::load_sessions()
+}
+
+/// Get the session store file path (for debugging)
+#[tauri::command]
+pub fn get_session_store_path() -> String {
+    session_store::get_session_path_info()
 }

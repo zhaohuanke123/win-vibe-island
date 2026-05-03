@@ -1,5 +1,6 @@
 import { Overlay } from "./components/Overlay";
 import { useAgentEvents } from "./hooks/useAgentEvents";
+import { useSessionPersistence } from "./hooks/useSessionPersistence";
 import { initConfig } from "./store/config";
 import "./index.css";
 
@@ -8,6 +9,7 @@ initConfig().catch(console.error);
 
 function App() {
   useAgentEvents();
+  useSessionPersistence();
   return <Overlay />;
 }
 

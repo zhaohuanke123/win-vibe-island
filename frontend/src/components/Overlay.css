@@ -110,6 +110,8 @@
 
 /* Panel content enters through Framer Motion; window size is animated by AnimatedOverlay. */
 .overlay__panel {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: calc(100% - 52px);
   max-width: 100%;
@@ -135,10 +137,11 @@
 
 /* Scrollable session list */
 .overlay__sessions-list {
+  flex: 1 1 auto;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  max-height: 220px;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   padding-bottom: 4px;
@@ -312,7 +315,7 @@
   justify-content: flex-end;
   padding: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  margin-top: auto;
+  flex-shrink: 0;
 }
 
 .overlay__settings-btn {

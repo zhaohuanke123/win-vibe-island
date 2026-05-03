@@ -1,0 +1,207 @@
+.activity-timeline {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Toolbar */
+.activity-timeline__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 6px;
+  flex-shrink: 0;
+}
+
+.activity-timeline__range-select {
+  padding: 4px 4px;
+  font-size: 10px;
+  color: #9ca3af;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.activity-timeline__range-select:focus {
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.activity-timeline__range-select option {
+  background: #1f2937;
+  color: #d1d5db;
+}
+
+.activity-timeline__count {
+  font-size: 10px;
+  color: #6b7280;
+  flex: 1 1 auto;
+  text-align: right;
+}
+
+.activity-timeline__export-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.activity-timeline__export-format {
+  padding: 4px 2px;
+  font-size: 10px;
+  color: #9ca3af;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.activity-timeline__export-format option {
+  background: #1f2937;
+  color: #d1d5db;
+}
+
+.activity-timeline__export-btn {
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  color: #9ca3af;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.activity-timeline__export-btn:hover:not(:disabled) {
+  color: #e5e7eb;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.activity-timeline__export-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Export confirmation */
+.activity-timeline__export-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: #d1d5db;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 4px;
+}
+
+.activity-timeline__export-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.activity-timeline__btn {
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.activity-timeline__btn--confirm {
+  color: #fff;
+  background: rgba(59, 130, 246, 0.5);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.activity-timeline__btn--confirm:hover {
+  background: rgba(59, 130, 246, 0.7);
+}
+
+.activity-timeline__btn--cancel {
+  color: #9ca3af;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.activity-timeline__btn--cancel:hover {
+  color: #e5e7eb;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* List */
+.activity-timeline__list {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 4px;
+}
+
+.activity-timeline__list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.activity-timeline__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.activity-timeline__list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+.activity-timeline__list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Entry */
+.activity-timeline__entry {
+  margin-bottom: 6px;
+}
+
+.activity-timeline__entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+}
+
+.activity-timeline__entry-time {
+  font-size: 10px;
+  color: #6b7280;
+  font-family: monospace;
+}
+
+.activity-timeline__entry-session {
+  font-size: 10px;
+  color: #4b5563;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 150px;
+}
+
+/* Empty */
+.activity-timeline__empty {
+  padding: 16px 8px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 12px;
+}

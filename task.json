@@ -805,13 +805,18 @@
         "集成到 Overlay 组件",
         "测试: 点击 session 验证详情面板显示"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "dependencies": [
-        33
+         33
       ],
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "frontend/src/components/SessionDetail.tsx",
+        "frontend/src/components/SessionDetail.css",
         "frontend/src/components/Overlay.tsx"
       ]
     },
@@ -828,14 +833,19 @@
         "添加分组折叠功能",
         "测试: 多个项目 session 验证分组和筛选"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "dependencies": [
-        34
+         34
       ],
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "frontend/src/components/SessionList.tsx",
-        "frontend/src/store/sessions.ts"
+        "frontend/src/components/SessionList.css",
+        "frontend/src/components/Overlay.tsx"
       ]
     },
     {
@@ -851,15 +861,21 @@
         "前端恢复 session 列表状态",
         "测试: 重启应用验证 session 恢复"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "dependencies": [
-        35
+         35
       ],
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
-        "src-tauri/src/commands.rs",
         "src-tauri/src/session_store.rs",
-        "frontend/src/store/sessions.ts"
+        "src-tauri/src/commands.rs",
+        "src-tauri/src/lib.rs",
+        "frontend/src/hooks/useSessionPersistence.ts",
+        "frontend/src/App.tsx"
       ]
     },
     {
@@ -875,14 +891,19 @@
         "添加折叠/展开功能",
         "测试: 验证工具详情正确显示"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "dependencies": [
-        34
+         34
       ],
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "frontend/src/components/ToolExecutionDetail.tsx",
-        "frontend/src/store/sessions.ts"
+        "frontend/src/components/ToolExecutionDetail.css",
+        "frontend/src/components/SessionDetail.tsx"
       ]
     },
     {
@@ -898,151 +919,20 @@
         "添加时间范围筛选",
         "测试: 多次工具调用验证时间线"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "dependencies": [
-        37
+         37
       ],
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "frontend/src/components/ActivityTimeline.tsx",
-        "frontend/src/store/timeline.ts"
-      ]
-    },
-    {
-      "id": 39,
-      "title": "Hook 自动配置 - 启动检查与配置",
-      "description": "软件启动时自动检查 Claude Code Hook 配置是否存在，如不存在则自动配置。支持用户级 (~/.claude/settings.json) 和项目级 (.claude/settings.json) 配置。",
-      "steps": [
-        "创建 src-tauri/src/hook_config.rs 模块",
-        "实现 check_hook_config 命令 - 检查 settings.json 中是否包含 Vibe Island hooks",
-        "实现 install_hooks 命令 - 读取现有 settings.json，合并 Vibe Island hooks，创建备份",
-        "实现 get_hook_config_status 命令 - 返回配置状态（已配置/未配置/部分配置）",
-        "在 lib.rs setup 中调用 check_hook_config，如未配置则自动安装",
-        "添加配置模式支持：auto（默认，启动配置但不清理）、auto-cleanup（启动配置退出清理）、manual（手动管理）",
-        "前端添加 HookConfigStatus 组件显示配置状态",
-        "测试: 全新环境启动验证自动配置"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        11,
-        12
-      ],
-      "requirement_ref": "architecture.md#IPC Commands",
-      "design_ref": "docs/hooks-setup.md#Automatic Hook Configuration",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/src/hook_config.rs",
-        "src-tauri/src/lib.rs",
-        "src-tauri/src/commands.rs",
-        "frontend/src/components/HookConfigStatus.tsx",
-        "frontend/src/components/HookConfigStatus.css"
-      ]
-    },
-    {
-      "id": 40,
-      "title": "Hook 自动清理 - 退出时移除配置",
-      "description": "软件退出时自动清理之前安装的 Hook 配置，恢复原始 settings.json。仅在 auto-cleanup 模式下执行清理。",
-      "steps": [
-        "实现 uninstall_hooks 命令 - 从 settings.json 中移除 Vibe Island hooks",
-        "实现备份恢复逻辑 - 从 .vibe-island-backup 恢复原始配置",
-        "在 lib.rs 中注册退出钩子 (on_app_exit)",
-        "根据配置模式决定是否执行清理",
-        "处理异常情况：备份文件不存在、settings.json 已被用户修改",
-        "前端添加配置模式切换 UI",
-        "测试: auto-cleanup 模式下退出验证配置清理"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        39
-      ],
-      "requirement_ref": "architecture.md#IPC Commands",
-      "design_ref": "docs/hooks-setup.md#Automatic Hook Configuration",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/src/hook_config.rs",
-        "src-tauri/src/lib.rs",
-        "src-tauri/src/commands.rs",
-        "frontend/src/components/HookConfigStatus.tsx",
-        "frontend/src/components/HookConfigStatus.css"
-      ]
-    },
-    {
-      "id": 41,
-      "title": "明显弹性灵动岛动画",
-      "description": "将 Overlay 从固定 420px CSS max-height 过渡改为 Framer Motion 驱动的小胶囊到完整面板弹性动画，并同步 Tauri 窗口真实宽高。",
-      "steps": [
-        "更新动画设计文档，定义紧凑胶囊态和展开态尺寸",
-        "重做 AnimatedOverlay，让它实际渲染 motion 容器并同步窗口宽高",
-        "Overlay.tsx 移除展开/收缩时 set_window_size 跳变，改用 AnimatedOverlay",
-        "CSS 移除 max-height 主动画，紧凑态隐藏面板和次要文本",
-        "扩展 update_overlay_size 支持 anchorCenter，窗口从中心扩展和收缩",
-        "运行前端构建和后端 cargo check"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        25,
-        26,
-        27,
-        30
-      ],
-      "requirement_ref": "docs/animation-design.md#三动画参数配置",
-      "design_ref": "docs/animation-design.md#33-明显弹性灵动岛尺寸",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "docs/animation-design.md",
-        "frontend/src/config/animation.ts",
-        "frontend/src/components/AnimatedOverlay.tsx",
-        "frontend/src/components/Overlay.tsx",
-        "frontend/src/components/Overlay.css",
-        "src-tauri/src/commands.rs",
-        "task.json",
-        "progress.txt"
-      ]
-    },
-    {
-      "id": 42,
-      "title": "任务完成提示音功能",
-      "description": "实现任务完成提示音功能：后端音频播放模块、前端设置面板、内置音效资源。Stop hook 触发时播放用户选择的提示音。",
-      "steps": [
-        "添加 rodio 音频依赖到 Cargo.toml",
-        "创建 src-tauri/src/audio.rs 音频播放模块",
-        "实现 play_notification_sound 和 get_notification_sounds IPC 命令",
-        "在 Stop hook 中触发音频播放",
-        "创建前端 SettingsPanel.tsx 设置面板组件",
-        "在 useAgentEvents.ts 中监听 done 状态播放提示音",
-        "创建 sounds 目录和 README 说明"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [33],
-      "requirement_ref": "PRD FR-04",
-      "design_ref": "docs/hooks-setup.md",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/Cargo.toml",
-        "src-tauri/src/audio.rs",
-        "src-tauri/src/lib.rs",
-        "src-tauri/src/commands.rs",
-        "src-tauri/src/hook_server.rs",
-        "frontend/src/components/SettingsPanel.tsx",
-        "frontend/src/components/SettingsPanel.css",
-        "frontend/src/hooks/useAgentEvents.ts",
-        "src-tauri/sounds/README.md"
+        "frontend/src/components/ActivityTimeline.css",
+        "frontend/src/store/timeline.ts",
+        "frontend/src/components/Overlay.tsx"
       ]
     }
   ]

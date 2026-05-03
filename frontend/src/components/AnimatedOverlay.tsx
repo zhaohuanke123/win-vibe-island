@@ -96,6 +96,7 @@ export function AnimatedOverlay({ isExpanded, expandedHeight, className, childre
         syncWindowSize(width, height, borderRadius);
       }}
       onAnimationComplete={() => {
+        console.log(`[AnimatedOverlay] onAnimationComplete: ${dimensions.width}x${dimensions.height} expanded=${isExpanded}`);
         syncWindowSize(dimensions.width, dimensions.height, dimensions.borderRadius);
       }}
     >

@@ -1,0 +1,164 @@
+.tool-exec-detail {
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1px;
+}
+
+.tool-exec-detail--success {
+  border-left: 3px solid rgba(74, 222, 128, 0.4);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.tool-exec-detail--failed {
+  border-left: 3px solid rgba(248, 113, 113, 0.4);
+  background: rgba(239, 68, 68, 0.04);
+}
+
+.tool-exec-detail--running,
+.tool-exec-detail--pending {
+  border-left: 3px solid rgba(96, 165, 250, 0.3);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Header row — always visible, clickable */
+.tool-exec-detail__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s ease;
+}
+
+.tool-exec-detail__header:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tool-exec-detail__arrow {
+  font-size: 10px;
+  color: #6b7280;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.tool-exec-detail__arrow--expanded {
+  transform: rotate(90deg);
+}
+
+.tool-exec-detail__tool {
+  font-size: 11px;
+  font-weight: 600;
+  color: #d1d5db;
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 0 1 auto;
+}
+
+.tool-exec-detail__status {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.tool-exec-detail__status[data-status="success"] {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.15);
+}
+
+.tool-exec-detail__status[data-status="failed"] {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.15);
+}
+
+.tool-exec-detail__status[data-status="running"] {
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.15);
+}
+
+.tool-exec-detail__status[data-status="pending"] {
+  color: #9ca3af;
+  background: rgba(156, 163, 175, 0.15);
+}
+
+.tool-exec-detail__duration {
+  font-size: 10px;
+  color: #6b7280;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Expanded body */
+.tool-exec-detail__body {
+  padding: 2px 8px 8px 20px;
+}
+
+.tool-exec-detail__section {
+  margin-bottom: 6px;
+}
+
+.tool-exec-detail__label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 3px;
+}
+
+.tool-exec-detail__code {
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 10px;
+  font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+  color: #9ca3af;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.tool-exec-detail__code::-webkit-scrollbar {
+  height: 3px;
+  width: 3px;
+}
+
+.tool-exec-detail__code::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tool-exec-detail__code::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.tool-exec-detail__error-block {
+  padding: 6px 8px;
+  font-size: 11px;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.tool-exec-detail__meta {
+  font-size: 9px;
+  color: #4b5563;
+  margin-top: 4px;
+}
