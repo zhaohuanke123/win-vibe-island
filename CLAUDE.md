@@ -61,6 +61,7 @@ Memory 只能提醒 agent 读取本文件，不能替代项目状态文件。
 | [progress.txt](progress.txt) | 开发历史、文档更新、测试证据 | 需要了解上下文时 |
 | [DESIGN.md](DESIGN.md) | 设计文档，Win32 API 用法 | 需要了解 Win32 API 用法时 |
 | [docs/hooks-setup.md](docs/hooks-setup.md) | Claude Code Hooks 配置指南 | 配置 hooks 时 |
+| [docs/testing.md](docs/testing.md) | 测试 API 文档和测试流程 | 测试时 |
 
 ---
 
@@ -94,6 +95,9 @@ Memory 只能提醒 agent 读取本文件，不能替代项目状态文件。
 ├── agent-sdk/             ← Agent SDK
 │   ├── node/              ← Node.js SDK
 │   └── python/            ← Python SDK
+├── tests/                 ← 测试
+│   ├── e2e/               ← Playwright E2E 测试
+│   └── scripts/hook/      ← Hook server 回归测试脚本
 └── docs/                  ← 文档
 ```
 
