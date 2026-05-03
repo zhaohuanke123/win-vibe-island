@@ -5,8 +5,10 @@ import { OVERLAY_DIMENSIONS, SIZE_SYNC_THROTTLE_MS, SPRING_CONFIG } from "../con
 
 interface AnimatedOverlayProps {
   isExpanded: boolean;
+  expandedHeight?: number;
   className?: string;
   children: React.ReactNode;
+  "data-testid"?: string;
 }
 
 type AnimatedSize = {
@@ -24,14 +26,25 @@ function toNumber(value: number | string | undefined): number | null {
   return null;
 }
 
-export function AnimatedOverlay({ isExpanded, className, children }: AnimatedOverlayProps) {
+export function AnimatedOverlay({ isExpanded, expandedHeight, className, children, "data-testid": testId }: AnimatedOverlayProps) {
   const lastSyncRef = useRef(0);
   const hasInitializedRef = useRef(false);
-  const dimensions = isExpanded ? OVERLAY_DIMENSIONS.expanded : OVERLAY_DIMENSIONS.compact;
-  const transition: Transition = {
-    type: "spring",
-    ...(isExpanded ? SPRING_CONFIG.expand : SPRING_CONFIG.collapse),
+  const prevExpandedRef = useRef(false);
+
+  const expandedDim = {
+    ...OVERLAY_DIMENSIONS.expanded,
+    height: expandedHeight ?? OVERLAY_DIMENSIONS.expanded.height,
   };
+  const dimensions = isExpanded ? expandedDim : OVERLAY_DIMENSIONS.compact;
+
+  const wasExpanded = prevExpandedRef.current;
+  const transition: Transition = !isExpanded
+    ? { type: "spring", ...SPRING_CONFIG.collapse }
+    : !wasExpanded
+      ? { type: "spring", ...SPRING_CONFIG.expand }
+      : { duration: 0.15, ease: "easeOut" };
+
+  useEffect(() => { prevExpandedRef.current = isExpanded; }, [isExpanded]);
 
   const syncWindowSize = (width: number, height: number, borderRadius: number) => {
     invoke("update_overlay_size", {
@@ -55,6 +68,7 @@ export function AnimatedOverlay({ isExpanded, className, children }: AnimatedOve
   return (
     <motion.div
       className={className}
+      data-testid={testId}
       style={{
         overflow: "hidden",
       }}
