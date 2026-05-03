@@ -1,37 +1,47 @@
+import { useConfigStore } from "../store/config";
+
+// Spring animation parameters from config
 export const SPRING_CONFIG = {
-  expand: {
-    stiffness: 300,
-    damping: 22,
-    mass: 0.9,
+  get expand() {
+    return useConfigStore.getState().getSpringConfig("expand");
   },
-  collapse: {
-    stiffness: 380,
-    damping: 26,
-    mass: 0.85,
+  get collapse() {
+    return useConfigStore.getState().getSpringConfig("collapse");
   },
-  transition: {
-    stiffness: 400,
-    damping: 30,
-    mass: 1,
+  get transition() {
+    return useConfigStore.getState().getSpringConfig("transition");
   },
-  micro: {
-    stiffness: 500,
-    damping: 35,
-    mass: 0.8,
+  get micro() {
+    return useConfigStore.getState().getSpringConfig("micro");
   },
 } as const;
 
+// Overlay dimensions from config
 export const OVERLAY_DIMENSIONS = {
   compact: {
-    width: 236,
-    height: 52,
-    borderRadius: 26,
+    get width() {
+      return useConfigStore.getState().config.overlay.compactWidth - 84;
+    },
+    get height() {
+      return useConfigStore.getState().config.ui.dimensions.barHeight;
+    },
+    get borderRadius() {
+      return useConfigStore.getState().config.overlay.compactBorderRadius;
+    },
   },
   expanded: {
-    width: 420,
-    minHeight: 180,
-    maxHeight: 600,
-    borderRadius: 18,
+    get width() {
+      return useConfigStore.getState().config.overlay.expandedWidth;
+    },
+    get minHeight() {
+      return useConfigStore.getState().config.overlay.expandedMinHeight;
+    },
+    get maxHeight() {
+      return useConfigStore.getState().config.overlay.expandedMaxHeight;
+    },
+    get borderRadius() {
+      return useConfigStore.getState().config.overlay.expandedBorderRadius;
+    },
   },
 } as const;
 

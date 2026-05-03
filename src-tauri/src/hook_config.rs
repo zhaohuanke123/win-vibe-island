@@ -4,6 +4,7 @@
 //! On startup, it checks if hooks are configured and can auto-install them.
 //! On exit (in auto-cleanup mode), it can remove the hooks.
 
+use crate::config::get_config;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{Read, Write};
@@ -56,8 +57,10 @@ const REQUIRED_HOOKS: &[&str] = &[
     "PermissionRequest",
 ];
 
-/// Hook server URL
-const HOOK_SERVER_URL: &str = "http://localhost:7878";
+/// Get the hook server URL from configuration
+fn get_hook_server_url() -> String {
+    format!("http://localhost:{}", get_config().hook_server.port)
+}
 
 /// Backup file extension
 const BACKUP_EXT: &str = ".vibe-island-backup";
@@ -164,9 +167,13 @@ fn read_configured_hooks(path: &PathBuf) -> Vec<String> {
 /// 2. A hook wrapper with nested hooks: { "hooks": [...] }
 /// 3. An array of hooks: [{ "hooks": [...] }, ...]
 fn is_vibe_island_hook(hook_config: &serde_json::Value) -> bool {
+    let port = get_config().hook_server.port;
+    let port_str = port.to_string();
+
     // Case 1: Direct hook object with URL
     if let Some(url) = hook_config.get("url").and_then(|u| u.as_str()) {
-        return url.contains("localhost:7878") || url.contains("127.0.0.1:7878");
+        return url.contains(&format!("localhost:{}", port_str))
+            || url.contains(&format!("127.0.0.1:{}", port_str));
     }
 
     // Case 2: Hook wrapper with nested hooks array
@@ -192,6 +199,10 @@ fn is_vibe_island_hook(hook_config: &serde_json::Value) -> bool {
 
 /// Generate the Vibe Island hook configuration
 fn generate_hook_config() -> serde_json::Value {
+    let base_url = get_hook_server_url();
+    let pre_tool_timeout = get_config().hook_server.pre_tool_timeout_secs;
+    let permission_timeout = get_config().hook_server.permission_timeout_secs;
+
     serde_json::json!({
         "hooks": {
             "SessionStart": [
@@ -199,7 +210,7 @@ fn generate_hook_config() -> serde_json::Value {
                     "hooks": [
                         {
                             "type": "http",
-                            "url": format!("{}/hooks/session-start", HOOK_SERVER_URL)
+                            "url": format!("{}/hooks/session-start", base_url)
                         }
                     ]
                 }
@@ -210,8 +221,8 @@ fn generate_hook_config() -> serde_json::Value {
                     "hooks": [
                         {
                             "type": "http",
-                            "url": format!("{}/hooks/pre-tool-use", HOOK_SERVER_URL),
-                            "timeout": 30
+                            "url": format!("{}/hooks/pre-tool-use", base_url),
+                            "timeout": pre_tool_timeout
                         }
                     ]
                 }
@@ -222,7 +233,7 @@ fn generate_hook_config() -> serde_json::Value {
                     "hooks": [
                         {
                             "type": "http",
-                            "url": format!("{}/hooks/post-tool-use", HOOK_SERVER_URL)
+                            "url": format!("{}/hooks/post-tool-use", base_url)
                         }
                     ]
                 }
@@ -232,7 +243,7 @@ fn generate_hook_config() -> serde_json::Value {
                     "hooks": [
                         {
                             "type": "http",
-                            "url": format!("{}/hooks/notification", HOOK_SERVER_URL)
+                            "url": format!("{}/hooks/notification", base_url)
                         }
                     ]
                 }
@@ -242,7 +253,7 @@ fn generate_hook_config() -> serde_json::Value {
                     "hooks": [
                         {
                             "type": "http",
-                            "url": format!("{}/hooks/stop", HOOK_SERVER_URL)
+                            "url": format!("{}/hooks/stop", base_url)
                         }
                     ]
                 }
@@ -252,7 +263,7 @@ fn generate_hook_config() -> serde_json::Value {
                     "hooks": [
                         {
                             "type": "http",
-                            "url": format!("{}/hooks/user-prompt-submit", HOOK_SERVER_URL)
+                            "url": format!("{}/hooks/user-prompt-submit", base_url)
                         }
                     ]
                 }
@@ -263,8 +274,8 @@ fn generate_hook_config() -> serde_json::Value {
                     "hooks": [
                         {
                             "type": "http",
-                            "url": format!("{}/hooks/permission-request", HOOK_SERVER_URL),
-                            "timeout": 60
+                            "url": format!("{}/hooks/permission-request", base_url),
+                            "timeout": permission_timeout
                         }
                     ]
                 }

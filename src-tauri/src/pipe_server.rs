@@ -1,3 +1,4 @@
+use crate::config::get_config;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -7,8 +8,10 @@ use tauri::{AppHandle, Emitter};
 #[cfg(target_os = "windows")]
 use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
 
-/// Pipe name for the VibeIsland event channel
-pub const PIPE_NAME: &str = r"\\.\pipe\VibeIsland";
+/// Get the pipe name from configuration
+fn get_pipe_name() -> String {
+    get_config().pipe_server.pipe_name.clone()
+}
 
 /// Agent event received from SDK clients
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,7 +91,8 @@ pub fn start_pipe_server(app: AppHandle) -> Result<(), String> {
     *state_guard = Some(state.clone());
     drop(state_guard);
 
-    let pipe_name = PIPE_NAME.to_string();
+    let pipe_name = get_pipe_name();
+    let pipe_name_for_log = pipe_name.clone();
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
         rt.block_on(async {
@@ -98,7 +102,7 @@ pub fn start_pipe_server(app: AppHandle) -> Result<(), String> {
         });
     });
 
-    log::info!("Named pipe server started at {}", PIPE_NAME);
+    log::info!("Named pipe server started at {}", pipe_name_for_log);
     Ok(())
 }
 
@@ -133,7 +137,7 @@ pub fn get_pipe_server_status() -> PipeServerStatus {
         .unwrap_or(false);
     PipeServerStatus {
         running,
-        pipe_name: PIPE_NAME.to_string(),
+        pipe_name: get_pipe_name(),
     }
 }
 
@@ -176,7 +180,8 @@ async fn run_pipe_server(
         });
 
         // Small delay before creating next pipe instance
-        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+        let retry_interval = get_config().pipe_server.retry_interval_ms;
+        tokio::time::sleep(tokio::time::Duration::from_millis(retry_interval)).await;
     }
 
     Ok(())
@@ -190,8 +195,9 @@ async fn handle_connection(
 ) -> Result<(), String> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    let mut buffer = Vec::with_capacity(4096);
-    let mut temp_buf = [0u8; 4096];
+    let buffer_size = get_config().pipe_server.buffer_size;
+    let mut buffer = Vec::with_capacity(buffer_size);
+    let mut temp_buf = vec![0u8; buffer_size];
 
     loop {
         if !state.is_running() {

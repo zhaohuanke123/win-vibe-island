@@ -493,3 +493,28 @@ pub fn play_notification_sound(sound: crate::audio::NotificationSound) -> Result
 pub fn get_notification_sounds() -> Vec<(crate::audio::NotificationSound, String)> {
     crate::audio::get_sound_list()
 }
+
+// Configuration commands
+/// Get the current application configuration
+#[tauri::command]
+pub fn get_app_config() -> crate::config::AppConfig {
+    crate::config::get_config()
+}
+
+/// Update application configuration with partial updates
+#[tauri::command]
+pub fn update_app_config(updates: serde_json::Value) -> Result<crate::config::AppConfig, String> {
+    crate::config::update_config(updates)
+}
+
+/// Reset configuration to defaults (optionally just a section)
+#[tauri::command]
+pub fn reset_app_config(section: Option<String>) -> Result<crate::config::AppConfig, String> {
+    crate::config::reset_config(section.as_deref())
+}
+
+/// Reload configuration from file
+#[tauri::command]
+pub fn reload_app_config() -> Result<crate::config::AppConfig, String> {
+    crate::config::reload_config()
+}

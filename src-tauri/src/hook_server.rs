@@ -1,7 +1,7 @@
 //! HTTP Hook Server for Claude Code Integration
 //!
 //! Claude Code supports HTTP hooks that POST JSON to a local server on lifecycle events.
-//! This module implements an HTTP server on port 7878 to receive these hooks.
+//! This module implements an HTTP server to receive these hooks.
 //!
 //! Supported hooks:
 //! - SessionStart: When a new session begins or resumes
@@ -13,6 +13,7 @@
 //! - PermissionRequest: When Claude needs permission to execute a tool
 
 use crate::approval_types::approval_types;
+use crate::config::get_config;
 use axum::{
     extract::State,
     http::StatusCode,
@@ -26,15 +27,6 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::oneshot;
-
-/// Default port for the hook server
-pub const HOOK_SERVER_PORT: u16 = 7878;
-
-/// Default timeout for approval requests (120 seconds)
-const APPROVAL_TIMEOUT_SECS: u64 = 120;
-
-/// Maximum number of error logs to keep
-const MAX_ERROR_LOGS: usize = 100;
 
 /// Connection state for the hook server
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -205,7 +197,8 @@ pub fn start_hook_server(app: AppHandle) -> Result<(), String> {
         });
     });
 
-    log::info!("Hook server started on port {}", HOOK_SERVER_PORT);
+    let port = get_config().hook_server.port;
+    log::info!("Hook server started on port {}", port);
     Ok(())
 }
 
@@ -226,7 +219,7 @@ pub fn get_hook_server_status() -> HookServerStatus {
     let running = state_guard.as_ref().map_or(false, |s| *s.running.lock());
     HookServerStatus {
         running,
-        port: HOOK_SERVER_PORT,
+        port: get_config().hook_server.port,
     }
 }
 
@@ -255,10 +248,11 @@ async fn run_hook_server(state: Arc<HookServerState>) -> Result<(), String> {
         .layer(cors)
         .with_state(state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], HOOK_SERVER_PORT));
+    let port = get_config().hook_server.port;
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr)
         .await
-        .map_err(|e| format!("Failed to bind to port {}: {}", HOOK_SERVER_PORT, e))?;
+        .map_err(|e| format!("Failed to bind to port {}: {}", port, e))?;
 
     log::info!("Hook server listening on {}", addr);
 
@@ -715,7 +709,8 @@ async fn handle_permission_request(
     );
 
     // Wait for response with timeout
-    let timeout_duration = std::time::Duration::from_secs(APPROVAL_TIMEOUT_SECS);
+    let approval_timeout = get_config().hook_server.approval_timeout_secs;
+    let timeout_duration = std::time::Duration::from_secs(approval_timeout);
     let decision = match tokio::time::timeout(timeout_duration, response_rx).await {
         Ok(Ok(decision)) => {
             log::info!("Permission decision received: {:?}", decision);
@@ -740,7 +735,7 @@ async fn handle_permission_request(
         Err(_) => {
             log::warn!(
                 "Permission request timed out after {} seconds",
-                APPROVAL_TIMEOUT_SECS
+                approval_timeout
             );
             // Clean up the pending approval
             {
@@ -762,7 +757,7 @@ async fn handle_permission_request(
                 behavior: "deny".to_string(),
                 message: Some(format!(
                     "Permission request timed out after {} seconds",
-                    APPROVAL_TIMEOUT_SECS
+                    approval_timeout
                 )),
                 updated_input: None,
             }
@@ -1076,7 +1071,7 @@ async fn handle_health(State(state): State<Arc<HookServerState>>) -> Json<HookHe
 
     Json(HookHealthStatus {
         state: state_type,
-        port: HOOK_SERVER_PORT,
+        port: get_config().hook_server.port,
         last_heartbeat,
         uptime_secs: Some(uptime),
         total_requests,
@@ -1110,7 +1105,8 @@ fn add_error_log(state: &HookServerState, error_type: &str, message: &str, detai
     logs.push_front(log_entry.clone());
 
     // Keep only the most recent errors
-    if logs.len() > MAX_ERROR_LOGS {
+    let max_error_logs = get_config().hook_server.max_error_logs;
+    if logs.len() > max_error_logs {
         logs.pop_back();
     }
 
@@ -1150,7 +1146,7 @@ pub fn get_hook_health() -> HookHealthStatus {
 
         HookHealthStatus {
             state: state_type,
-            port: HOOK_SERVER_PORT,
+            port: get_config().hook_server.port,
             last_heartbeat,
             uptime_secs: Some(uptime),
             total_requests,
@@ -1160,7 +1156,7 @@ pub fn get_hook_health() -> HookHealthStatus {
     } else {
         HookHealthStatus {
             state: HookConnectionState::Disconnected,
-            port: HOOK_SERVER_PORT,
+            port: get_config().hook_server.port,
             last_heartbeat: None,
             uptime_secs: None,
             total_requests: 0,

@@ -1,6 +1,7 @@
 mod approval_types;
 mod audio;
 mod commands;
+mod config;
 mod events;
 mod hook_config;
 mod hook_server;
@@ -60,7 +61,7 @@ pub fn run() {
 
             // Start the HTTP hook server for Claude Code integration
             match hook_server::start_hook_server(app.handle().clone()) {
-                Ok(()) => log::info!("Hook server started on port 7878"),
+                Ok(()) => log::info!("Hook server started on port {}", config::get_config().hook_server.port),
                 Err(e) => log::error!("Failed to start hook server: {}", e),
             }
 
@@ -238,6 +239,10 @@ pub fn run() {
             commands::get_hook_config_mode,
             commands::play_notification_sound,
             commands::get_notification_sounds,
+            commands::get_app_config,
+            commands::update_app_config,
+            commands::reset_app_config,
+            commands::reload_app_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

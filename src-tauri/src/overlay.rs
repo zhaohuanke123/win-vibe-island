@@ -11,6 +11,8 @@ use windows::Win32::UI::HiDpi::*;
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::*;
 
+use crate::config::get_config;
+
 /// DPI scale factor (96 DPI = 1.0, 144 DPI = 1.5, 192 DPI = 2.0)
 pub type DpiScale = f64;
 
@@ -35,12 +37,13 @@ fn default_dpi_scale() -> DpiScale {
 
 impl Default for OverlayConfig {
     fn default() -> Self {
+        let config = get_config();
         Self {
-            x: 100,
-            y: 100,
-            width: 320,
-            height: 56,
-            alpha: 240,
+            x: config.overlay.default_x,
+            y: config.overlay.default_y,
+            width: config.overlay.compact_width,
+            height: config.overlay.compact_height,
+            alpha: config.overlay.alpha,
             dpi_scale: 1.0,
         }
     }

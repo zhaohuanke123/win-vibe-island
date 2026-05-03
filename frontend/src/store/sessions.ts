@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useConfigStore } from "./config";
 
 export type AgentState = "idle" | "thinking" | "running" | "streaming" | "approval" | "error" | "done";
 
@@ -136,7 +137,7 @@ export const useSessionsStore = create<SessionsStore>((set) => ({
   approvalRequest: null,
   hookServerStatus: {
     connectionState: "unknown",
-    port: 7878,
+    port: useConfigStore.getState().getHookServerPort(),
   },
   errorLogs: [],
 
