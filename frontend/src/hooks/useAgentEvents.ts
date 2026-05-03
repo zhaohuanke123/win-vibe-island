@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { useSessionsStore } from "../store/sessions";
 import type { AgentState } from "../store/sessions";
@@ -179,6 +180,16 @@ export function useAgentEvents() {
         // If error message is provided, update lastError
         if (state === "error" && message) {
           updateSessionInfo(session_id, { lastError: message });
+        }
+
+        // Play notification sound when task completes (done state)
+        if (state === "done") {
+          const savedSound = localStorage.getItem("notificationSound") || "hero";
+          if (savedSound !== "none") {
+            invoke("play_notification_sound", { sound: savedSound }).catch((e) =>
+              console.error("Failed to play notification sound:", e)
+            );
+          }
         }
       });
       unlisteners.push(unlistenState);

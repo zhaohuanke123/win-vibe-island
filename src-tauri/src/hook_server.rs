@@ -570,6 +570,11 @@ async fn handle_stop(
         }),
     );
 
+    // Play notification sound on task completion
+    // TODO: Get user's preferred sound from settings
+    let sound = crate::audio::NotificationSound::default();
+    let _ = crate::audio::play_sound(sound);
+
     Ok(StatusCode::OK)
 }
 

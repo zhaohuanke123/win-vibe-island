@@ -1,4 +1,5 @@
 mod approval_types;
+mod audio;
 mod commands;
 mod events;
 mod hook_config;
@@ -235,6 +236,8 @@ pub fn run() {
             commands::get_hook_config_status,
             commands::set_hook_config_mode,
             commands::get_hook_config_mode,
+            commands::play_notification_sound,
+            commands::get_notification_sounds,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

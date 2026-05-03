@@ -480,3 +480,16 @@ pub fn set_hook_config_mode(mode: hook_config::HookConfigMode) -> Result<(), Str
 pub fn get_hook_config_mode() -> hook_config::HookConfigMode {
     hook_config::get_stored_mode()
 }
+
+// Audio commands
+/// Play a notification sound
+#[tauri::command]
+pub fn play_notification_sound(sound: crate::audio::NotificationSound) -> Result<(), String> {
+    crate::audio::play_sound(sound)
+}
+
+/// Get list of available notification sounds
+#[tauri::command]
+pub fn get_notification_sounds() -> Vec<(crate::audio::NotificationSound, String)> {
+    crate::audio::get_sound_list()
+}

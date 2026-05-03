@@ -1010,6 +1010,40 @@
         "task.json",
         "progress.txt"
       ]
+    },
+    {
+      "id": 42,
+      "title": "任务完成提示音功能",
+      "description": "实现任务完成提示音功能：后端音频播放模块、前端设置面板、内置音效资源。Stop hook 触发时播放用户选择的提示音。",
+      "steps": [
+        "添加 rodio 音频依赖到 Cargo.toml",
+        "创建 src-tauri/src/audio.rs 音频播放模块",
+        "实现 play_notification_sound 和 get_notification_sounds IPC 命令",
+        "在 Stop hook 中触发音频播放",
+        "创建前端 SettingsPanel.tsx 设置面板组件",
+        "在 useAgentEvents.ts 中监听 done 状态播放提示音",
+        "创建 sounds 目录和 README 说明"
+      ],
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [33],
+      "requirement_ref": "PRD FR-04",
+      "design_ref": "docs/hooks-setup.md",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "src-tauri/Cargo.toml",
+        "src-tauri/src/audio.rs",
+        "src-tauri/src/lib.rs",
+        "src-tauri/src/commands.rs",
+        "src-tauri/src/hook_server.rs",
+        "frontend/src/components/SettingsPanel.tsx",
+        "frontend/src/components/SettingsPanel.css",
+        "frontend/src/hooks/useAgentEvents.ts",
+        "src-tauri/sounds/README.md"
+      ]
     }
   ]
 }
