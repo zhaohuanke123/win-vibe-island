@@ -29,7 +29,8 @@ export const OVERLAY_DIMENSIONS = {
   },
   expanded: {
     width: 420,
-    height: 600,
+    minHeight: 180,
+    maxHeight: 600,
     borderRadius: 18,
   },
 } as const;

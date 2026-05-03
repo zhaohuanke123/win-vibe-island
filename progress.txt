@@ -10,8 +10,37 @@ and any relevant notes.
 
 - **Started:** 2026-04-25
 - **Current Phase:** Phase 2 - Real Integration
-- **Completed Tasks:** 36 / 41 (plus 1 removed)
+- **Completed Tasks:** 37 / 42 (plus 1 removed)
 - **Active Task:** None
+
+---
+
+## [2026-05-03] - Task #43: Overlay 展开态内容自适应高度
+
+### What was done:
+- Documentation Gate completed before source edits.
+- Recorded implementation bug:
+  - Expanded overlay uses a fixed 600px height while the visible session list is capped around 220px.
+  - The panel footer is pushed to the bottom, leaving a large blank area below session content.
+- Updated `docs/animation-design.md` to define expanded height as content-adaptive with 180px minimum and 600px maximum.
+- Implemented dynamic expanded height measurement in `Overlay.tsx` with `ResizeObserver`.
+- Updated `AnimatedOverlay` to animate to the measured expanded height while keeping the existing `update_overlay_size` IPC contract.
+- Removed the footer auto-push behavior that created visible blank space below short session lists.
+
+### Documentation:
+- Requirement ref: docs/animation-design.md#三动画参数配置
+- Design ref: docs/animation-design.md#33-明显弹性灵动岛尺寸
+- Docs updated: yes
+
+### Testing:
+- `frontend`: `.\\node_modules\\.bin\\vite.cmd build` passed.
+- `frontend`: targeted TypeScript check for `AnimatedOverlay.tsx`, `Overlay.tsx`, and `animation.ts` passed with `tsc --ignoreConfig`.
+- Runtime smoke: `cargo tauri dev` compiled and launched the worktree app; Vite served `http://127.0.0.1:5187/`; the visible compact Vibe Island window measured `236x52`.
+- Expanded-state visual confirmation was skipped at user direction.
+
+### Notes:
+- This task is isolated in `.claude/worktrees/fix-overlay-dynamic-height`.
+- The fix must not touch unrelated audio changes in the main worktree.
 
 ---
 

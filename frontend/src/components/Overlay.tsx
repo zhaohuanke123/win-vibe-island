@@ -6,11 +6,20 @@ import { StatusDot } from "./StatusDot";
 import { ApprovalPanel } from "./ApprovalPanel";
 import { HookStatus } from "./HookStatus";
 import { SettingsPanel } from "./SettingsPanel";
+import { OVERLAY_DIMENSIONS } from "../config/animation";
 import { useSessionsStore } from "../store/sessions";
 import type { Session } from "../store/sessions";
 import "./Overlay.css";
 
 type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored";
+const OVERLAY_BAR_HEIGHT = OVERLAY_DIMENSIONS.compact.height;
+
+function clampExpandedHeight(height: number): number {
+  return Math.min(
+    OVERLAY_DIMENSIONS.expanded.maxHeight,
+    Math.max(OVERLAY_DIMENSIONS.expanded.minHeight, height),
+  );
+}
 
 function formatTime(timestamp: number): string {
   const now = Date.now();
@@ -27,6 +36,8 @@ export function Overlay() {
   const [showSettings, setShowSettings] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedHeight, setExpandedHeight] = useState<number>(OVERLAY_DIMENSIONS.expanded.minHeight);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const hadApprovalRequestRef = useRef(false);
 
   // Note: approval_request events are handled by useAgentEvents hook
@@ -77,6 +88,41 @@ export function Overlay() {
     }
   }, [sessions, activeSessionId, setActiveSession]);
 
+  const measureExpandedHeight = useCallback(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const nextHeight = clampExpandedHeight(OVERLAY_BAR_HEIGHT + panel.scrollHeight);
+    setExpandedHeight((currentHeight) => (
+      Math.abs(currentHeight - nextHeight) < 1 ? currentHeight : nextHeight
+    ));
+  }, []);
+
+  useEffect(() => {
+    if (!expanded) return;
+
+    const frame = window.requestAnimationFrame(measureExpandedHeight);
+    const panel = panelRef.current;
+    if (!panel || typeof ResizeObserver === "undefined") {
+      return () => window.cancelAnimationFrame(frame);
+    }
+
+    const observer = new ResizeObserver(() => measureExpandedHeight());
+    observer.observe(panel);
+    Array.from(panel.children).forEach((child) => observer.observe(child));
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [approvalRequest, expanded, measureExpandedHeight, showSettings]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const frame = window.requestAnimationFrame(measureExpandedHeight);
+    return () => window.cancelAnimationFrame(frame);
+  }, [approvalRequest, error, expanded, measureExpandedHeight, sessions, showSettings]);
+
   const handleApprovalHandled = () => {
     clearApprovalRequest();
     setExpanded(false);
@@ -85,7 +131,11 @@ export function Overlay() {
   const clearError = useCallback(() => { setError(null); }, []);
 
   return (
-    <AnimatedOverlay className={`overlay ${expanded ? "overlay--expanded" : "overlay--compact"}`} isExpanded={expanded}>
+    <AnimatedOverlay
+      className={`overlay ${expanded ? "overlay--expanded" : "overlay--compact"}`}
+      expandedHeight={expandedHeight}
+      isExpanded={expanded}
+    >
       <div className="overlay__shell">
         <div className="overlay__bar" onClick={() => setExpanded(!expanded)}>
           {isLoading && <span className="overlay__spinner" />}
@@ -105,6 +155,7 @@ export function Overlay() {
           {expanded && (
             <motion.div
               className="overlay__panel"
+              ref={panelRef}
               initial={{ opacity: 0, y: -10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.985 }}
@@ -117,9 +168,11 @@ export function Overlay() {
                 </div>
               )}
               {showSettings ? (
-                <SettingsPanel />
+                <div className="overlay__panel-content">
+                  <SettingsPanel />
+                </div>
               ) : (
-                <>
+                <div className="overlay__panel-content">
                   {approvalRequest && (
                     <ApprovalPanel key={approvalRequest.timestamp} request={approvalRequest} onApprovalHandled={handleApprovalHandled} />
                   )}
@@ -165,7 +218,7 @@ export function Overlay() {
                       <div className="overlay__empty">Waiting for agent sessions...</div>
                     )}
                   </motion.div>
-                </>
+                </div>
               )}
               <div className="overlay__panel-footer">
                 <button
