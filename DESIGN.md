@@ -42,7 +42,7 @@
    - 执行 `hook_config::auto_configure_hooks()`；
    - 创建系统托盘菜单。
 4. `App.tsx` 只渲染 `Overlay`，并调用 `useAgentEvents()` 注册 Tauri event listeners。
-5. `Overlay.tsx` 初始化窗口为 `420x60`，展开时设置为 `420x600`。
+5. `Overlay.tsx` 初始化为紧凑胶囊尺寸，展开时测量内容高度并同步窗口尺寸，展开最大高度为 `600px`。
 
 ---
 
@@ -211,8 +211,8 @@ Zustand store 管理：
 
 当前 UI：
 
-- collapsed height: `60`
-- expanded height: `600`
+- compact height: `52`
+- expanded height: content-adaptive, min `180`, max `600`
 - width: `420`
 - 点击顶部 bar 展开/收起；
 - approval request 到达时自动展开；

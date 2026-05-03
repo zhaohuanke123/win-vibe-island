@@ -1044,6 +1044,38 @@
         "frontend/src/hooks/useAgentEvents.ts",
         "src-tauri/sounds/README.md"
       ]
+    },
+    {
+      "id": 43,
+      "title": "Overlay 展开态内容自适应高度",
+      "description": "修复灵动岛展开后 session 列表下方出现大块空白的问题。展开高度由实际内容测量驱动，保留 600px 作为最大高度。",
+      "steps": [
+        "更新动画设计文档，将 expanded 高度从固定 600px 改为内容自适应",
+        "AnimatedOverlay 支持 expandedHeight 输入并继续同步 update_overlay_size",
+        "Overlay.tsx 使用 ResizeObserver 测量展开面板内容高度",
+        "调整 Overlay CSS，让 footer 留在内容末尾，长 session 列表内部滚动",
+        "运行前端构建验证"
+      ],
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [41],
+      "requirement_ref": "docs/animation-design.md#三动画参数配置",
+      "design_ref": "docs/animation-design.md#33-明显弹性灵动岛尺寸",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "docs/animation-design.md",
+        "DESIGN.md",
+        "docs/states-and-flows.md",
+        "frontend/src/config/animation.ts",
+        "frontend/src/components/AnimatedOverlay.tsx",
+        "frontend/src/components/Overlay.tsx",
+        "frontend/src/components/Overlay.css",
+        "task.json",
+        "progress.txt"
+      ]
     }
   ]
 }
