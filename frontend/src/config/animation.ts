@@ -33,10 +33,7 @@ export const OVERLAY_DIMENSIONS = {
     get width() {
       return useConfigStore.getState().config.overlay.expandedWidth;
     },
-    get minHeight() {
-      return useConfigStore.getState().config.overlay.expandedMinHeight;
-    },
-    get maxHeight() {
+    get height() {
       return useConfigStore.getState().config.overlay.expandedMaxHeight;
     },
     get borderRadius() {
