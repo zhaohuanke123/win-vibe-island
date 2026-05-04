@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import * as Diff from "diff";
 import "./DiffViewer.css";
 
 export interface DiffData {
@@ -75,89 +76,44 @@ function computeDiff(
   newContent: string,
   maxLines: number
 ): DiffLine[] {
-  const oldLines = oldContent.split("\n");
-  const newLines = newContent.split("\n");
+  const changes = Diff.diffLines(oldContent, newContent);
   const result: DiffLine[] = [];
-
-  // Simple line-by-line diff algorithm
-  // For production, consider using a proper diff library like 'diff' or 'fast-diff'
-  const oldSet = new Set(oldLines);
-  const newSet = new Set(newLines);
-
-  let oldIdx = 0;
-  let newIdx = 0;
+  let oldLine = 1;
+  let newLine = 1;
   let lineCount = 0;
 
-  while ((oldIdx < oldLines.length || newIdx < newLines.length) && lineCount < maxLines) {
-    const oldLine = oldLines[oldIdx];
-    const newLine = newLines[newIdx];
+  for (const change of changes) {
+    const lines = change.value.endsWith("\n")
+      ? change.value.slice(0, -1).split("\n")
+      : change.value.split("\n");
 
-    if (oldIdx < oldLines.length && newIdx < newLines.length) {
-      if (oldLine === newLine) {
-        // Context line (unchanged)
-        result.push({
-          type: "context",
-          content: oldLine,
-          oldLineNumber: oldIdx + 1,
-          newLineNumber: newIdx + 1,
-        });
-        oldIdx++;
-        newIdx++;
-      } else if (!newSet.has(oldLine)) {
-        // Line removed
-        result.push({
-          type: "remove",
-          content: oldLine,
-          oldLineNumber: oldIdx + 1,
-        });
-        oldIdx++;
-      } else if (!oldSet.has(newLine)) {
-        // Line added
-        result.push({
-          type: "add",
-          content: newLine,
-          newLineNumber: newIdx + 1,
-        });
-        newIdx++;
-      } else {
-        // Both modified - show as remove then add
-        result.push({
-          type: "remove",
-          content: oldLine,
-          oldLineNumber: oldIdx + 1,
-        });
-        result.push({
-          type: "add",
-          content: newLine,
-          newLineNumber: newIdx + 1,
-        });
-        oldIdx++;
-        newIdx++;
+    if (change.added) {
+      for (const content of lines) {
+        if (lineCount >= maxLines) break;
+        result.push({ type: "add", content, newLineNumber: newLine++ });
+        lineCount++;
       }
-    } else if (oldIdx < oldLines.length) {
-      // Remaining old lines are removals
-      result.push({
-        type: "remove",
-        content: oldLine,
-        oldLineNumber: oldIdx + 1,
-      });
-      oldIdx++;
+    } else if (change.removed) {
+      for (const content of lines) {
+        if (lineCount >= maxLines) break;
+        result.push({ type: "remove", content, oldLineNumber: oldLine++ });
+        lineCount++;
+      }
     } else {
-      // Remaining new lines are additions
-      result.push({
-        type: "add",
-        content: newLine,
-        newLineNumber: newIdx + 1,
-      });
-      newIdx++;
+      for (const content of lines) {
+        if (lineCount >= maxLines) break;
+        result.push({ type: "context", content, oldLineNumber: oldLine++, newLineNumber: newLine++ });
+        lineCount++;
+      }
     }
-    lineCount++;
+
+    if (lineCount >= maxLines) break;
   }
 
   if (lineCount >= maxLines) {
     result.push({
       type: "context",
-      content: `... (${oldLines.length + newLines.length - lineCount} more lines)`,
+      content: `... (more lines)`,
     });
   }
 

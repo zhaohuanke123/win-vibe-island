@@ -263,29 +263,7 @@ impl Default for ProcessWatcherConfig {
 // Audio Configuration
 // ============================================================================
 
-/// Notification sound types
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum NotificationSound {
-    None,
-    Pop,
-    Ping,
-    Glass,
-    Hero,
-    Blow,
-    Bottle,
-    Frog,
-    Funk,
-    Morse,
-    Purr,
-    Tink,
-}
-
-impl Default for NotificationSound {
-    fn default() -> Self {
-        Self::Hero
-    }
-}
+pub use crate::audio::NotificationSound;
 
 /// Audio configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

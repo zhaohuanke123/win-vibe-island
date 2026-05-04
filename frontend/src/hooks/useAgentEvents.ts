@@ -171,6 +171,13 @@ export function useAgentEvents() {
           });
         } else {
           updateSessionState(session_id, validState);
+          // Clear approval when session leaves "approval" state
+          if (existingSession.state === "approval" && validState !== "approval") {
+            const currentApproval = useSessionsStore.getState().approvalRequest;
+            if (currentApproval && currentApproval.sessionId === session_id) {
+              setApprovalRequest(null);
+            }
+          }
           // Set title from first prompt if not already set
           if (state === "running" && prompt && !existingSession.title) {
             updateSessionInfo(session_id, { title: truncatePrompt(prompt) });
@@ -318,18 +325,6 @@ export function useAgentEvents() {
       // Listen for permission_request events (from PermissionRequest hook)
       const unlistenPermissionRequest = await listen<PermissionRequestEvent>("permission_request", (event) => {
         const { session_id, tool_use_id, tool_name, tool_input, approval_type, action, risk_level, diff, questions, plan_content } = event.payload;
-        console.log("[useAgentEvents] Permission request received:", {
-          session_id,
-          tool_use_id,
-          tool_name,
-          tool_input,
-          approval_type,
-          action,
-          risk_level,
-          questions,
-          plan_content,
-          fullPayload: event.payload
-        });
         const session = useSessionsStore.getState().sessions.find(s => s.id === session_id);
 
         updateSessionState(session_id, "approval");
@@ -356,7 +351,6 @@ export function useAgentEvents() {
           planContent: plan_content,
         };
 
-        console.log("[useAgentEvents] Setting approval request:", approvalRequest);
         setApprovalRequest(approvalRequest);
       });
       unlisteners.push(unlistenPermissionRequest);
@@ -389,12 +383,16 @@ export function useAgentEvents() {
       unlisteners.push(unlistenProcessTerminated);
 
       // Listen for approval_timeout events
-      const unlistenApprovalTimeout = await listen<{ tool_use_id: string; session_id: string }>("approval_timeout", (event) => {
-        console.log("[useAgentEvents] Approval timeout:", event.payload);
-        // Clear the approval request
+      const unlistenApprovalTimeout = await listen<{ tool_use_id: string; session_id: string }>("approval_timeout", () => {
         setApprovalRequest(null);
       });
       unlisteners.push(unlistenApprovalTimeout);
+
+      // Listen for permission_resolved events (auto-allow)
+      const unlistenPermissionResolved = await listen<{ tool_use_id: string; session_id: string; behavior: string }>("permission_resolved", () => {
+        setApprovalRequest(null);
+      });
+      unlisteners.push(unlistenPermissionResolved);
 
       // Listen for test_reset event — clear all sessions for testing
       const unlistenTestReset = await listen("test_reset", () => {

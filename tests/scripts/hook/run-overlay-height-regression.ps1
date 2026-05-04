@@ -16,22 +16,6 @@ function Write-Result($name, $ok, $detail) {
     if ($ok) { $script:pass++ } else { $script:fail++ }
 }
 
-function Get-AppWindowRect {
-    $proc = Get-Process -Name "app" -ErrorAction SilentlyContinue | Select-Object -First 1
-    if (-not $proc) { return $null }
-    $hwnd = $proc.MainWindowHandle
-    if ($hwnd -eq [IntPtr]::Zero) { return $null }
-
-    $rect = New-Object RECT
-    [void][Win32]::GetWindowRect($hwnd, [ref]$rect)
-    return @{
-        Width  = $rect.Right - $rect.Left
-        Height = $rect.Bottom - $rect.Top
-        X      = $rect.Left
-        Y      = $rect.Top
-    }
-}
-
 # Load Win32 types once
 Add-Type -TypeDefinition @"
 using System;
@@ -80,7 +64,7 @@ Write-Host "Window found: ${compactW}x${compactH} at ($($rect.Left), $($rect.Top
 Write-Result "Compact height reasonable" ($compactH -gt 20 -and $compactH -lt 150) "height=${compactH}px (expected ~52)"
 Write-Host ""
 
-# Step 2: Send session_start
+# Step 2: Send session_start — overlay stays compact (does not auto-expand for sessions)
 Write-Host "Step 2: Sending session_start..."
 $body = @{ session_id = "reg-1"; cwd = "D:\test"; source = "test" } | ConvertTo-Json
 Invoke-RestMethod -Uri "$baseUrl/hooks/session-start" -Method Post -Body $body -ContentType "application/json" -TimeoutSec 5 | Out-Null
@@ -88,7 +72,7 @@ Start-Sleep -Milliseconds 800
 
 [void][NativeWin]::GetWindowRect($hwnd, [ref]$rect)
 $h = $rect.Bottom - $rect.Top
-Write-Host "  After 1 session: $($rect.Right - $rect.Left)x${h} px"
+Write-Result "Compact after session start" ($h -le $compactH + 50) "height=${h}px (overlay stays compact for sessions)"
 Write-Host ""
 
 # Step 3: Send 5 more sessions
@@ -100,18 +84,17 @@ Start-Sleep -Milliseconds 800
 
 [void][NativeWin]::GetWindowRect($hwnd, [ref]$rect)
 $h = $rect.Bottom - $rect.Top
-Write-Result "6 sessions adaptive height" ($h -gt $compactH -and $h -le 720) "height=${h}px (compact=${compactH}, should grow but <= 720)"
-Write-Host "  6 sessions: $($rect.Right - $rect.Left)x${h} px"
+Write-Result "6 sessions still compact" ($h -le $compactH + 50) "height=${h}px (sessions do not auto-expand)"
 Write-Host ""
 
-# Step 4: Send permission_request
+# Step 4: Send permission_request WITHOUT permission_suggestions (stays pending for measurement)
 Write-Host "Step 4: Sending permission_request..."
+$toolUseId = "tool-reg-001"
 $body = @{
     session_id = "reg-1"
-    tool_use_id = "tool-reg-001"
+    tool_use_id = $toolUseId
     tool_name = "Bash"
     tool_input = @{ command = "npm test" }
-    permission_suggestions = @(@{ behavior = "allow" })
 } | ConvertTo-Json
 
 $job = Start-Job -ScriptBlock {
@@ -119,23 +102,30 @@ $job = Start-Job -ScriptBlock {
     Invoke-RestMethod -Uri $url -Method Post -Body $b -ContentType "application/json" -TimeoutSec 10
 } -ArgumentList "$baseUrl/hooks/permission-request", $body
 
+# Wait for approval panel to render and animation to settle
+Start-Sleep -Milliseconds 2500
+
+[void][NativeWin]::GetWindowRect($hwnd, [ref]$rect)
+$h = $rect.Bottom - $rect.Top
+$w = $rect.Right - $rect.Left
+Write-Result "Approval focus mode" ($h -gt 650 -and $h -le 780) "height=${h}px width=${w}px (expected ~720x~600 focus mode)"
+Write-Host "  Approval visible: ${w}x${h} px"
+Write-Host ""
+
+# Step 5: Approve via test endpoint and check collapse
+Write-Host "Step 5: Approving via test endpoint..."
+$approveBody = @{ tool_use_id = $toolUseId } | ConvertTo-Json
+Invoke-RestMethod -Uri "$baseUrl/hooks/test/approve" -Method Post -Body $approveBody -ContentType "application/json" -TimeoutSec 5 | Out-Null
+
 Start-Sleep -Milliseconds 1500
 
 [void][NativeWin]::GetWindowRect($hwnd, [ref]$rect)
 $h = $rect.Bottom - $rect.Top
-Write-Result "Approval expanded" ($h -gt 650 -and $h -le 760) "height=${h}px (should be near 720)"
-Write-Host "  Approval visible: $($rect.Right - $rect.Left)x${h} px"
-
-$result = Receive-Job $job -Wait -AutoRemoveJob -ErrorAction SilentlyContinue
-Write-Host "  Approval result: $($result.hookSpecificOutput.decision.behavior)"
-Write-Host ""
-
-# Step 5: Check collapse
-Start-Sleep -Milliseconds 1000
-[void][NativeWin]::GetWindowRect($hwnd, [ref]$rect)
-$h = $rect.Bottom - $rect.Top
-Write-Result "Collapsed after approval" ($h -le $compactH + 50) "height=${h}px (should return near compact=${compactH})"
+Write-Result "Collapsed after approve" ($h -le $compactH + 50) "height=${h}px (should return near compact=${compactH})"
 Write-Host "  After collapse: $($rect.Right - $rect.Left)x${h} px"
+
+# Clean up background job
+$null = Receive-Job $job -Wait -AutoRemoveJob -ErrorAction SilentlyContinue
 
 Write-Host ""
 Write-Host "=============================="

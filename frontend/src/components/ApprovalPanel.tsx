@@ -7,6 +7,7 @@ import { APPROVAL_TYPES } from "../store/sessions";
 import { useApprovalTimeout } from "../hooks/useApprovalTimeout";
 import { extractBashCommand } from "../utils/command";
 import { marked } from "marked";
+import DOMPurify from "dompurify";
 import "./ApprovalPanel.css";
 
 interface ApprovalPanelProps {
@@ -15,7 +16,16 @@ interface ApprovalPanelProps {
   measurement?: boolean;
 }
 
-type ApprovalStatus = "pending" | "approving" | "rejecting" | "approved" | "rejected";
+type ApprovalStatus = "pending" | "approving" | "rejecting" | "approved" | "rejected" | "error";
+
+const SUBMIT_ERROR_STYLE: React.CSSProperties = {
+  color: "#f87171",
+  fontSize: 11,
+  padding: "4px 8px",
+  background: "rgba(248,113,113,0.1)",
+  borderRadius: 4,
+  margin: "4px 0 0",
+};
 
 function handlePanelWheel(event: WheelEvent<HTMLDivElement>) {
   const scrollBody = event.currentTarget.querySelector<HTMLElement>(".approval-panel__body");
@@ -85,6 +95,7 @@ function QuestionPanel({ request, onHandled, measurement = false }: { request: A
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<"pending" | "submitting" | "done">("pending");
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const timeout = useApprovalTimeout(request);
 
   const handleOptionSelect = (questionText: string, optionLabel: string, isCustom?: boolean) => {
@@ -114,14 +125,11 @@ function QuestionPanel({ request, onHandled, measurement = false }: { request: A
   };
 
   const handleSubmit = async () => {
-    // Check if all questions have answers
     const allAnswered = request.questions?.every(q => answers[q.question]?.trim());
-    if (!allAnswered) {
-      console.warn("[QuestionPanel] Not all questions answered");
-      return;
-    }
+    if (!allAnswered) return;
 
     setStatus("submitting");
+    setSubmitError(null);
     try {
       await invoke("submit_approval_response", {
         toolUseId: request.toolUseId,
@@ -130,13 +138,14 @@ function QuestionPanel({ request, onHandled, measurement = false }: { request: A
       });
       onHandled();
     } catch (error) {
-      console.error("[QuestionPanel] Failed to submit answers:", error);
-      onHandled();
+      setSubmitError(String(error));
+      setStatus("pending");
     }
   };
 
   const handleSkip = async () => {
     setStatus("submitting");
+    setSubmitError(null);
     try {
       await invoke("submit_approval_response", {
         toolUseId: request.toolUseId,
@@ -145,8 +154,8 @@ function QuestionPanel({ request, onHandled, measurement = false }: { request: A
       });
       onHandled();
     } catch (error) {
-      console.error("[QuestionPanel] Failed to skip:", error);
-      onHandled();
+      setSubmitError(String(error));
+      setStatus("pending");
     }
   };
 
@@ -226,6 +235,7 @@ function QuestionPanel({ request, onHandled, measurement = false }: { request: A
                     className={btnClass}
                     onClick={() => {
                       if (measurement) return;
+                      setStatus("submitting");
                       setAnswers({ [footerQuestion.question]: opt.label });
                       invoke("submit_approval_response", {
                         toolUseId: request.toolUseId,
@@ -233,8 +243,8 @@ function QuestionPanel({ request, onHandled, measurement = false }: { request: A
                                   opt.label.toLowerCase().includes("proceed"),
                         answers: { [footerQuestion.question]: opt.label },
                       }).then(() => onHandled()).catch((error) => {
-                        console.error("[PlanPanel] Failed to submit:", error);
-                        onHandled();
+                        setSubmitError(String(error));
+                        setStatus("pending");
                       });
                     }}
                     disabled={measurement || status !== "pending" || timeout.isExpired}
@@ -313,6 +323,7 @@ function QuestionPanel({ request, onHandled, measurement = false }: { request: A
 
       <div className="approval-panel__footer">
         <TimeoutIndicator timeout={timeout} />
+        {submitError && <div style={SUBMIT_ERROR_STYLE}>{submitError}</div>}
         <div className="approval-panel__buttons">
           <button
             className="approval-panel__btn approval-panel__btn--skip"
@@ -345,32 +356,32 @@ function QuestionPanel({ request, onHandled, measurement = false }: { request: A
 // Permission Panel for regular tool approvals
 function PermissionPanel({ request, onHandled, measurement = false }: { request: ApprovalRequest; onHandled: () => void; measurement?: boolean }) {
   const [status, setStatus] = useState<ApprovalStatus>("pending");
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const timeout = useApprovalTimeout(request);
 
   const handleApprove = useCallback(async () => {
     if (!request || status !== "pending") return;
 
-    console.log("[PermissionPanel] Approving request:", request.toolUseId);
     setStatus("approving");
+    setSubmitError(null);
     try {
-      const result = await invoke("submit_approval_response", {
+      await invoke("submit_approval_response", {
         toolUseId: request.toolUseId,
         approved: true,
         answers: null,
       });
-      console.log("[PermissionPanel] Approval result:", result);
       onHandled();
     } catch (error) {
-      console.error("[PermissionPanel] Failed to submit approval:", error);
-      onHandled();
+      setSubmitError(String(error));
+      setStatus("pending");
     }
   }, [request, status, onHandled]);
 
   const handleReject = useCallback(async () => {
     if (!request || status !== "pending") return;
 
-    console.log("[PermissionPanel] Rejecting request:", request.toolUseId);
     setStatus("rejecting");
+    setSubmitError(null);
     try {
       await invoke("submit_approval_response", {
         toolUseId: request.toolUseId,
@@ -379,8 +390,8 @@ function PermissionPanel({ request, onHandled, measurement = false }: { request:
       });
       onHandled();
     } catch (error) {
-      console.error("[PermissionPanel] Failed to submit rejection:", error);
-      onHandled();
+      setSubmitError(String(error));
+      setStatus("pending");
     }
   }, [request, status, onHandled]);
 
@@ -455,6 +466,7 @@ function PermissionPanel({ request, onHandled, measurement = false }: { request:
       </div>
 
       <div className="approval-panel__footer">
+        {submitError && <div style={SUBMIT_ERROR_STYLE}>{submitError}</div>}
         <span className={`approval-panel__risk ${getRiskLevelClass()}`} data-testid="risk-level">
           {request.riskLevel?.toUpperCase() || "MEDIUM"} RISK
         </span>
@@ -518,10 +530,12 @@ export function ApprovalPanel({ request, onApprovalHandled, measurement = false 
 // Plan Panel for ExitPlanMode tool - displays the actual plan content
 function PlanPanel({ request, onHandled, measurement = false }: { request: ApprovalRequest; onHandled: () => void; measurement?: boolean }) {
   const [status, setStatus] = useState<"pending" | "submitting" | "done">("pending");
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const timeout = useApprovalTimeout(request);
 
   const handleProceed = async () => {
     setStatus("submitting");
+    setSubmitError(null);
     try {
       await invoke("submit_approval_response", {
         toolUseId: request.toolUseId,
@@ -530,13 +544,14 @@ function PlanPanel({ request, onHandled, measurement = false }: { request: Appro
       });
       onHandled();
     } catch (error) {
-      console.error("[PlanPanel] Failed to proceed:", error);
-      onHandled();
+      setSubmitError(String(error));
+      setStatus("pending");
     }
   };
 
   const handleCancel = async () => {
     setStatus("submitting");
+    setSubmitError(null);
     try {
       await invoke("submit_approval_response", {
         toolUseId: request.toolUseId,
@@ -545,8 +560,8 @@ function PlanPanel({ request, onHandled, measurement = false }: { request: Appro
       });
       onHandled();
     } catch (error) {
-      console.error("[PlanPanel] Failed to cancel:", error);
-      onHandled();
+      setSubmitError(String(error));
+      setStatus("pending");
     }
   };
 
@@ -557,7 +572,7 @@ function PlanPanel({ request, onHandled, measurement = false }: { request: Appro
     }
 
     // Parse markdown and render as HTML
-    const htmlContent = marked.parse(request.planContent, { breaks: true, gfm: true });
+    const htmlContent = DOMPurify.sanitize(marked.parse(request.planContent, { breaks: true, gfm: true }) as string);
     return (
       <div
         className="approval-panel__plan-content"
@@ -583,6 +598,7 @@ function PlanPanel({ request, onHandled, measurement = false }: { request: Appro
 
       <div className="approval-panel__footer">
         <TimeoutIndicator timeout={timeout} />
+        {submitError && <div style={SUBMIT_ERROR_STYLE}>{submitError}</div>}
         <div className="approval-panel__buttons">
           <button
             className="approval-panel__btn approval-panel__btn--skip"

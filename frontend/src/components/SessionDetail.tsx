@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import type { Session } from "../store/sessions";
+import { useConfigStore } from "../store/config";
 import { ToolExecutionDetail } from "./ToolExecutionDetail";
 import "./SessionDetail.css";
 
@@ -31,17 +32,8 @@ function toolInputPreview(input: Record<string, unknown>): string {
   return preview.length > 80 ? preview.slice(0, 80) + "..." : preview;
 }
 
-const STATE_COLORS: Record<string, string> = {
-  idle: "#9ca3af",
-  thinking: "#a78bfa",
-  running: "#60a5fa",
-  streaming: "#22d3ee",
-  approval: "#fbbf24",
-  error: "#f87171",
-  done: "#4ade80",
-};
-
 export function SessionDetail({ session, onBack, "data-testid": testId }: SessionDetailProps) {
+  const stateColors = useConfigStore((s) => s.config.ui.stateColors);
   const recentHistory = session.toolHistory.slice(-10).reverse();
 
   return (
@@ -63,7 +55,7 @@ export function SessionDetail({ session, onBack, "data-testid": testId }: Sessio
         <div className="session-detail__label-row">
           <span
             className="session-detail__state-dot"
-            style={{ backgroundColor: STATE_COLORS[session.state] || "#9ca3af" }}
+            style={{ backgroundColor: stateColors[session.state as keyof typeof stateColors] || stateColors.idle }}
           />
           <div className="session-detail__label-text">
             <span className="session-detail__label" title={session.title || session.label}>
@@ -82,7 +74,7 @@ export function SessionDetail({ session, onBack, "data-testid": testId }: Sessio
             <span className="session-detail__info-key">State</span>
             <span
               className="session-detail__info-value session-detail__state"
-              style={{ color: STATE_COLORS[session.state] || "#9ca3af" }}
+              style={{ color: stateColors[session.state as keyof typeof stateColors] || stateColors.idle }}
             >
               {session.state}
             </span>

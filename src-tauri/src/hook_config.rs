@@ -120,7 +120,7 @@ pub fn check_hook_config() -> HookConfigStatus {
         HookConfigStatus {
             configured,
             partial,
-            mode: HookConfigMode::default(),
+            mode: get_stored_mode(),
             settings_path: Some(path.to_string_lossy().to_string()),
             configured_hooks,
             missing_hooks,
@@ -130,7 +130,7 @@ pub fn check_hook_config() -> HookConfigStatus {
         HookConfigStatus {
             configured: false,
             partial: false,
-            mode: HookConfigMode::default(),
+            mode: get_stored_mode(),
             settings_path: None,
             configured_hooks: Vec::new(),
             missing_hooks: REQUIRED_HOOKS.iter().map(|h| h.to_string()).collect(),

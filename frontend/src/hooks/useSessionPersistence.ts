@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useSessionsStore } from "../store/sessions";
 import type { Session } from "../store/sessions";
 
-const SAVE_INTERVAL_MS = 30000; // 30 seconds
+const SAVE_INTERVAL_MS = 10000; // 10 seconds
 
 function serializeSession(s: Session): Record<string, unknown> {
   return {
@@ -59,15 +59,14 @@ async function restoreSessions() {
         source: item.source as string | undefined,
       });
     }
-    console.log(`[useSessionPersistence] Restored ${data.length} sessions`);
   } catch (e) {
-    console.error("Failed to restore sessions:", e);
   }
 }
 
 export function useSessionPersistence() {
   const saveIntervalRef = useRef<number | null>(null);
   const unloadHandlerRef = useRef<(() => void) | null>(null);
+  const visibilityHandlerRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     // Load saved sessions on mount
@@ -78,15 +77,22 @@ export function useSessionPersistence() {
 
     // Save on page unload (app exit)
     const handleBeforeUnload = () => {
-      // Use synchronous invoke is not available, but we try our best
       const sessions = useSessionsStore.getState().sessions;
       if (sessions.length === 0) return;
       const data = sessions.map(serializeSession);
-      // Fire-and-forget - may not complete before window closes
       invoke("save_sessions", { sessionsJson: JSON.stringify(data) }).catch(() => {});
     };
     unloadHandlerRef.current = handleBeforeUnload;
     window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Save when page becomes hidden (minimize, switch tab, etc.)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        persistSessions();
+      }
+    };
+    visibilityHandlerRef.current = handleVisibilityChange;
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       if (saveIntervalRef.current) {
@@ -94,6 +100,9 @@ export function useSessionPersistence() {
       }
       if (unloadHandlerRef.current) {
         window.removeEventListener("beforeunload", unloadHandlerRef.current);
+      }
+      if (visibilityHandlerRef.current) {
+        document.removeEventListener("visibilitychange", visibilityHandlerRef.current);
       }
       // Save on unmount
       persistSessions();

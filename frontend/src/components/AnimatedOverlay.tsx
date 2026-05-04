@@ -64,7 +64,7 @@ export function AnimatedOverlay({ isExpanded, expandedHeight, className, childre
       webviewScaleFactor: getWebviewScaleFactor(),
       borderRadius: Math.round(borderRadius),
       anchorCenter: true,
-    }).catch((e) => console.error("Failed to sync overlay size:", e));
+    }).catch(() => {});
   };
 
   useEffect(() => {
@@ -131,7 +131,6 @@ export function AnimatedOverlay({ isExpanded, expandedHeight, className, childre
         syncWindowSize(width, height, borderRadius);
       }}
       onAnimationComplete={() => {
-        console.log(`[AnimatedOverlay] onAnimationComplete: ${dimensions.width}x${dimensions.height} expanded=${isExpanded}`);
         syncFinalWindowSize();
       }}
     >

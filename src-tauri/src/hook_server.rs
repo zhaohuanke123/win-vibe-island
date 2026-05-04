@@ -245,6 +245,7 @@ async fn run_hook_server(state: Arc<HookServerState>) -> Result<(), String> {
         .route("/hooks/permission-request", post(handle_permission_request))
         .route("/hooks/ping", post(handle_ping))
         .route("/hooks/health", get(handle_health))
+        .route("/hooks/test/approve", post(handle_test_approve))
         .layer(cors)
         .with_state(state);
 
@@ -709,6 +710,62 @@ async fn handle_permission_request(
         }),
     );
 
+    // Check for auto-allow based on permission_suggestions
+    let has_auto_allow = payload
+        .permission_suggestions
+        .as_ref()
+        .map_or(false, |suggestions| {
+            suggestions.iter().any(|s| {
+                s.get("behavior")
+                    .and_then(|b| b.as_str())
+                    .map_or(false, |b| b == "allow")
+            })
+        });
+
+    if has_auto_allow {
+        // Clean up the pending approval
+        {
+            let state_guard = HOOK_SERVER_STATE.lock();
+            if let Some(ref state) = *state_guard {
+                let mut pending = state.pending_approvals.lock();
+                pending.remove(&tool_use_id);
+            }
+        }
+
+        log::info!(
+            "Auto-allowing permission request based on suggestion for tool_use_id={}",
+            tool_use_id
+        );
+
+        // Emit state_change back to running
+        let _ = state.app_handle.emit(
+            "state_change",
+            &serde_json::json!({
+                "session_id": session_id,
+                "state": "running",
+            }),
+        );
+
+        // Emit permission_resolved so frontend clears the approval
+        let _ = state.app_handle.emit(
+            "permission_resolved",
+            &serde_json::json!({
+                "tool_use_id": tool_use_id,
+                "session_id": session_id,
+                "behavior": "allow",
+            }),
+        );
+
+        return Ok(Json(serde_json::json!({
+            "hookSpecificOutput": {
+                "hookEventName": "PermissionRequest",
+                "decision": {
+                    "behavior": "allow"
+                }
+            }
+        })));
+    }
+
     // Wait for response with timeout
     let approval_timeout = get_config().hook_server.approval_timeout_secs;
     let timeout_duration = std::time::Duration::from_secs(approval_timeout);
@@ -1079,6 +1136,59 @@ async fn handle_health(State(state): State<Arc<HookServerState>>) -> Json<HookHe
         error_count,
         pending_approvals,
     })
+}
+
+/// Test-only endpoint: resolve a pending approval without user interaction.
+/// POST /hooks/test/approve  { "tool_use_id": "..." }
+#[cfg(debug_assertions)]
+async fn handle_test_approve(
+    State(state): State<Arc<HookServerState>>,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let tool_use_id = body
+        .get("tool_use_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, "Missing tool_use_id".to_string()))?
+        .to_string();
+
+    log::info!("[test] Approving permission request for tool_use_id={}", tool_use_id);
+
+    let (session_id, approved_behavior) = {
+        let mut pending = state.pending_approvals.lock();
+        if let Some(approval) = pending.remove(&tool_use_id) {
+            let session_id = approval.session_id.clone();
+            let _ = approval.response_tx.send(PermissionDecision {
+                behavior: "allow".to_string(),
+                message: Some("Test auto-approve".to_string()),
+                updated_input: None,
+            });
+            (session_id, "allow".to_string())
+        } else {
+            return Err((
+                StatusCode::NOT_FOUND,
+                format!("No pending approval for {}", tool_use_id),
+            ));
+        }
+    };
+
+    // Emit events so frontend collapses the overlay
+    let _ = state.app_handle.emit(
+        "state_change",
+        &serde_json::json!({
+            "session_id": session_id,
+            "state": "running",
+        }),
+    );
+    let _ = state.app_handle.emit(
+        "permission_resolved",
+        &serde_json::json!({
+            "tool_use_id": tool_use_id,
+            "session_id": session_id,
+            "behavior": approved_behavior,
+        }),
+    );
+
+    Ok(Json(serde_json::json!({ "ok": true })))
 }
 
 /// Get current timestamp as string

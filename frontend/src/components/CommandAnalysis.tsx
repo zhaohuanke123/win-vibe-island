@@ -29,7 +29,16 @@ interface CommandAnalysisResult {
   risks: RiskItem[];
 }
 
+const MAX_CACHE_SIZE = 50;
 const analysisCache = new Map<string, CommandAnalysisResult>();
+
+function cacheSet(key: string, value: CommandAnalysisResult) {
+  if (analysisCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = analysisCache.keys().next().value;
+    if (firstKey !== undefined) analysisCache.delete(firstKey);
+  }
+  analysisCache.set(key, value);
+}
 
 interface CommandAnalysisProps {
   command: string;
@@ -52,7 +61,7 @@ export function CommandAnalysis({ command, "data-testid": testId }: CommandAnaly
 
     invoke<CommandAnalysisResult>("analyze_command", { command })
       .then((result) => {
-        analysisCache.set(command, result);
+        cacheSet(command, result);
         setAnalysis(result);
         setError(null);
       })

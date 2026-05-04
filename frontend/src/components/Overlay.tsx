@@ -10,18 +10,14 @@ import { SessionDetail } from "./SessionDetail";
 import { SessionList } from "./SessionList";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { useSessionsStore } from "../store/sessions";
+import { useConfigStore } from "../store/config";
 import type { ApprovalRequest, Session } from "../store/sessions";
 import "./Overlay.css";
 
 type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored";
 
-const BAR_HEIGHT = 52;
-const EXPANDED_MIN = 400;
-const EXPANDED_MAX = 720;
-const APPROVAL_FOCUS_HEIGHT = 720;
-
-function clampOverlayHeight(value: number) {
-  return Math.min(EXPANDED_MAX, Math.max(EXPANDED_MIN, Math.ceil(value)));
+function clampOverlayHeight(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, Math.ceil(value)));
 }
 
 function ApprovalFocusContent({
@@ -61,6 +57,13 @@ function ApprovalFocusContent({
 
 export function Overlay() {
   const { sessions, activeSessionId, setActiveSession, approvalRequest, clearApprovalRequest } = useSessionsStore();
+  const config = useConfigStore((s) => s.config);
+  const BAR_HEIGHT = config.ui.dimensions.barHeight;
+  const EXPANDED_MIN = config.overlay.expandedMinHeight;
+  const EXPANDED_MAX = config.overlay.expandedMaxHeight;
+  const APPROVAL_FOCUS_HEIGHT = config.overlay.expandedMaxHeight;
+  const EXPANDED_WIDTH = Math.max(config.overlay.expandedWidth, 600);
+  const EXPANDED_BORDER_RADIUS = config.overlay.expandedBorderRadius;
   const active = sessions.find((s) => s.id === activeSessionId);
   const approvalStateSession = sessions.find((s) => s.state === "approval") ?? null;
   const approvalSession = approvalRequest
@@ -79,7 +82,7 @@ export function Overlay() {
   const hadApprovalRequestRef = useRef(false);
   const handledApprovalStateFocusKeyRef = useRef<string | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const [measuredHeight, setMeasuredHeight] = useState(EXPANDED_MAX);
+  const [measuredHeight, setMeasuredHeight] = useState(EXPANDED_MAX as number);
 
   // Note: approval_request events are handled by useAgentEvents hook
   // which sets the approvalRequest in the store
@@ -108,18 +111,10 @@ export function Overlay() {
   // Keep the capsule clickable in compact mode. The smaller compact footprint
   // replaces the old click-through behavior.
   useEffect(() => {
-    invoke("set_window_interactive", { interactive: true }).catch((e) => {
-      console.error("Failed to set window interactive mode:", e);
-    });
+    invoke("set_window_interactive", { interactive: true }).catch(() => {});
   }, []);
 
   // Removed sessions clear detail view
-  useEffect(() => {
-    if (viewingSessionId && !sessions.find((s) => s.id === viewingSessionId)) {
-      setViewingSessionId(null);
-    }
-  }, [sessions, viewingSessionId]);
-
   useEffect(() => {
     if (viewingSessionId && !sessions.find((s) => s.id === viewingSessionId)) {
       setViewingSessionId(null);
@@ -137,10 +132,8 @@ export function Overlay() {
     if (session.pid) {
       setIsLoading(true);
       try {
-        const result = await invoke<FocusResult>("focus_session_window", { sessionPid: session.pid });
-        console.log("Focus result:", result, "for session:", session.label);
+        await invoke<FocusResult>("focus_session_window", { sessionPid: session.pid });
       } catch (e) {
-        console.error("Failed to focus session window:", e);
         setError(`Failed to focus window: ${e}`);
       } finally {
         setIsLoading(false);
@@ -171,9 +164,7 @@ export function Overlay() {
   // which Windows routes to the foreground/focus window — not the window under the cursor.
   useEffect(() => {
     if (isOverlayExpanded && isApprovalFocusMode) {
-      invoke("set_window_interactive", { interactive: true }).catch((e) => {
-        console.error("Failed to focus overlay for approval:", e);
-      });
+      invoke("set_window_interactive", { interactive: true }).catch(() => {});
     }
   }, [isOverlayExpanded, isApprovalFocusMode]);
 
@@ -182,14 +173,12 @@ export function Overlay() {
 
     const syncApprovalSize = () => {
       invoke("update_overlay_size", {
-        width: 600,
+        width: EXPANDED_WIDTH,
         height: APPROVAL_FOCUS_HEIGHT,
         webviewScaleFactor: Number.isFinite(window.devicePixelRatio) ? window.devicePixelRatio : 1,
-        borderRadius: 18,
+        borderRadius: EXPANDED_BORDER_RADIUS,
         anchorCenter: true,
-      }).catch((e) => {
-        console.error("Failed to sync approval focus size:", e);
-      });
+      }).catch(() => {});
     };
 
     syncApprovalSize();
@@ -217,8 +206,7 @@ export function Overlay() {
         if (!panelRef.current) return;
         const p = panelRef.current;
         const contentH = p.scrollHeight;
-        const next = clampOverlayHeight(BAR_HEIGHT + contentH);
-        console.log(`[measure] contentH=${contentH} BAR_HEIGHT=${BAR_HEIGHT} next=${next} sessions=${sessions.length}`);
+        const next = clampOverlayHeight(BAR_HEIGHT + contentH, EXPANDED_MIN, EXPANDED_MAX);
         setMeasuredHeight((h) => (Math.abs(h - next) < 1 ? h : next));
       });
     };
