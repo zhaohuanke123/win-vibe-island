@@ -625,3 +625,12 @@
 .approval-panel__btn--modify:hover:not(:disabled) {
   background: rgba(59, 130, 246, 1);
 }
+
+/* Stretch approval panel to fill 720px in overlay approval-focus mode */
+.overlay__approval-focus > .approval-panel {
+  flex: 1 1 auto;
+}
+
+.overlay__approval-focus > .approval-panel .approval-panel__body {
+  flex: 1 1 auto;
+}
