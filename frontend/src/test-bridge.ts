@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionsStore } from "./store/sessions";
-import type { Session, ApprovalRequest, HookServerStatus, AgentState, ApprovalType } from "./store/sessions";
+import type { Session, ApprovalRequest, HookServerStatus, AgentState, ApprovalType, DiffData, Question } from "./store/sessions";
 
 export interface VibeTestBridge {
   invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
@@ -75,6 +75,9 @@ function simulateEvent(event: string, payload: Record<string, unknown>) {
         toolName: payload.tool_name as string,
         action: payload.action as string,
         riskLevel: payload.risk_level as "low" | "medium" | "high",
+        diff: payload.diff as DiffData | undefined,
+        questions: payload.questions as Question[] | undefined,
+        planContent: payload.plan_content as string | undefined,
       });
       break;
     }

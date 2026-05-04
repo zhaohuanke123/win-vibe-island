@@ -3,10 +3,10 @@ import type { Page } from "@playwright/test";
 export class VibeTestClient {
   constructor(private page: Page) {}
 
-  async invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  private simulate(event: string, payload: Record<string, unknown>) {
     return this.page.evaluate(
-      ({ cmd, args }) => window.__VIBE_TEST_BRIDGE__!.invoke(cmd, args) as Promise<T>,
-      { cmd, args: args ?? {} },
+      ({ event, payload }) => window.__VIBE_TEST_BRIDGE__!.simulateEvent(event, payload),
+      { event, payload },
     );
   }
 
@@ -23,7 +23,7 @@ export class VibeTestClient {
   }
 
   async simulateSessionStart(sessionId: string, label: string, cwd?: string) {
-    return this.invoke("simulate_session_start", {
+    return this.simulate("session_start", {
       session_id: sessionId,
       label,
       cwd: cwd ?? null,
@@ -39,7 +39,7 @@ export class VibeTestClient {
     riskLevel?: string;
     approvalType?: string;
   }) {
-    return this.invoke("simulate_permission_request", {
+    return this.simulate("permission_request", {
       session_id: options.sessionId,
       tool_use_id: options.toolUseId,
       tool_name: options.toolName,
@@ -50,27 +50,52 @@ export class VibeTestClient {
     });
   }
 
+  async simulatePlanRequest(options: {
+    sessionId: string;
+    toolUseId: string;
+    planContent: string;
+  }) {
+    return this.simulate("permission_request", {
+      session_id: options.sessionId,
+      tool_use_id: options.toolUseId,
+      tool_name: "ExitPlanMode",
+      action: "Review plan before proceeding",
+      risk_level: "medium",
+      approval_type: "plan",
+      plan_content: options.planContent,
+    });
+  }
+
+  async simulateQuestionRequest(options: {
+    sessionId: string;
+    toolUseId: string;
+    questions: Array<{
+      question: string;
+      header: string;
+      options: Array<{ label: string; description?: string }>;
+      multiSelect?: boolean;
+    }>;
+  }) {
+    return this.simulate("permission_request", {
+      session_id: options.sessionId,
+      tool_use_id: options.toolUseId,
+      tool_name: "AskUserQuestion",
+      action: "User input required",
+      risk_level: "low",
+      approval_type: "question",
+      questions: options.questions,
+    });
+  }
+
   async simulateStateChange(sessionId: string, state: string) {
-    return this.invoke("simulate_state_change", { session_id: sessionId, state });
+    return this.simulate("state_change", { session_id: sessionId, state });
   }
 
   async simulateSessionEnd(sessionId: string) {
-    return this.invoke("simulate_session_end", { session_id: sessionId });
+    return this.simulate("session_end", { session_id: sessionId });
   }
 
   async resetAll() {
-    return this.page.evaluate(() => window.__VIBE_TEST_BRIDGE__!.resetAll());
-  }
-
-  async getWindowGeometry() {
-    return this.invoke<{
-      width: number;
-      height: number;
-      x: number;
-      y: number;
-      scaleFactor: number;
-      isVisible: boolean;
-      isFocused: boolean;
-    }>("get_window_geometry");
+    return this.simulate("test_reset", {});
   }
 }

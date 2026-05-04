@@ -10,7 +10,7 @@ import { SessionDetail } from "./SessionDetail";
 import { SessionList } from "./SessionList";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { useSessionsStore } from "../store/sessions";
-import type { Session } from "../store/sessions";
+import type { ApprovalRequest, Session } from "../store/sessions";
 import "./Overlay.css";
 
 type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored";
@@ -20,11 +20,56 @@ const EXPANDED_MIN = 400;
 const EXPANDED_MAX = 720;
 const APPROVAL_FOCUS_HEIGHT = 720;
 
+function clampOverlayHeight(value: number) {
+  return Math.min(EXPANDED_MAX, Math.max(EXPANDED_MIN, Math.ceil(value)));
+}
+
+function ApprovalFocusContent({
+  approvalRequest,
+  approvalSession,
+  sessionsCount,
+  onApprovalHandled,
+}: {
+  approvalRequest: ApprovalRequest;
+  approvalSession: Session | null;
+  sessionsCount: number;
+  onApprovalHandled: () => void;
+}) {
+  return (
+    <div className="overlay__approval-focus" data-testid="approval-focus">
+      <div className="overlay__approval-context" data-testid="approval-context">
+        <div className="overlay__approval-context-main">
+          <span className="overlay__approval-context-label" title={approvalRequest.sessionLabel}>
+            {approvalRequest.sessionLabel}
+          </span>
+          {approvalSession && (
+            <span className="overlay__approval-context-state">{approvalSession.state}</span>
+          )}
+        </div>
+        <span className="overlay__approval-context-count">
+          {sessionsCount} session{sessionsCount === 1 ? "" : "s"}
+        </span>
+      </div>
+      <ApprovalPanel
+        key={approvalRequest.timestamp}
+        request={approvalRequest}
+        onApprovalHandled={onApprovalHandled}
+      />
+    </div>
+  );
+}
+
 export function Overlay() {
   const { sessions, activeSessionId, setActiveSession, approvalRequest, clearApprovalRequest } = useSessionsStore();
   const active = sessions.find((s) => s.id === activeSessionId);
-  const approvalSession = approvalRequest ? sessions.find((s) => s.id === approvalRequest.sessionId) ?? null : null;
+  const approvalStateSession = sessions.find((s) => s.state === "approval") ?? null;
+  const approvalSession = approvalRequest
+    ? sessions.find((s) => s.id === approvalRequest.sessionId) ?? null
+    : approvalStateSession;
+  const approvalStateFocusKey = approvalStateSession ? `session:${approvalStateSession.id}` : null;
+  const approvalFocusKey = approvalRequest ? `request:${approvalRequest.toolUseId}` : approvalStateFocusKey;
   const [expanded, setExpanded] = useState(false);
+  const [collapsedApprovalFocusKey, setCollapsedApprovalFocusKey] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
   const [viewingSessionId, setViewingSessionId] = useState<string | null>(null);
@@ -32,6 +77,7 @@ export function Overlay() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hadApprovalRequestRef = useRef(false);
+  const handledApprovalStateFocusKeyRef = useRef<string | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [measuredHeight, setMeasuredHeight] = useState(EXPANDED_MAX);
 
@@ -40,17 +86,24 @@ export function Overlay() {
 
   // Auto-expand when approval request comes in
   useEffect(() => {
-    if (approvalRequest) {
+    if (approvalFocusKey) {
+      if (approvalFocusKey === handledApprovalStateFocusKeyRef.current) {
+        return;
+      }
+
       hadApprovalRequestRef.current = true;
+      setCollapsedApprovalFocusKey(null);
       const frame = window.requestAnimationFrame(() => setExpanded(true));
       return () => window.cancelAnimationFrame(frame);
     }
 
+    handledApprovalStateFocusKeyRef.current = null;
+    setCollapsedApprovalFocusKey(null);
     if (hadApprovalRequestRef.current) {
       hadApprovalRequestRef.current = false;
       setExpanded(false);
     }
-  }, [approvalRequest]);
+  }, [approvalFocusKey, approvalRequest]);
 
   // Keep the capsule clickable in compact mode. The smaller compact footprint
   // replaces the old click-through behavior.
@@ -101,11 +154,34 @@ export function Overlay() {
     }
   }, [sessions, activeSessionId, setActiveSession]);
 
-  // Measure panel content height when expanded.
-  // Uses ResizeObserver to wait for width animation to complete before measuring,
-  // since width (236→600) and height animate simultaneously in Tauri.
+  const clearError = useCallback(() => { setError(null); }, []);
+
+  const isApprovalFocusMode = Boolean(approvalFocusKey);
+  const isApprovalManuallyCollapsed = approvalFocusKey !== null && collapsedApprovalFocusKey === approvalFocusKey;
+  const isOverlayExpanded = (expanded || isApprovalFocusMode) && !isApprovalManuallyCollapsed;
+  const shouldUseAdaptiveHeight = !isApprovalFocusMode && !showSettings && !showActivity;
+  const overlayExpandedHeight = isApprovalFocusMode
+    ? APPROVAL_FOCUS_HEIGHT
+    : shouldUseAdaptiveHeight
+      ? measuredHeight
+      : EXPANDED_MAX;
+
+  // Bring overlay to foreground when it expands for approval focus mode.
+  // This is needed so the overlay window receives WM_MOUSEWHEEL events,
+  // which Windows routes to the foreground/focus window — not the window under the cursor.
   useEffect(() => {
-    if (!expanded || !panelRef.current) return;
+    if (isOverlayExpanded && isApprovalFocusMode) {
+      invoke("set_window_interactive", { interactive: true }).catch((e) => {
+        console.error("Failed to focus overlay for approval:", e);
+      });
+    }
+  }, [isOverlayExpanded, isApprovalFocusMode]);
+
+  // Non-approval panels use ResizeObserver-based adaptive height. Approval,
+  // question, and plan focus mode stays fixed at 600x720 in Tauri to avoid
+  // WebView/native resize mismatches that can hide action buttons.
+  useEffect(() => {
+    if (!isOverlayExpanded || isApprovalFocusMode || !panelRef.current) return;
 
     const panel = panelRef.current;
     let raf = 0;
@@ -115,18 +191,14 @@ export function Overlay() {
       raf = requestAnimationFrame(() => {
         if (!panelRef.current) return;
         const p = panelRef.current;
-        const prev = p.style.height;
-        p.style.height = "auto";
         const contentH = p.scrollHeight;
-        p.style.height = prev;
-        const next = Math.min(EXPANDED_MAX, Math.max(EXPANDED_MIN, BAR_HEIGHT + contentH));
+        const next = clampOverlayHeight(BAR_HEIGHT + contentH);
         console.log(`[measure] contentH=${contentH} BAR_HEIGHT=${BAR_HEIGHT} next=${next} sessions=${sessions.length}`);
         setMeasuredHeight((h) => (Math.abs(h - next) < 1 ? h : next));
       });
     };
 
     measure();
-
     const observer = new ResizeObserver(() => measure());
     observer.observe(panel);
 
@@ -134,32 +206,39 @@ export function Overlay() {
       cancelAnimationFrame(raf);
       observer.disconnect();
     };
-  }, [expanded, approvalRequest, showSettings, showActivity, sessions.length, viewingSessionId]);
+  }, [isOverlayExpanded, isApprovalFocusMode, approvalRequest, showSettings, showActivity, sessions.length, viewingSessionId]);
 
   const handleApprovalHandled = () => {
+    handledApprovalStateFocusKeyRef.current = approvalRequest ? `session:${approvalRequest.sessionId}` : approvalStateFocusKey;
+    setCollapsedApprovalFocusKey(handledApprovalStateFocusKeyRef.current);
     clearApprovalRequest();
     setExpanded(false);
   };
 
-  const clearError = useCallback(() => { setError(null); }, []);
+  const handleBarClick = () => {
+    if (approvalFocusKey) {
+      if (isOverlayExpanded) {
+        setCollapsedApprovalFocusKey(approvalFocusKey);
+        setExpanded(false);
+      } else {
+        setCollapsedApprovalFocusKey(null);
+        setExpanded(true);
+      }
+      return;
+    }
 
-  const isApprovalMode = Boolean(approvalRequest);
-  const shouldUseAdaptiveHeight = !isApprovalMode && !showSettings && !showActivity;
-  const overlayExpandedHeight = isApprovalMode
-    ? APPROVAL_FOCUS_HEIGHT
-    : shouldUseAdaptiveHeight
-      ? measuredHeight
-      : EXPANDED_MAX;
+    setExpanded((value) => !value);
+  };
 
   return (
     <AnimatedOverlay
-      className={`overlay ${expanded ? "overlay--expanded" : "overlay--compact"}${isApprovalMode ? " overlay--approval-mode" : ""}`}
+      className={`overlay ${isOverlayExpanded ? "overlay--expanded" : "overlay--compact"}${isApprovalFocusMode ? " overlay--approval-mode" : ""}`}
       data-testid="overlay"
-      isExpanded={expanded}
-      expandedHeight={expanded ? overlayExpandedHeight : undefined}
+      isExpanded={isOverlayExpanded}
+      expandedHeight={isOverlayExpanded ? overlayExpandedHeight : undefined}
     >
       <div className="overlay__shell">
-        <div className="overlay__bar" data-testid="status-bar" onClick={() => setExpanded(!expanded)}>
+        <div className="overlay__bar" data-testid="status-bar" onClick={handleBarClick}>
           {isLoading && <span className="overlay__spinner" />}
           {active ? (
             <>
@@ -174,7 +253,7 @@ export function Overlay() {
         </div>
 
         <AnimatePresence initial={false}>
-          {expanded && (
+          {isOverlayExpanded && (
             <motion.div
               className="overlay__panel"
               ref={panelRef}
@@ -189,23 +268,13 @@ export function Overlay() {
                   <span>{error}</span>
                 </div>
               )}
-              {isApprovalMode && approvalRequest ? (
-                <div className="overlay__approval-focus" data-testid="approval-focus">
-                  <div className="overlay__approval-context" data-testid="approval-context">
-                    <div className="overlay__approval-context-main">
-                      <span className="overlay__approval-context-label" title={approvalRequest.sessionLabel}>
-                        {approvalRequest.sessionLabel}
-                      </span>
-                      {approvalSession && (
-                        <span className="overlay__approval-context-state">{approvalSession.state}</span>
-                      )}
-                    </div>
-                    <span className="overlay__approval-context-count">
-                      {sessions.length} session{sessions.length === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                  <ApprovalPanel key={approvalRequest.timestamp} request={approvalRequest} onApprovalHandled={handleApprovalHandled} />
-                </div>
+              {isApprovalFocusMode && approvalRequest ? (
+                <ApprovalFocusContent
+                  approvalRequest={approvalRequest}
+                  approvalSession={approvalSession}
+                  sessionsCount={sessions.length}
+                  onApprovalHandled={handleApprovalHandled}
+                />
               ) : showSettings ? (
                 <SettingsPanel />
               ) : showActivity ? (
@@ -228,7 +297,7 @@ export function Overlay() {
                   )}
                 </>
               )}
-              {!isApprovalMode && (
+              {!isApprovalFocusMode && (
                 <div className="overlay__panel-footer">
                   <button
                     className="overlay__settings-btn"

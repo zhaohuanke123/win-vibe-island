@@ -5,7 +5,7 @@ test.describe("Overlay", () => {
   let client: VibeTestClient;
 
   test.beforeEach(async ({ page }) => {
-    await page.goto("http://localhost:1420");
+    await page.goto("http://localhost:5187");
     client = new VibeTestClient(page);
     await client.resetAll();
   });

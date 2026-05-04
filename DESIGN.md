@@ -8,7 +8,7 @@
 
 | 功能 | 状态 | 当前实现 |
 |------|------|----------|
-| Tauri Overlay 主窗口 | 已完成 | `tauri.conf.json` 中主窗口 420x60、透明、无边框、置顶；审批/问答专注模式展开为 600x720 |
+| Tauri Overlay 主窗口 | 已完成 | `tauri.conf.json` 中主窗口 420x60、透明、无边框、置顶；审批/问答/计划专注模式固定 600x720 |
 | Win32 Overlay API | 已完成 | `overlay.rs` 支持原生 HWND 创建、点击穿透、DPI scale、SetWindowPos |
 | 系统托盘 | 已完成 | `lib.rs` 创建 Show/Hide、Hook 模式、Install/Remove Hooks、Quit 菜单 |
 | HTTP Hook Server | 已完成 | `hook_server.rs` 使用 axum 监听 `127.0.0.1:7878` |
@@ -42,7 +42,7 @@
    - 执行 `hook_config::auto_configure_hooks()`；
    - 创建系统托盘菜单。
 4. `App.tsx` 只渲染 `Overlay`，并调用 `useAgentEvents()` 注册 Tauri event listeners。
-5. `Overlay.tsx` 初始化窗口为紧凑胶囊，普通展开自适应内容高度；审批/问答请求出现时进入 600x720 专注模式。
+5. `Overlay.tsx` 初始化窗口为紧凑胶囊，普通展开自适应内容高度；审批/问答/计划请求出现时进入固定 600x720 专注模式。
 
 ---
 
@@ -215,7 +215,7 @@ Zustand store 管理：
 - expanded height: 普通内容自适应，最大 `720`
 - width: `600`
 - 点击顶部 bar 展开/收起；
-- approval request 到达时自动展开为 600x720 专注模式；
+- approval request 到达时自动展开为固定 `600x720` 专注模式，正文区域滚动；
 - approval/question/plan 内容优先于 session 列表，正文只保留一个主滚动区域，外层 Overlay 不显示额外滚动条；
 - session 有 PID 时点击尝试聚焦窗口；
 - 顶部右侧显示 `HookStatus`。

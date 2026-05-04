@@ -1,7 +1,8 @@
 .approval-panel {
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 1 0;
   flex-direction: column;
+  height: auto;
   min-height: 0;
   margin-top: 10px;
   padding: 14px;
@@ -100,11 +101,13 @@
 
 .approval-panel__body {
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 1 0;
   flex-direction: column;
   min-height: 0;
+  max-height: none;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
   padding-right: 4px;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
@@ -125,6 +128,10 @@
 
 .approval-panel__body::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.28);
+}
+
+.approval-panel__body > * {
+  flex-shrink: 0;
 }
 
 .approval-panel__session {
@@ -161,8 +168,7 @@
   padding: 10px;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 4px;
-  overflow-y: visible;
-  overflow-x: hidden;
+  overflow: visible;
   word-break: break-word;
   min-width: 0;
   max-width: 100%;
@@ -509,14 +515,6 @@
   flex: 1;
 }
 
-/* Plan mode action buttons */
-.approval-panel__plan-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-}
-
 .approval-panel__btn--proceed {
   background: rgba(34, 197, 94, 0.9);
   color: white;
@@ -528,8 +526,7 @@
 
 /* Plan content markdown styles */
 .approval-panel__plan-content {
-  overflow-y: visible;
-  overflow-x: hidden;
+  overflow: visible;
   padding: 12px;
   background: rgba(168, 85, 247, 0.05);
   border-radius: 6px;

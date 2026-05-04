@@ -266,6 +266,8 @@ pub fn enable_dpi_awareness() -> Result<(), String> {
 
 /// Set whether the main Tauri window is interactive (receives mouse clicks) or click-through.
 /// When `interactive` is false, adds WS_EX_TRANSPARENT to allow clicks to pass through.
+/// When `interactive` is true, removes WS_EX_TRANSPARENT and brings the window to the foreground
+/// so it receives WM_MOUSEWHEEL and other input messages.
 #[tauri::command]
 pub fn set_window_interactive(window: WebviewWindow, interactive: bool) -> Result<(), String> {
     #[cfg(target_os = "windows")]
@@ -278,12 +280,34 @@ pub fn set_window_interactive(window: WebviewWindow, interactive: bool) -> Resul
 
         unsafe {
             let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+            let ws_ex_transparent_bit = WS_EX_TRANSPARENT.0 as isize;
+            let has_transparent = (ex_style & ws_ex_transparent_bit) != 0;
+            log::info!(
+                "[set_window_interactive] interactive={}, WS_EX_TRANSPARENT={} (ex_style=0x{:X})",
+                interactive,
+                has_transparent,
+                ex_style
+            );
+
             let new_style = if interactive {
-                ex_style & !(WS_EX_TRANSPARENT.0 as isize)
+                ex_style & !ws_ex_transparent_bit
             } else {
-                ex_style | (WS_EX_TRANSPARENT.0 as isize)
+                ex_style | ws_ex_transparent_bit
             };
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_style);
+
+            let verify_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+            let verify_transparent = (verify_style & ws_ex_transparent_bit) != 0;
+            log::info!(
+                "[set_window_interactive] after: WS_EX_TRANSPARENT={} (ex_style=0x{:X})",
+                verify_transparent,
+                verify_style
+            );
+
+            if interactive {
+                let _ = SetForegroundWindow(hwnd);
+                log::info!("[set_window_interactive] called SetForegroundWindow");
+            }
         }
         Ok(())
     }

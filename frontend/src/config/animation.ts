@@ -31,10 +31,10 @@ export const OVERLAY_DIMENSIONS = {
   },
   expanded: {
     get width() {
-      return useConfigStore.getState().config.overlay.expandedWidth;
+      return Math.max(useConfigStore.getState().config.overlay.expandedWidth, 600);
     },
     get height() {
-      return useConfigStore.getState().config.overlay.expandedMaxHeight;
+      return Math.max(useConfigStore.getState().config.overlay.expandedMaxHeight, 720);
     },
     get borderRadius() {
       return useConfigStore.getState().config.overlay.expandedBorderRadius;

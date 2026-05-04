@@ -15,6 +15,86 @@ and any relevant notes.
 
 ---
 
+## [2026-05-04] - Tauri Approval Focus Fixed Height Recovery
+
+### Documentation Gate:
+- User clarified browser automation is normal, but the Tauri Windows app still cannot scroll approval/question/plan focus panels and action buttons are hidden by insufficient height.
+- Recent local changes made approval focus height depend on hidden DOM measurement and adaptive resize, which does not reliably match the native WebView window size in Tauri.
+- Existing design intent is a single internal approval/question/plan scroll area with no outer page scrollbar; for Tauri reliability this is treated as an implementation bug in the adaptive approval focus height path.
+
+### Planned correction:
+- Restore approval/question/plan focus mode to fixed `600x720`.
+- Keep normal non-approval expanded panels on adaptive height.
+- Keep the top capsule able to temporarily collapse and reopen the pending approval without submitting a response.
+- Keep `.approval-panel__body` as the only scrolling viewport for long permission, question, and plan content.
+
+### What was done:
+- Removed the hidden approval measurement render path from `Overlay.tsx`.
+- Restored approval/question/plan focus height to `720` while preserving the 600px expanded width from config.
+- Tightened approval panel flex sizing so header/footer stay fixed and the body receives the constrained scroll area.
+- Updated `DESIGN.md` and `docs/animation-design.md` to describe fixed `600x720` focus mode instead of adaptive approval focus height.
+
+### Testing:
+- `frontend`: `npm run build` passed.
+- Tauri Windows app manual verification still required because the regression only reproduces in the native WebView window, not browser automation.
+
+---
+
+## [2026-05-03] - Approval Focus Scroll and Manual Collapse Follow-up
+
+### Documentation Gate:
+- User reported the latest approval UI cannot scroll and the top capsule cannot collapse the overlay when they do not want to approve immediately.
+- Existing `DESIGN.md` and `docs/animation-design.md` already define a single internal approval/question scroll area, no outer Overlay scrollbar, and a clickable compact capsule.
+- This is an implementation bug in the recent approval focus handling: approval focus currently forces expanded state while a request exists, and the approval body scrollbar was hidden.
+
+### Planned correction:
+- Keep approval/question/plan requests auto-expanding when they arrive.
+- Allow the top bar to temporarily collapse a pending approval into the compact capsule without submitting a response.
+- Let clicking the compact capsule reopen the same pending approval.
+- Restore a visible styled scrollbar on the approval panel body while keeping root/page scrollbars hidden.
+
+### What was done:
+- Added per-request approval focus collapse state in `Overlay.tsx`.
+- The top bar now collapses/reopens the current pending approval instead of being overridden by forced approval focus expansion.
+- Preserved auto-expansion for new approval/question/plan requests.
+- Restored the approval panel body as the single visible internal scroll area and constrained the panel to the available focus layout height.
+- Follow-up after user confirmed scrolling still does not move: route wheel events from the whole approval card into the body scroller and tighten the flex height constraints so the body has a real bounded viewport.
+- Follow-up after browser automation and user video showed scrollbar jitter: approval focus height measurement now uses a hidden 600px-wide measurement copy before expansion. New approval requests do not animate until the final height is known; normal non-approval panels keep ResizeObserver-based adaptive height.
+- `AnimatedOverlay` final size sync now reads the latest dimensions, preventing an older animation completion callback from resyncing stale height.
+- Follow-up after Tauri/WebView still could not scroll: split measurement and live flex behavior. The hidden measurement copy keeps natural content height, while the visible approval focus fills the computed overlay height and lets `.approval-panel__body` shrink into the only scroll viewport.
+
+### Testing:
+- `frontend`: `npm run build` passed.
+- `frontend`: `npm run test -- ApprovalPanel.test.tsx` passed.
+- Browser automation against `http://localhost:5187` passed:
+  - Short diff approval: overlay height `424`, footer visible, no measurement copy left mounted.
+  - Long approval: overlay height `720`, footer visible, body `scrollHeight 697 > clientHeight 485`.
+  - Wheel scroll changed body `scrollTop` from `0` to `212`.
+
+---
+
+## [2026-05-03] - Approval Focus Outer Scrollbar Follow-up
+
+### Documentation Gate:
+- User reported the latest approval focus layout still renders too short in practice, hiding sessions/approval content.
+- User clarified the visible white scrollbar looks like an outer Windows/WebView-native page scrollbar, not the intended internal content scroller.
+- User then confirmed logs still show `update_overlay_size: CSS(236x52)`, proving the frontend can still sync the compact geometry while an approval-focused render is expected.
+- User provided a later trace stabilizing at `CSS(420x190)`, proving the UI can still fall back to normal adaptive expanded mode instead of approval focus.
+- Existing `DESIGN.md` already requires approval/question focus mode to use 600x720 and avoid extra outer Overlay scrollbars, so this is an implementation bug.
+
+### Planned correction:
+- Lock `html`, `body`, and `#root` to the WebView viewport so the page itself cannot scroll.
+- Hide root-level native scrollbars.
+- Ensure final animated window size sync cannot be lost to backend resize throttling.
+- Treat any pending approval/question/plan request as expanded immediately so no compact `236x52` resize is emitted for approval mode.
+- Clamp expanded dimensions to at least 600x720 even if persisted config still contains old 420px values.
+- Treat a session in `approval` state as approval focus mode even before a full `permission_request` payload arrives.
+
+### Testing:
+- `frontend`: `.\\node_modules\\.bin\\vite build` passed.
+
+---
+
 ## [2026-05-03] - Approval/Question Focus Layout Fix
 
 ### Documentation Gate:

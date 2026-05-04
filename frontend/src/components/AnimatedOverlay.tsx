@@ -30,12 +30,14 @@ export function AnimatedOverlay({ isExpanded, expandedHeight, className, childre
   const lastSyncRef = useRef(0);
   const hasInitializedRef = useRef(false);
   const prevExpandedRef = useRef(false);
+  const finalSyncTimerRef = useRef<number | null>(null);
 
   const expandedDim = {
     ...OVERLAY_DIMENSIONS.expanded,
     height: expandedHeight ?? OVERLAY_DIMENSIONS.expanded.height,
   };
   const dimensions = isExpanded ? expandedDim : OVERLAY_DIMENSIONS.compact;
+  const latestDimensionsRef = useRef(dimensions);
 
   const wasExpanded = prevExpandedRef.current;
   const transition: Transition = !isExpanded
@@ -45,8 +47,13 @@ export function AnimatedOverlay({ isExpanded, expandedHeight, className, childre
       : { duration: 0.15, ease: "easeOut" };
 
   useEffect(() => { prevExpandedRef.current = isExpanded; }, [isExpanded]);
+  useEffect(() => {
+    latestDimensionsRef.current = dimensions;
+  }, [dimensions.width, dimensions.height, dimensions.borderRadius]);
 
   const syncWindowSize = (width: number, height: number, borderRadius: number) => {
+    if (!window.__TAURI_INTERNALS__) return;
+
     invoke("update_overlay_size", {
       width: Math.round(width),
       height: Math.round(height),
@@ -64,6 +71,29 @@ export function AnimatedOverlay({ isExpanded, expandedHeight, className, childre
       OVERLAY_DIMENSIONS.compact.borderRadius,
     );
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (finalSyncTimerRef.current !== null) {
+        window.clearTimeout(finalSyncTimerRef.current);
+      }
+    };
+  }, []);
+
+  const syncFinalWindowSize = () => {
+    const finalDimensions = latestDimensionsRef.current;
+    syncWindowSize(finalDimensions.width, finalDimensions.height, finalDimensions.borderRadius);
+
+    if (finalSyncTimerRef.current !== null) {
+      window.clearTimeout(finalSyncTimerRef.current);
+    }
+
+    finalSyncTimerRef.current = window.setTimeout(() => {
+      const latestDimensions = latestDimensionsRef.current;
+      syncWindowSize(latestDimensions.width, latestDimensions.height, latestDimensions.borderRadius);
+      finalSyncTimerRef.current = null;
+    }, SIZE_SYNC_THROTTLE_MS + 8);
+  };
 
   return (
     <motion.div
@@ -97,7 +127,7 @@ export function AnimatedOverlay({ isExpanded, expandedHeight, className, childre
       }}
       onAnimationComplete={() => {
         console.log(`[AnimatedOverlay] onAnimationComplete: ${dimensions.width}x${dimensions.height} expanded=${isExpanded}`);
-        syncWindowSize(dimensions.width, dimensions.height, dimensions.borderRadius);
+        syncFinalWindowSize();
       }}
     >
       {children}

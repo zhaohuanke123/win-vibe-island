@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type WheelEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { DiffViewer } from "./DiffViewer";
 import type { ApprovalRequest, Question, QuestionOption } from "../store/sessions";
@@ -9,9 +9,23 @@ import "./ApprovalPanel.css";
 interface ApprovalPanelProps {
   request: ApprovalRequest | null;
   onApprovalHandled: () => void;
+  measurement?: boolean;
 }
 
 type ApprovalStatus = "pending" | "approving" | "rejecting" | "approved" | "rejected";
+
+function handlePanelWheel(event: WheelEvent<HTMLDivElement>) {
+  const scrollBody = event.currentTarget.querySelector<HTMLElement>(".approval-panel__body");
+  if (!scrollBody || scrollBody.scrollHeight <= scrollBody.clientHeight) return;
+
+  const previousScrollTop = scrollBody.scrollTop;
+  scrollBody.scrollTop += event.deltaY;
+
+  if (scrollBody.scrollTop !== previousScrollTop) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+}
 
 // Plan step parsed from description
 interface PlanStep {
@@ -36,7 +50,7 @@ function parsePlanSteps(description: string): PlanStep[] {
 }
 
 // Question Panel for AskUserQuestion tool
-function QuestionPanel({ request, onHandled }: { request: ApprovalRequest; onHandled: () => void }) {
+function QuestionPanel({ request, onHandled, measurement = false }: { request: ApprovalRequest; onHandled: () => void; measurement?: boolean }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<"pending" | "submitting" | "done">("pending");
@@ -115,10 +129,15 @@ function QuestionPanel({ request, onHandled }: { request: ApprovalRequest; onHan
     q.header === "Plan" || q.header === "PLAN" || q.header === "plan"
   );
 
+  // Derive footer actions from the first question that contains options
+  const footerQuestion = isPlanMode
+    ? request.questions.find(q => q.options && q.options.length > 0) ?? null
+    : null;
+
   // Render Plan mode with special UI
   if (isPlanMode) {
     return (
-      <div className="approval-panel approval-panel--plan" data-testid="approval-panel">
+      <div className="approval-panel approval-panel--plan" data-testid="approval-panel" onWheelCapture={handlePanelWheel}>
         <div className="approval-panel__header">
           <span className="approval-panel__icon">📋</span>
           <span className="approval-panel__title">Plan</span>
@@ -130,7 +149,6 @@ function QuestionPanel({ request, onHandled }: { request: ApprovalRequest; onHan
           </div>
 
           {request.questions.map((q: Question, qIndex: number) => {
-            // Find the option with plan steps (usually "Approve Plan")
             const planOption = q.options.find(opt =>
               opt.label.toLowerCase().includes("approve") ||
               opt.label.toLowerCase().includes("proceed")
@@ -153,56 +171,59 @@ function QuestionPanel({ request, onHandled }: { request: ApprovalRequest; onHan
                     ))}
                   </div>
                 )}
-
-                <div className="approval-panel__plan-actions">
-                  {q.options.map((opt: QuestionOption, optIndex: number) => {
-                    // Determine button style based on label
-                    let btnClass = "approval-panel__btn approval-panel__btn--skip";
-                    if (opt.label.toLowerCase().includes("approve") || opt.label.toLowerCase().includes("proceed")) {
-                      btnClass = "approval-panel__btn approval-panel__btn--proceed";
-                    } else if (opt.label.toLowerCase().includes("modify")) {
-                      btnClass = "approval-panel__btn approval-panel__btn--modify";
-                    }
-
-                    return (
-                      <button
-                        key={optIndex}
-                        className={btnClass}
-                        onClick={() => {
-                          setAnswers({ [q.question]: opt.label });
-                          // Auto-submit for plan actions
-                          invoke("submit_approval_response", {
-                            toolUseId: request.toolUseId,
-                            approved: opt.label.toLowerCase().includes("approve") ||
-                                      opt.label.toLowerCase().includes("proceed"),
-                            answers: { [q.question]: opt.label },
-                          }).then(() => onHandled()).catch((error) => {
-                            console.error("[PlanPanel] Failed to submit:", error);
-                            onHandled();
-                          });
-                        }}
-                        disabled={status !== "pending"}
-                      >
-                        {status === "submitting" ? (
-                          <span className="approval-panel__spinner" />
-                        ) : (
-                          opt.label
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
               </div>
             );
           })}
         </div>
+
+        {footerQuestion && (
+          <div className="approval-panel__footer">
+            <div className="approval-panel__buttons">
+              {footerQuestion.options.map((opt: QuestionOption, optIndex: number) => {
+                let btnClass = "approval-panel__btn approval-panel__btn--skip";
+                if (opt.label.toLowerCase().includes("approve") || opt.label.toLowerCase().includes("proceed")) {
+                  btnClass = "approval-panel__btn approval-panel__btn--proceed";
+                } else if (opt.label.toLowerCase().includes("modify")) {
+                  btnClass = "approval-panel__btn approval-panel__btn--modify";
+                }
+
+                return (
+                  <button
+                    key={optIndex}
+                    className={btnClass}
+                    onClick={() => {
+                      if (measurement) return;
+                      setAnswers({ [footerQuestion.question]: opt.label });
+                      invoke("submit_approval_response", {
+                        toolUseId: request.toolUseId,
+                        approved: opt.label.toLowerCase().includes("approve") ||
+                                  opt.label.toLowerCase().includes("proceed"),
+                        answers: { [footerQuestion.question]: opt.label },
+                      }).then(() => onHandled()).catch((error) => {
+                        console.error("[PlanPanel] Failed to submit:", error);
+                        onHandled();
+                      });
+                    }}
+                    disabled={measurement || status !== "pending"}
+                  >
+                    {status === "submitting" ? (
+                      <span className="approval-panel__spinner" />
+                    ) : (
+                      opt.label
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   // Regular question mode
   return (
-    <div className="approval-panel approval-panel--question" data-testid="approval-panel">
+    <div className="approval-panel approval-panel--question" data-testid="approval-panel" onWheelCapture={handlePanelWheel}>
       <div className="approval-panel__header">
         <span className="approval-panel__icon">?</span>
         <span className="approval-panel__title">Question</span>
@@ -228,8 +249,10 @@ function QuestionPanel({ request, onHandled }: { request: ApprovalRequest; onHan
                     className={`approval-panel__option ${
                       answers[q.question] === opt.label ? "approval-panel__option--selected" : ""
                     }`}
-                    onClick={() => handleOptionSelect(q.question, opt.label)}
-                    disabled={status !== "pending"}
+                    onClick={() => {
+                      if (!measurement) handleOptionSelect(q.question, opt.label);
+                    }}
+                    disabled={measurement || status !== "pending"}
                   >
                     <span className="approval-panel__option-label">{opt.label}</span>
                     {opt.description && (
@@ -245,7 +268,7 @@ function QuestionPanel({ request, onHandled }: { request: ApprovalRequest; onHan
                     placeholder="Or type your own answer..."
                     value={customInputs[q.question] || ""}
                     onChange={(e) => handleCustomInputChange(q.question, e.target.value)}
-                    disabled={status !== "pending"}
+                    disabled={measurement || status !== "pending"}
                     className="approval-panel__text-input"
                   />
                 </div>
@@ -260,7 +283,7 @@ function QuestionPanel({ request, onHandled }: { request: ApprovalRequest; onHan
           <button
             className="approval-panel__btn approval-panel__btn--skip"
             onClick={handleSkip}
-            disabled={status !== "pending"}
+            disabled={measurement || status !== "pending"}
           >
             {status === "submitting" ? (
               <span className="approval-panel__spinner" />
@@ -271,7 +294,7 @@ function QuestionPanel({ request, onHandled }: { request: ApprovalRequest; onHan
           <button
             className="approval-panel__btn approval-panel__btn--submit"
             onClick={handleSubmit}
-            disabled={status !== "pending" || !allAnswered}
+            disabled={measurement || status !== "pending" || !allAnswered}
           >
             {status === "submitting" ? (
               <span className="approval-panel__spinner" />
@@ -286,7 +309,7 @@ function QuestionPanel({ request, onHandled }: { request: ApprovalRequest; onHan
 }
 
 // Permission Panel for regular tool approvals
-function PermissionPanel({ request, onHandled }: { request: ApprovalRequest; onHandled: () => void }) {
+function PermissionPanel({ request, onHandled, measurement = false }: { request: ApprovalRequest; onHandled: () => void; measurement?: boolean }) {
   const [status, setStatus] = useState<ApprovalStatus>("pending");
 
   const handleApprove = useCallback(async () => {
@@ -328,7 +351,7 @@ function PermissionPanel({ request, onHandled }: { request: ApprovalRequest; onH
 
   // Keyboard shortcuts: Enter to approve, Escape to reject
   useEffect(() => {
-    if (!request || status !== "pending") return;
+    if (measurement || !request || status !== "pending") return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Enter") {
@@ -361,7 +384,7 @@ function PermissionPanel({ request, onHandled }: { request: ApprovalRequest; onH
   const isComplete = status === "approved" || status === "rejected";
 
   return (
-    <div className={`approval-panel ${isComplete ? `approval-panel--${status}` : ""}`} data-testid="approval-panel">
+    <div className={`approval-panel ${isComplete ? `approval-panel--${status}` : ""}`} data-testid="approval-panel" onWheelCapture={handlePanelWheel}>
       <div className="approval-panel__header">
         <span className="approval-panel__icon">!</span>
         <span className="approval-panel__title">Approval Required</span>
@@ -397,8 +420,8 @@ function PermissionPanel({ request, onHandled }: { request: ApprovalRequest; onH
           <button
             className="approval-panel__btn approval-panel__btn--reject"
             data-testid="reject-btn"
-            onClick={handleReject}
-            disabled={isLoading || isComplete}
+            onClick={measurement ? undefined : handleReject}
+            disabled={measurement || isLoading || isComplete}
           >
             {status === "rejecting" ? (
               <span className="approval-panel__spinner" />
@@ -410,8 +433,8 @@ function PermissionPanel({ request, onHandled }: { request: ApprovalRequest; onH
           <button
             className="approval-panel__btn approval-panel__btn--approve"
             data-testid="approve-btn"
-            onClick={handleApprove}
-            disabled={isLoading || isComplete}
+            onClick={measurement ? undefined : handleApprove}
+            disabled={measurement || isLoading || isComplete}
           >
             {status === "approving" ? (
               <span className="approval-panel__spinner" />
@@ -430,7 +453,7 @@ function PermissionPanel({ request, onHandled }: { request: ApprovalRequest; onH
   );
 }
 
-export function ApprovalPanel({ request, onApprovalHandled }: ApprovalPanelProps) {
+export function ApprovalPanel({ request, onApprovalHandled, measurement = false }: ApprovalPanelProps) {
   if (!request) {
     return null;
   }
@@ -438,17 +461,17 @@ export function ApprovalPanel({ request, onApprovalHandled }: ApprovalPanelProps
   // Route to different panels based on approval type
   switch (request.approvalType) {
     case APPROVAL_TYPES.PLAN:
-      return <PlanPanel request={request} onHandled={onApprovalHandled} />;
+      return <PlanPanel request={request} onHandled={onApprovalHandled} measurement={measurement} />;
     case APPROVAL_TYPES.QUESTION:
-      return <QuestionPanel request={request} onHandled={onApprovalHandled} />;
+      return <QuestionPanel request={request} onHandled={onApprovalHandled} measurement={measurement} />;
     case APPROVAL_TYPES.PERMISSION:
     default:
-      return <PermissionPanel request={request} onHandled={onApprovalHandled} />;
+      return <PermissionPanel request={request} onHandled={onApprovalHandled} measurement={measurement} />;
   }
 }
 
 // Plan Panel for ExitPlanMode tool - displays the actual plan content
-function PlanPanel({ request, onHandled }: { request: ApprovalRequest; onHandled: () => void }) {
+function PlanPanel({ request, onHandled, measurement = false }: { request: ApprovalRequest; onHandled: () => void; measurement?: boolean }) {
   const [status, setStatus] = useState<"pending" | "submitting" | "done">("pending");
 
   const handleProceed = async () => {
@@ -498,7 +521,7 @@ function PlanPanel({ request, onHandled }: { request: ApprovalRequest; onHandled
   };
 
   return (
-    <div className="approval-panel approval-panel--plan" data-testid="approval-panel">
+    <div className="approval-panel approval-panel--plan" data-testid="approval-panel" onWheelCapture={handlePanelWheel}>
       <div className="approval-panel__header">
         <span className="approval-panel__icon">📋</span>
         <span className="approval-panel__title">Plan</span>
@@ -516,8 +539,8 @@ function PlanPanel({ request, onHandled }: { request: ApprovalRequest; onHandled
         <div className="approval-panel__buttons">
           <button
             className="approval-panel__btn approval-panel__btn--skip"
-            onClick={handleCancel}
-            disabled={status !== "pending"}
+            onClick={measurement ? undefined : handleCancel}
+            disabled={measurement || status !== "pending"}
           >
             {status === "submitting" ? (
               <span className="approval-panel__spinner" />
@@ -527,8 +550,8 @@ function PlanPanel({ request, onHandled }: { request: ApprovalRequest; onHandled
           </button>
           <button
             className="approval-panel__btn approval-panel__btn--proceed"
-            onClick={handleProceed}
-            disabled={status !== "pending"}
+            onClick={measurement ? undefined : handleProceed}
+            disabled={measurement || status !== "pending"}
           >
             {status === "submitting" ? (
               <span className="approval-panel__spinner" />

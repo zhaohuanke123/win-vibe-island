@@ -8,7 +8,7 @@ export default defineConfig({
   workers: 1,
   reporter: "html",
   use: {
-    baseURL: "http://localhost:1420",
+    baseURL: "http://localhost:5187",
     trace: "on-first-retry",
   },
   timeout: 30000,
