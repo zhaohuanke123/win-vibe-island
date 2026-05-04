@@ -1,5 +1,7 @@
 import { useState } from "react";
 import type { ToolExecution } from "../store/sessions";
+import { CommandAnalysis } from "./CommandAnalysis";
+import { extractBashCommand } from "../utils/command";
 import "./ToolExecutionDetail.css";
 
 interface ToolExecutionDetailProps {
@@ -28,6 +30,7 @@ export function ToolExecutionDetail({ execution, "data-testid": testId }: ToolEx
 
   const inputJson = hasInput ? JSON.stringify(execution.input, null, 2) : "";
   const outputText = execution.output || execution.outputSummary || "";
+  const bashCommand = execution.toolName === "Bash" ? extractBashCommand(execution.input) : null;
 
   return (
     <div
@@ -71,6 +74,13 @@ export function ToolExecutionDetail({ execution, "data-testid": testId }: ToolEx
             <div className="tool-exec-detail__section">
               <div className="tool-exec-detail__label">Error</div>
               <div className="tool-exec-detail__error-block">{execution.error}</div>
+            </div>
+          )}
+
+          {bashCommand && (
+            <div className="tool-exec-detail__section">
+              <div className="tool-exec-detail__label">Command Analysis</div>
+              <CommandAnalysis command={bashCommand} />
             </div>
           )}
 

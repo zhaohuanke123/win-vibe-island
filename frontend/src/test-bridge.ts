@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionsStore } from "./store/sessions";
-import type { Session, ApprovalRequest, HookServerStatus, AgentState, ApprovalType, DiffData, Question } from "./store/sessions";
+import type { Session, ApprovalRequest, HookServerStatus, AgentState, ApprovalType, DiffData, Question, ToolExecution } from "./store/sessions";
 
 export interface VibeTestBridge {
   invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
@@ -73,6 +73,7 @@ function simulateEvent(event: string, payload: Record<string, unknown>) {
         approvalType: (payload.approval_type as ApprovalType) || "permission",
         timestamp: Date.now(),
         toolName: payload.tool_name as string,
+        toolInput: payload.tool_input as Record<string, unknown> | undefined,
         action: payload.action as string,
         riskLevel: payload.risk_level as "low" | "medium" | "high",
         diff: payload.diff as DiffData | undefined,
@@ -83,6 +84,66 @@ function simulateEvent(event: string, payload: Record<string, unknown>) {
     }
     case "session_end": {
       store.removeSession(payload.session_id as string);
+      break;
+    }
+    case "tool_use": {
+      const sessionId = payload.session_id as string;
+      const toolName = payload.tool_name as string;
+      const toolInput = (payload.tool_input as Record<string, unknown>) || {};
+      useSessionsStore.getState().updateSessionInfo(sessionId, {
+        state: "thinking",
+        toolName,
+        currentTool: {
+          name: toolName,
+          input: toolInput,
+          startTime: Date.now(),
+        },
+      });
+      break;
+    }
+    case "tool_complete": {
+      const sessionId = payload.session_id as string;
+      const toolName = payload.tool_name as string;
+      const durationMs = payload.duration_ms as number | undefined;
+      const session = useSessionsStore.getState().sessions.find((s) => s.id === sessionId);
+      if (session?.currentTool) {
+        const execution: ToolExecution = {
+          id: `tool-${Date.now()}`,
+          toolName: toolName || session.currentTool.name,
+          input: session.currentTool.input,
+          duration: durationMs,
+          timestamp: Date.now(),
+          status: "success" as const,
+        };
+        useSessionsStore.getState().addToolExecution(sessionId, execution);
+      }
+      useSessionsStore.getState().updateSessionInfo(sessionId, {
+        toolName: undefined,
+        filePath: undefined,
+        currentTool: undefined,
+      });
+      break;
+    }
+    case "tool_error": {
+      const sessionId = payload.session_id as string;
+      const toolName = payload.tool_name as string;
+      const error = payload.error as string;
+      const durationMs = payload.duration_ms as number | undefined;
+      const execution: ToolExecution = {
+        id: `tool-${Date.now()}`,
+        toolName,
+        input: {},
+        duration: durationMs,
+        error,
+        timestamp: Date.now(),
+        status: "failed" as const,
+      };
+      useSessionsStore.getState().addToolExecution(sessionId, execution);
+      useSessionsStore.getState().updateSessionInfo(sessionId, {
+        toolName: undefined,
+        filePath: undefined,
+        currentTool: undefined,
+      });
       break;
     }
     case "test_reset": {

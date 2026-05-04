@@ -89,6 +89,7 @@ export interface ApprovalRequest {
 
   // Permission request fields (existing)
   toolName?: string;
+  toolInput?: Record<string, unknown>;
   action?: string;
   riskLevel?: "low" | "medium" | "high";
   diff?: DiffData;

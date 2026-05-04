@@ -812,6 +812,6 @@ mod tests {
 
         let json = serde_json::to_string(&status).unwrap();
         assert!(json.contains("configured"));
-        assert!(json.contains("camelCase"));
+        assert!(json.contains("settingsPath")); // camelCase renaming works
     }
 }

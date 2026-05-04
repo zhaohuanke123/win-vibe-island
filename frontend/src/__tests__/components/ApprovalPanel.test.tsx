@@ -147,6 +147,19 @@ describe('ApprovalPanel', () => {
     expect(screen.getByText('[Bash]')).toBeInTheDocument()
   })
 
+  it('should show command analysis for Bash approvals with tool input', () => {
+    const request = createMockRequest({
+      toolName: 'Bash',
+      toolInput: { command: 'rm -rf ./dist' },
+      action: 'Execute: rm -rf ./dist',
+      riskLevel: 'high' as const,
+    })
+
+    render(<ApprovalPanel request={request} onApprovalHandled={mockOnApprovalHandled} />)
+
+    expect(screen.getByText('Command Analysis')).toBeInTheDocument()
+  })
+
   it('should show loading state when approving', async () => {
     const request = createMockRequest({
       action: 'Test',

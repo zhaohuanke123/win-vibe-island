@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, type WheelEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { DiffViewer } from "./DiffViewer";
+import { CommandAnalysis } from "./CommandAnalysis";
 import type { ApprovalRequest, Question, QuestionOption } from "../store/sessions";
 import { APPROVAL_TYPES } from "../store/sessions";
 import { useApprovalTimeout } from "../hooks/useApprovalTimeout";
+import { extractBashCommand } from "../utils/command";
 import { marked } from "marked";
 import "./ApprovalPanel.css";
 
@@ -415,6 +417,7 @@ function PermissionPanel({ request, onHandled, measurement = false }: { request:
 
   const isLoading = status === "approving" || status === "rejecting";
   const isComplete = status === "approved" || status === "rejected";
+  const bashCommand = request.toolName === "Bash" ? extractBashCommand(request.toolInput) : null;
 
   return (
     <div className={`approval-panel ${isComplete ? `approval-panel--${status}` : ""}`} data-testid="approval-panel" onWheelCapture={handlePanelWheel}>
@@ -434,6 +437,13 @@ function PermissionPanel({ request, onHandled, measurement = false }: { request:
         <div className="approval-panel__action">
           {request.action}
         </div>
+
+        {bashCommand && (
+          <div className="approval-panel__command-analysis">
+            <div className="approval-panel__section-label">Command Analysis</div>
+            <CommandAnalysis command={bashCommand} />
+          </div>
+        )}
 
         {request.diff && (
           <DiffViewer

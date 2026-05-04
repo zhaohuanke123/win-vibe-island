@@ -763,3 +763,8 @@ pub fn load_sessions() -> Result<String, String> {
 pub fn get_session_store_path() -> String {
     session_store::get_session_path_info()
 }
+
+#[tauri::command]
+pub fn analyze_command(command: String) -> crate::command_analyzer::CommandAnalysis {
+    crate::command_analyzer::analyze_command(&command)
+}

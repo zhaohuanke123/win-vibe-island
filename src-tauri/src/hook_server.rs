@@ -390,6 +390,7 @@ async fn handle_pre_tool_use(
                 "session_id": session_id,
                 "tool_name": tool_name,
                 "file_path": file_path,
+                "tool_input": payload.tool_input,
             }),
         );
     }

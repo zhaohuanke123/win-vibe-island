@@ -427,6 +427,7 @@ describe('useAgentEvents', () => {
             session_id: 'session-1',
             tool_use_id: 'tool-123',
             tool_name: 'Bash',
+            tool_input: { command: 'rm -rf /' },
             action: 'Execute: rm -rf /',
             risk_level: 'high',
           },
@@ -437,6 +438,7 @@ describe('useAgentEvents', () => {
       expect(state.sessions[0].state).toBe('approval')
       expect(state.approvalRequest).not.toBeNull()
       expect(state.approvalRequest?.toolUseId).toBe('tool-123')
+      expect(state.approvalRequest?.toolInput).toEqual({ command: 'rm -rf /' })
       expect(state.approvalRequest?.riskLevel).toBe('high')
     })
 

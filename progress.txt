@@ -15,6 +15,34 @@ and any relevant notes.
 
 ---
 
+## [2026-05-04] - Bash Approval Command Analysis Fix
+
+### Documentation Gate:
+- User reported Bash approval requests did not show command-line parsing in the approval UI.
+- Existing backend PermissionRequest already emits `tool_input`, but existing frontend docs did not define approval-stage command analysis.
+- Updated `DESIGN.md` before source edits to define Bash PermissionRequest command analysis in the approval panel while preserving history-detail analysis.
+
+### Planned correction:
+- Preserve approval state semantics: approval requests remain `approval`, not `thinking` or `running`.
+- Store PermissionRequest `tool_input` on the frontend approval request.
+- Render command analysis in both the approval panel and tool execution history details.
+
+### What was done:
+- Added shared Bash command extraction helper for `command` / `cmd` / `script`.
+- Added `toolInput` to `ApprovalRequest` and wired `permission_request.tool_input` into it.
+- Rendered `CommandAnalysis` inside Bash permission approvals before diff content.
+- Kept `ToolExecutionDetail` command analysis by reusing the shared helper.
+- Fixed `test-bridge.ts` missing `ToolExecution` type import and propagated simulated approval `tool_input`.
+
+### Testing:
+- `frontend`: `npm run build` passed.
+- `frontend`: `npx vitest run src/__tests__/components/ApprovalPanel.test.tsx --pool=threads` passed (10 tests).
+- `frontend`: `npx vitest run src/__tests__/hooks/useAgentEvents.test.ts --pool=threads` passed (17 tests).
+- `frontend`: default `npm run test -- ApprovalPanel.test.tsx useAgentEvents.test.ts` hit a Vitest fork worker startup timeout on Windows; rerun with `--pool=threads` passed.
+- `src-tauri`: `CARGO_TARGET_DIR=target-codex-command-analyzer cargo test command_analyzer -- --nocapture` passed (26 command analyzer tests).
+
+---
+
 ## [2026-05-04] - Tauri Geometry Sandbox Verification Page
 
 ### Documentation Gate:

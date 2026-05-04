@@ -217,6 +217,7 @@ Zustand store 管理：
 - 点击顶部 bar 展开/收起；
 - approval request 到达时自动展开为固定 `600x720` 专注模式；
 - approval/question/plan 内容优先于 session 列表，面板固定为 header/body/footer 三段：header 与 footer 不滚动，Approve/Reject/Submit/Proceed/Cancel 等动作按钮必须位于 footer，正文长内容只进入 body 这一唯一滚动区；
+- Bash `PermissionRequest` 审批正文显示命令解析，基于 hook payload 的 `tool_input.command` / `cmd` / `script` 调用 `analyze_command`；工具历史详情中仍保留同样的 Bash 命令解析；
 - 正文过长时 body 必须满足 `scrollHeight > clientHeight` 并独立滚动，footer 仍需保持在 overlay 可视区域内，外层 Overlay 和页面根节点不显示额外滚动条；
 - session 有 PID 时点击尝试聚焦窗口；
 - 顶部右侧显示 `HookStatus`。

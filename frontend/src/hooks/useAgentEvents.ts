@@ -34,6 +34,7 @@ interface ToolUseEvent {
   session_id: string;
   tool_name: string;
   file_path?: string;
+  tool_input?: Record<string, unknown>;
 }
 
 interface ToolCompleteEvent {
@@ -209,7 +210,7 @@ export function useAgentEvents() {
 
       // Listen for tool_use events (from PreToolUse hook)
       const unlistenToolUse = await listen<ToolUseEvent>("tool_use", (event) => {
-        const { session_id, tool_name, file_path } = event.payload;
+        const { session_id, tool_name, file_path, tool_input } = event.payload;
 
         // Create session if it doesn't exist
         const existingSession = useSessionsStore.getState().sessions.find(s => s.id === session_id);
@@ -232,7 +233,7 @@ export function useAgentEvents() {
           filePath: file_path,
           currentTool: {
             name: tool_name,
-            input: {},
+            input: tool_input || {},
             startTime: Date.now(),
           },
         });
@@ -316,11 +317,12 @@ export function useAgentEvents() {
 
       // Listen for permission_request events (from PermissionRequest hook)
       const unlistenPermissionRequest = await listen<PermissionRequestEvent>("permission_request", (event) => {
-        const { session_id, tool_use_id, tool_name, approval_type, action, risk_level, diff, questions, plan_content } = event.payload;
+        const { session_id, tool_use_id, tool_name, tool_input, approval_type, action, risk_level, diff, questions, plan_content } = event.payload;
         console.log("[useAgentEvents] Permission request received:", {
           session_id,
           tool_use_id,
           tool_name,
+          tool_input,
           approval_type,
           action,
           risk_level,
@@ -340,6 +342,7 @@ export function useAgentEvents() {
           timestamp: Date.now(),
           // Permission fields
           toolName: tool_name,
+          toolInput: tool_input,
           action: action,
           riskLevel: risk_level,
           diff: diff ? {

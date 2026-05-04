@@ -177,6 +177,25 @@
   overflow-wrap: anywhere;
 }
 
+.approval-panel__command-analysis {
+  margin-bottom: 14px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.approval-panel__section-label {
+  margin-bottom: 4px;
+  color: #9ca3af;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
 .approval-panel__footer {
   display: flex;
   align-items: center;

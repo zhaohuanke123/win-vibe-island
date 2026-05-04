@@ -1,5 +1,6 @@
 mod approval_types;
 mod audio;
+mod command_analyzer;
 mod commands;
 mod config;
 mod events;
@@ -296,6 +297,7 @@ pub fn run() {
             commands::save_sessions,
             commands::load_sessions,
             commands::get_session_store_path,
+            commands::analyze_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
