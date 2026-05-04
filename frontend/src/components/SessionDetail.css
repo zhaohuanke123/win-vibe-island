@@ -73,10 +73,26 @@
   flex-shrink: 0;
 }
 
+.session-detail__label-text {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .session-detail__label {
   font-size: 14px;
   font-weight: 600;
   color: #e5e7eb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-detail__sublabel {
+  font-size: 11px;
+  color: #6b7280;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

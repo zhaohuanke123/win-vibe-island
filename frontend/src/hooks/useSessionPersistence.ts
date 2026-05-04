@@ -9,6 +9,7 @@ function serializeSession(s: Session): Record<string, unknown> {
   return {
     id: s.id,
     label: s.label,
+    title: s.title,
     cwd: s.cwd,
     state: s.state,
     pid: s.pid,
@@ -46,6 +47,7 @@ async function restoreSessions() {
       store.addSession({
         id: item.id,
         label: item.label || "Restored",
+        title: item.title as string | undefined,
         cwd: (item.cwd as string) || "",
         state: "done", // Historical sessions are done
         pid: item.pid as number | undefined,

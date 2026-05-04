@@ -45,6 +45,7 @@ export interface ToolExecution {
 export interface Session {
   id: string;
   label: string;
+  title?: string;
   cwd: string;
   state: AgentState;
   pid?: number;

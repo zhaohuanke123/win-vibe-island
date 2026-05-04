@@ -148,7 +148,7 @@ export function useAgentEvents() {
 
       // Listen for state_change events
       const unlistenState = await listen<StateChangeEvent>("state_change", (event) => {
-        const { session_id, state, tool_name, tool_input, message } = event.payload;
+        const { session_id, state, tool_name, tool_input, message, prompt } = event.payload;
         // Valid states including new ones: thinking, streaming, error
         const validStates = ["idle", "thinking", "running", "streaming", "approval", "error", "done"];
         const validState = validStates.includes(state)
@@ -161,6 +161,7 @@ export function useAgentEvents() {
           addSession({
             id: session_id,
             label: "Claude Code",
+            title: prompt ? truncatePrompt(prompt) : undefined,
             cwd: "",
             state: validState,
             toolHistory: [],
@@ -169,6 +170,10 @@ export function useAgentEvents() {
           });
         } else {
           updateSessionState(session_id, validState);
+          // Set title from first prompt if not already set
+          if (state === "running" && prompt && !existingSession.title) {
+            updateSessionInfo(session_id, { title: truncatePrompt(prompt) });
+          }
         }
 
         // If tool info is provided, update that too
@@ -417,4 +422,10 @@ function extractProjectName(cwd: string): string {
 
   // Return the last non-empty part
   return parts[parts.length - 1] || "Claude Code";
+}
+
+function truncatePrompt(prompt: string, maxLen = 60): string {
+  const firstLine = prompt.split("\n")[0].trim();
+  if (firstLine.length <= maxLen) return firstLine;
+  return firstLine.slice(0, maxLen) + "…";
 }

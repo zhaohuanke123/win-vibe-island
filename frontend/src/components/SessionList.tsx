@@ -75,7 +75,9 @@ export function SessionList({
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      filtered = filtered.filter((s) => s.label.toLowerCase().includes(q));
+      filtered = filtered.filter((s) =>
+        s.label.toLowerCase().includes(q) || (s.title && s.title.toLowerCase().includes(q))
+      );
     }
 
     const sorted = [...filtered].sort((a, b) => {
@@ -136,7 +138,16 @@ export function SessionList({
       >
         <div className="session-list__session-row">
           <StatusDot state={s.state} data-testid="status-dot" />
-          <span className="session-list__session-label" title={s.label}>{s.label}</span>
+          <div className="session-list__session-text">
+            <span className="session-list__session-label" title={s.title || s.label}>
+              {s.title || s.label}
+            </span>
+            {s.title && (
+              <span className="session-list__session-sublabel" title={s.label}>
+                {s.label}
+              </span>
+            )}
+          </div>
         </div>
         {s.currentTool && (
           <div className="session-list__session-info">

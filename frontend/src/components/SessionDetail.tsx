@@ -65,7 +65,16 @@ export function SessionDetail({ session, onBack, "data-testid": testId }: Sessio
             className="session-detail__state-dot"
             style={{ backgroundColor: STATE_COLORS[session.state] || "#9ca3af" }}
           />
-          <span className="session-detail__label" title={session.label}>{session.label}</span>
+          <div className="session-detail__label-text">
+            <span className="session-detail__label" title={session.title || session.label}>
+              {session.title || session.label}
+            </span>
+            {session.title && (
+              <span className="session-detail__sublabel" title={session.label}>
+                {session.label}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="session-detail__info-grid">

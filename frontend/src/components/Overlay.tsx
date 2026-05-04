@@ -267,7 +267,14 @@ export function Overlay() {
           {active ? (
             <>
               <StatusDot state={active.state} data-testid="status-dot" />
-              <span className="overlay__label" data-testid="session-label" title={active.label}>{active.label}</span>
+              <div className="overlay__label-group">
+                <span className="overlay__label" data-testid="session-label" title={active.title || active.label}>
+                  {active.title || active.label}
+                </span>
+                {active.title && (
+                  <span className="overlay__sublabel">{active.label}</span>
+                )}
+              </div>
               <span className="overlay__state" data-testid="session-state">{active.state}</span>
             </>
           ) : (
