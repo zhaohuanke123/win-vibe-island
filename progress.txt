@@ -38,6 +38,11 @@ and any relevant notes.
 - `frontend`: `npm run build` passed.
 - Tauri Windows app manual verification still required because the regression only reproduces in the native WebView window, not browser automation.
 
+### Follow-up:
+- User reported the fixed-height recovery still left content partially hidden and created large blank areas in all three panels.
+- Adjusted approval panel sizing from fill-first to content-first: the body no longer grows to consume all empty space, but still shrinks and scrolls when long content exceeds the available focus height.
+- Added explicit approval focus size retries from `Overlay.tsx` so the Tauri WebView receives final `600x720` syncs even if an animation-frame resize is throttled or stale.
+
 ---
 
 ## [2026-05-03] - Approval Focus Scroll and Manual Collapse Follow-up

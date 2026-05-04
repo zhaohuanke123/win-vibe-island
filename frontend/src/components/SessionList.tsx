@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { StatusDot } from "./StatusDot";
 import type { Session, AgentState } from "../store/sessions";
 import "./SessionList.css";
@@ -240,19 +240,11 @@ export function SessionList({
                   <span className="session-list__group-label" title={group.cwd}>{group.label}</span>
                   <span className="session-list__group-count">{group.sessions.length}</span>
                 </div>
-                <AnimatePresence initial={false}>
-                  {!collapsed && (
-                    <motion.div
-                      className="session-list__group-items"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.15, ease: "easeOut" }}
-                    >
-                      {group.sessions.map(renderSession)}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {!collapsed && (
+                  <div className="session-list__group-items">
+                    {group.sessions.map(renderSession)}
+                  </div>
+                )}
               </motion.div>
             );
           })}

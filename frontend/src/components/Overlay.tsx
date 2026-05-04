@@ -177,6 +177,30 @@ export function Overlay() {
     }
   }, [isOverlayExpanded, isApprovalFocusMode]);
 
+  useEffect(() => {
+    if (!isOverlayExpanded || !isApprovalFocusMode) return;
+
+    const syncApprovalSize = () => {
+      invoke("update_overlay_size", {
+        width: 600,
+        height: APPROVAL_FOCUS_HEIGHT,
+        borderRadius: 18,
+        anchorCenter: true,
+      }).catch((e) => {
+        console.error("Failed to sync approval focus size:", e);
+      });
+    };
+
+    syncApprovalSize();
+    const firstRetry = window.setTimeout(syncApprovalSize, 80);
+    const secondRetry = window.setTimeout(syncApprovalSize, 240);
+
+    return () => {
+      window.clearTimeout(firstRetry);
+      window.clearTimeout(secondRetry);
+    };
+  }, [isOverlayExpanded, isApprovalFocusMode]);
+
   // Non-approval panels use ResizeObserver-based adaptive height. Approval,
   // question, and plan focus mode stays fixed at 600x720 in Tauri to avoid
   // WebView/native resize mismatches that can hide action buttons.
