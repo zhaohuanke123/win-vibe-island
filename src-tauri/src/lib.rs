@@ -40,6 +40,46 @@ pub fn run() {
 
             // Position the main window at the top-center of the screen (Dynamic Island style)
             if let Some(window) = app.get_webview_window("main") {
+                if let Err(e) = window.set_zoom(1.0) {
+                    log::warn!("Failed to reset WebView zoom: {}", e);
+                }
+
+                // Fix WebView2 DPR mismatch: set RasterizationScale to actual monitor DPI
+                // so devicePixelRatio matches system DPI instead of WebView2's inflated value
+                #[cfg(target_os = "windows")]
+                {
+                    use windows::Win32::Foundation::HWND;
+                    use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Controller3;
+                    use windows_core::Interface;
+
+                    let dpi_scale = if let Ok(hwnd_raw) = window.hwnd() {
+                        let hwnd = HWND(hwnd_raw.0 as *mut _);
+                        overlay::get_dpi_scale_for_window(hwnd).unwrap_or(1.0)
+                    } else {
+                        1.0
+                    };
+
+                    if let Err(e) = window.with_webview(move |wv| {
+                        let controller = wv.controller();
+                        match controller.cast::<ICoreWebView2Controller3>() {
+                            Ok(c3) => {
+                                if let Err(e) = unsafe { c3.SetRasterizationScale(dpi_scale) } {
+                                    log::warn!("Failed to set WebView2 RasterizationScale to {}: {}", dpi_scale, e);
+                                }
+                                if let Err(e) = unsafe { c3.SetShouldDetectMonitorScaleChanges(false) } {
+                                    log::warn!("Failed to disable WebView2 monitor scale detection: {}", e);
+                                }
+                                log::info!("WebView2 RasterizationScale set to {}", dpi_scale);
+                            }
+                            Err(e) => {
+                                log::warn!("Failed to get ICoreWebView2Controller3: {}", e);
+                            }
+                        }
+                    }) {
+                        log::warn!("with_webview failed for DPI config: {}", e);
+                    }
+                }
+
                 if let Ok(Some(monitor)) = window.primary_monitor() {
                     let screen_width = monitor.size().width as i32;
                     // Use a smaller initial width that fits the content
@@ -62,7 +102,10 @@ pub fn run() {
 
             // Start the HTTP hook server for Claude Code integration
             match hook_server::start_hook_server(app.handle().clone()) {
-                Ok(()) => log::info!("Hook server started on port {}", config::get_config().hook_server.port),
+                Ok(()) => log::info!(
+                    "Hook server started on port {}",
+                    config::get_config().hook_server.port
+                ),
                 Err(e) => log::error!("Failed to start hook server: {}", e),
             }
 
