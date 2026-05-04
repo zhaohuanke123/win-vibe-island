@@ -26,6 +26,10 @@ function toNumber(value: number | string | undefined): number | null {
   return null;
 }
 
+function getWebviewScaleFactor() {
+  return Number.isFinite(window.devicePixelRatio) ? window.devicePixelRatio : 1;
+}
+
 export function AnimatedOverlay({ isExpanded, expandedHeight, className, children, "data-testid": testId }: AnimatedOverlayProps) {
   const lastSyncRef = useRef(0);
   const hasInitializedRef = useRef(false);
@@ -57,6 +61,7 @@ export function AnimatedOverlay({ isExpanded, expandedHeight, className, childre
     invoke("update_overlay_size", {
       width: Math.round(width),
       height: Math.round(height),
+      webviewScaleFactor: getWebviewScaleFactor(),
       borderRadius: Math.round(borderRadius),
       anchorCenter: true,
     }).catch((e) => console.error("Failed to sync overlay size:", e));

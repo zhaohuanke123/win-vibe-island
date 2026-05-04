@@ -626,6 +626,81 @@
   background: rgba(59, 130, 246, 1);
 }
 
+/* ============================================
+   Approval Timeout Styles
+   ============================================ */
+
+.approval-panel__timeout {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.approval-panel__timeout-bar {
+  position: relative;
+  width: 40px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.approval-panel__timeout-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 1s linear, background-color 0.3s ease;
+}
+
+.approval-panel__timeout-bar-fill--safe {
+  background: #22c55e;
+}
+
+.approval-panel__timeout-bar-fill--warning {
+  background: #f59e0b;
+}
+
+.approval-panel__timeout-bar-fill--urgent {
+  background: #ef4444;
+  animation: urgentPulse 1s ease-in-out infinite;
+}
+
+@keyframes urgentPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.approval-panel__timeout-text {
+  font-size: 11px;
+  font-weight: 500;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+  min-width: 20px;
+  text-align: right;
+}
+
+.approval-panel__timeout-text--safe {
+  color: #22c55e;
+}
+
+.approval-panel__timeout-text--warning {
+  color: #f59e0b;
+}
+
+.approval-panel__timeout-text--urgent {
+  color: #ef4444;
+  animation: urgentTextPulse 1s ease-in-out infinite;
+}
+
+@keyframes urgentTextPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.approval-panel__timeout-text--expired {
+  color: #6b7280;
+}
+
 /* Stretch approval panel to fill 720px in overlay approval-focus mode */
 .overlay__approval-focus > .approval-panel {
   flex: 1 1 auto;

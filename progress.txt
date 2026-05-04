@@ -15,6 +15,51 @@ and any relevant notes.
 
 ---
 
+## [2026-05-04] - Tauri Geometry Sandbox Verification Page
+
+### Documentation Gate:
+- User requested a minimal in-app verification page for the browser-vs-Tauri size mismatch around adaptive height, fixed approval focus height, internal scrolling, and footer button visibility.
+- Existing docs already require approval/question/plan focus mode to use fixed `600x720`, but did not explicitly define that action buttons are outside the scroll body and must remain visible when the body overflows.
+- Updated `DESIGN.md` and `docs/animation-design.md` before source edits to define the header/body/footer contract and the development-only `?sandbox=geometry` verification page.
+- Follow-up implementation bug: user verified in Tauri/WebView2 that footer buttons were not actually always visible. Adaptive Short clipped the footer at the end of animation, and Adaptive Long/fixed modes showed only part of the footer.
+- Expected behavior remains unchanged: footer is outside the scrolling body and must remain fully inside the overlay/window bounds.
+- Follow-up root cause from Tauri screenshot: on the user's 125% DPI display the native window stayed `600x720` physical pixels while WebView content still laid out at `600x720` CSS pixels, so the effective CSS viewport was too small and clipped the right/bottom edges. The resize path must use the effective WebView scale factor, not only `GetDpiForWindow` when that returns `1.0`.
+- Follow-up screenshot review corrected the diagnosis: native size was already `750x900 @1.25`, but the CSS viewport was only about `473x567` because WebView reported `devicePixelRatio ~= 1.5875`. The resize path must use the WebView-reported DPR when it is larger than native DPI.
+
+### Planned correction:
+- Add a development-only geometry sandbox route without changing the main Overlay business flow.
+- Reuse the real `AnimatedOverlay` and `update_overlay_size` path so Tauri/WebView2 native size behavior is tested, not just browser DOM layout.
+- Show DOM, scroll, footer visibility, page root scroll, runtime, and native window geometry diagnostics.
+
+### What was done:
+- Added `GeometrySandbox` and `GeometrySandbox.css` under `frontend/src/components`.
+- Added development-only `?sandbox=geometry` and `VITE_GEOMETRY_SANDBOX=true` entries in `App.tsx`; `Ctrl+Shift+G` remains a browser/dev WebView helper only when the WebView has keyboard focus. The normal Overlay path is unchanged.
+- The sandbox includes compact, adaptive short, adaptive long, approval fixed, question fixed, and plan fixed modes.
+- Fixed-mode sandbox panels use header/body/footer layout where the footer buttons stay outside the body scroll area.
+- Diagnostics show runtime, viewport, root scroll position, overlay/panel/body/footer rects, body scroll metrics, footer visibility, and Tauri `get_window_geometry` when available.
+- Added startup WebView zoom reset to `1.0`, passed `window.devicePixelRatio` through `update_overlay_size`, and expanded geometry diagnostics with DPR, visual viewport scale, browser outer size, and native inner/outer size.
+- Reduced the geometry sandbox adaptive floor so short-content verification follows measured content height instead of leaving an artificial blank shell area.
+
+### Testing:
+- `frontend`: `npm run build` passed.
+- `src-tauri`: `cargo check` passed.
+- Browser/CDP against `http://localhost:5187/?sandbox=geometry` passed:
+  - Adaptive Long: overlay `600x720`, footer visible, body `scrollHeight 1066 > clientHeight 444`, body scrollTop changed `0 -> 160`, root scrollTop `0`.
+  - Approval Fixed: overlay `600x720`, footer visible, body `scrollHeight 1221 > clientHeight 444`, body scrollTop changed `0 -> 160`, root scrollTop `0`.
+  - Question Fixed: overlay `600x720`, footer visible, body `scrollHeight 1109 > clientHeight 444`, body scrollTop changed `0 -> 160`, root scrollTop `0`.
+  - Plan Fixed: overlay `600x720`, footer visible, body `scrollHeight 1210 > clientHeight 444`, body scrollTop changed `0 -> 160`, root scrollTop `0`.
+- Tauri native automation against the already-running overlay could not enter the sandbox with `Ctrl+Shift+G`; the window stayed compact `236x52`, consistent with the overlay's `NOACTIVATE` behavior. Tauri sandbox verification should start the dev app with `VITE_GEOMETRY_SANDBOX=true`.
+- Restarted the Vite dev server with `VITE_GEOMETRY_SANDBOX=true` and launched `cargo tauri dev`; native Win32 rect checks passed:
+  - Initial geometry sandbox window: `600x720`.
+  - After clicking Approval Fixed: `600x720`.
+  - After clicking Question Fixed: `600x720`.
+  - After clicking Plan Fixed: `600x720`.
+
+### Follow-up:
+- Manual Tauri/WebView2 verification should open the app with `VITE_GEOMETRY_SANDBOX=true`, then confirm fixed modes keep footer buttons visible while only the body scrolls.
+
+---
+
 ## [2026-05-04] - Tauri Approval Focus Fixed Height Recovery
 
 ### Documentation Gate:

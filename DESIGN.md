@@ -41,7 +41,7 @@
    - 启动 HTTP Hook server；
    - 执行 `hook_config::auto_configure_hooks()`；
    - 创建系统托盘菜单。
-4. `App.tsx` 只渲染 `Overlay`，并调用 `useAgentEvents()` 注册 Tauri event listeners。
+4. `App.tsx` 默认渲染 `Overlay`，并调用 `useAgentEvents()` 注册 Tauri event listeners；开发模式下 `?sandbox=geometry` 或 `VITE_GEOMETRY_SANDBOX=true` 渲染窗口几何验证页，用于对比浏览器和 Tauri/WebView2 的尺寸、滚动、WebView zoom/DPR 和 footer 可见性。`Ctrl+Shift+G` 仅作为浏览器/dev WebView 已获得键盘焦点时的辅助切换，不能作为 Tauri overlay 的主要入口，因为 overlay 使用 `NOACTIVATE`。
 5. `Overlay.tsx` 初始化窗口为紧凑胶囊，普通展开自适应内容高度；审批/问答/计划请求出现时进入固定 600x720 专注模式。
 
 ---
@@ -215,8 +215,9 @@ Zustand store 管理：
 - expanded height: 普通内容自适应，最大 `720`
 - width: `600`
 - 点击顶部 bar 展开/收起；
-- approval request 到达时自动展开为固定 `600x720` 专注模式，正文区域滚动；
-- approval/question/plan 内容优先于 session 列表，正文只保留一个主滚动区域，外层 Overlay 不显示额外滚动条；
+- approval request 到达时自动展开为固定 `600x720` 专注模式；
+- approval/question/plan 内容优先于 session 列表，面板固定为 header/body/footer 三段：header 与 footer 不滚动，Approve/Reject/Submit/Proceed/Cancel 等动作按钮必须位于 footer，正文长内容只进入 body 这一唯一滚动区；
+- 正文过长时 body 必须满足 `scrollHeight > clientHeight` 并独立滚动，footer 仍需保持在 overlay 可视区域内，外层 Overlay 和页面根节点不显示额外滚动条；
 - session 有 PID 时点击尝试聚焦窗口；
 - 顶部右侧显示 `HookStatus`。
 
@@ -250,7 +251,7 @@ Session label 优先从 `cwd` 最后一段提取；没有 `cwd` 时显示 `Claud
 
 1. `HookConfigStatusPanel` 和 `ErrorLog` 组件尚未挂载到当前 UI。
 2. 自动 hook 配置未写入 `PostToolUseFailure`，但后端 route 和前端 `tool_error` 处理已实现。
-3. `update_overlay_size` 有 16ms 节流，但当前 `Overlay.tsx` 主要使用固定高度的 `set_window_size`。
+3. `update_overlay_size` 有 16ms 节流；普通展开依赖前端测量同步窗口，approval/question/plan 专注模式固定同步到 `600x720`。主 WebView 启动时将 zoom 重置为 `1.0`，前端 resize IPC 同时传入 `window.devicePixelRatio`，后端用它和 native DPI 的较大值换算物理像素，避免 WebView2 实际 CSS viewport 小于目标尺寸。
 4. Named Pipe SDK 的状态类型仍是 `idle/running/approval/done` 四态；HTTP Hooks 路径支持七态。
 5. 进程命令行读取当前是简化实现，主要依赖进程名匹配。
 6. 当前没有持久化 session 历史，重启后 session store 为空。

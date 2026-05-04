@@ -43,6 +43,37 @@ fn apply_window_round_region(window: &WebviewWindow, radius: u32) -> Result<(), 
     Ok(())
 }
 
+fn effective_window_scale_factor(window: &WebviewWindow) -> Result<f64, String> {
+    let tauri_scale = window.scale_factor().unwrap_or(1.0);
+
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Foundation::HWND;
+
+        let hwnd_raw = window.hwnd().map_err(|e| e.to_string())?;
+        let hwnd = HWND(hwnd_raw.0 as *mut _);
+        let hwnd_scale = overlay::get_dpi_scale_for_window(hwnd).unwrap_or(1.0);
+        return Ok(hwnd_scale.max(tauri_scale).max(1.0));
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(tauri_scale.max(1.0))
+    }
+}
+
+fn resize_scale_factor(
+    window: &WebviewWindow,
+    webview_scale_factor: Option<f64>,
+) -> Result<f64, String> {
+    let backend_scale = effective_window_scale_factor(window)?;
+    let frontend_scale = webview_scale_factor
+        .filter(|scale| scale.is_finite() && *scale >= 1.0)
+        .unwrap_or(1.0);
+
+    Ok(backend_scale.max(frontend_scale).max(1.0))
+}
+
 #[tauri::command]
 pub fn create_overlay(config: OverlayConfig) -> Result<String, String> {
     #[cfg(target_os = "windows")]
@@ -329,16 +360,7 @@ pub fn set_window_size(
     height: u32,
     skip_center: Option<bool>,
 ) -> Result<(u32, u32), String> {
-    // Read actual DPI scale from the window HWND
-    #[cfg(target_os = "windows")]
-    let dpi_scale: f64 = {
-        use windows::Win32::Foundation::HWND;
-        let hwnd_raw = window.hwnd().map_err(|e| e.to_string())?;
-        let hwnd = HWND(hwnd_raw.0 as *mut _);
-        overlay::get_dpi_scale_for_window(hwnd).unwrap_or(1.0)
-    };
-    #[cfg(not(target_os = "windows"))]
-    let dpi_scale: f64 = window.scale_factor().unwrap_or(1.0);
+    let dpi_scale = effective_window_scale_factor(&window)?;
 
     let physical_width = ((width as f64) * dpi_scale).round() as u32;
     let physical_height = ((height as f64) * dpi_scale).round() as u32;
@@ -433,6 +455,7 @@ pub fn update_overlay_size(
     window: WebviewWindow,
     width: u32,
     height: u32,
+    webview_scale_factor: Option<f64>,
     border_radius: Option<u32>,
     anchor_center: Option<bool>,
 ) -> Result<(), String> {
@@ -450,23 +473,18 @@ pub fn update_overlay_size(
     }
     LAST_RESIZE_MS.store(now_ms, Ordering::Relaxed);
 
-    // Read actual DPI scale from the window HWND to avoid Tauri Logical/Physical conversion quirks
-    #[cfg(target_os = "windows")]
-    let dpi_scale: f64 = {
-        use windows::Win32::Foundation::HWND;
-        let hwnd_raw = window.hwnd().map_err(|e| e.to_string())?;
-        let hwnd = HWND(hwnd_raw.0 as *mut _);
-        overlay::get_dpi_scale_for_window(hwnd).unwrap_or(1.0)
-    };
-    #[cfg(not(target_os = "windows"))]
-    let dpi_scale: f64 = window.scale_factor().unwrap_or(1.0);
+    let dpi_scale = resize_scale_factor(&window, webview_scale_factor)?;
 
     let physical_width = ((width as f64) * dpi_scale).round() as u32;
     let physical_height = ((height as f64) * dpi_scale).round() as u32;
 
     log::info!(
         "update_overlay_size: CSS({}x{}) DPI({}) -> Physical({}x{}), inner_before=({:?})",
-        width, height, dpi_scale, physical_width, physical_height,
+        width,
+        height,
+        dpi_scale,
+        physical_width,
+        physical_height,
         window.inner_size()
     );
 
@@ -692,6 +710,8 @@ pub fn test_reset_sessions(app: AppHandle) -> Result<(), String> {
 pub struct WindowGeometry {
     pub width: u32,
     pub height: u32,
+    pub inner_width: u32,
+    pub inner_height: u32,
     pub x: i32,
     pub y: i32,
     pub scale_factor: f64,
@@ -706,6 +726,7 @@ pub fn get_window_geometry(window: WebviewWindow) -> Result<WindowGeometry, Stri
     return Err("Test commands disabled in release build".into());
 
     let size = window.outer_size().map_err(|e| e.to_string())?;
+    let inner_size = window.inner_size().map_err(|e| e.to_string())?;
     let pos = window.outer_position().map_err(|e| e.to_string())?;
     let visible = window.is_visible().map_err(|e| e.to_string())?;
     let focused = window.is_focused().map_err(|e| e.to_string())?;
@@ -714,6 +735,8 @@ pub fn get_window_geometry(window: WebviewWindow) -> Result<WindowGeometry, Stri
     Ok(WindowGeometry {
         width: size.width,
         height: size.height,
+        inner_width: inner_size.width,
+        inner_height: inner_size.height,
         x: pos.x,
         y: pos.y,
         scale_factor: scale,

@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { DiffViewer } from "./DiffViewer";
 import type { ApprovalRequest, Question, QuestionOption } from "../store/sessions";
 import { APPROVAL_TYPES } from "../store/sessions";
+import { useApprovalTimeout } from "../hooks/useApprovalTimeout";
 import { marked } from "marked";
 import "./ApprovalPanel.css";
 
@@ -35,6 +36,34 @@ interface PlanStep {
 
 // Parse plan steps from description text
 // Format: "1. Step title\n2. Another step"
+
+function TimeoutIndicator({ timeout }: { timeout: ReturnType<typeof useApprovalTimeout> }) {
+  const { remainingSeconds, isUrgent, isExpired, progressPercent } = timeout;
+
+  if (isExpired) {
+    return (
+      <div className="approval-panel__timeout">
+        <span className="approval-panel__timeout-text approval-panel__timeout-text--expired">Timed out</span>
+      </div>
+    );
+  }
+
+  const level = remainingSeconds > 20 ? "safe" : isUrgent ? "urgent" : "warning";
+
+  return (
+    <div className="approval-panel__timeout">
+      <div className="approval-panel__timeout-bar">
+        <div
+          className={`approval-panel__timeout-bar-fill approval-panel__timeout-bar-fill--${level}`}
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
+      <span className={`approval-panel__timeout-text approval-panel__timeout-text--${level}`}>
+        {remainingSeconds}s
+      </span>
+    </div>
+  );
+}
 function parsePlanSteps(description: string): PlanStep[] {
   if (!description) return [];
   const lines = description.split('\n');
@@ -54,6 +83,7 @@ function QuestionPanel({ request, onHandled, measurement = false }: { request: A
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<"pending" | "submitting" | "done">("pending");
+  const timeout = useApprovalTimeout(request);
 
   const handleOptionSelect = (questionText: string, optionLabel: string, isCustom?: boolean) => {
     if (isCustom) {
@@ -178,6 +208,7 @@ function QuestionPanel({ request, onHandled, measurement = false }: { request: A
 
         {footerQuestion && (
           <div className="approval-panel__footer">
+            <TimeoutIndicator timeout={timeout} />
             <div className="approval-panel__buttons">
               {footerQuestion.options.map((opt: QuestionOption, optIndex: number) => {
                 let btnClass = "approval-panel__btn approval-panel__btn--skip";
@@ -204,7 +235,7 @@ function QuestionPanel({ request, onHandled, measurement = false }: { request: A
                         onHandled();
                       });
                     }}
-                    disabled={measurement || status !== "pending"}
+                    disabled={measurement || status !== "pending" || timeout.isExpired}
                   >
                     {status === "submitting" ? (
                       <span className="approval-panel__spinner" />
@@ -279,11 +310,12 @@ function QuestionPanel({ request, onHandled, measurement = false }: { request: A
       </div>
 
       <div className="approval-panel__footer">
+        <TimeoutIndicator timeout={timeout} />
         <div className="approval-panel__buttons">
           <button
             className="approval-panel__btn approval-panel__btn--skip"
             onClick={handleSkip}
-            disabled={measurement || status !== "pending"}
+            disabled={measurement || status !== "pending" || timeout.isExpired}
           >
             {status === "submitting" ? (
               <span className="approval-panel__spinner" />
@@ -294,7 +326,7 @@ function QuestionPanel({ request, onHandled, measurement = false }: { request: A
           <button
             className="approval-panel__btn approval-panel__btn--submit"
             onClick={handleSubmit}
-            disabled={measurement || status !== "pending" || !allAnswered}
+            disabled={measurement || status !== "pending" || !allAnswered || timeout.isExpired}
           >
             {status === "submitting" ? (
               <span className="approval-panel__spinner" />
@@ -311,6 +343,7 @@ function QuestionPanel({ request, onHandled, measurement = false }: { request: A
 // Permission Panel for regular tool approvals
 function PermissionPanel({ request, onHandled, measurement = false }: { request: ApprovalRequest; onHandled: () => void; measurement?: boolean }) {
   const [status, setStatus] = useState<ApprovalStatus>("pending");
+  const timeout = useApprovalTimeout(request);
 
   const handleApprove = useCallback(async () => {
     if (!request || status !== "pending") return;
@@ -415,13 +448,13 @@ function PermissionPanel({ request, onHandled, measurement = false }: { request:
         <span className={`approval-panel__risk ${getRiskLevelClass()}`} data-testid="risk-level">
           {request.riskLevel?.toUpperCase() || "MEDIUM"} RISK
         </span>
-
+        <TimeoutIndicator timeout={timeout} />
         <div className="approval-panel__buttons">
           <button
             className="approval-panel__btn approval-panel__btn--reject"
             data-testid="reject-btn"
             onClick={measurement ? undefined : handleReject}
-            disabled={measurement || isLoading || isComplete}
+            disabled={measurement || isLoading || isComplete || timeout.isExpired}
           >
             {status === "rejecting" ? (
               <span className="approval-panel__spinner" />
@@ -434,7 +467,7 @@ function PermissionPanel({ request, onHandled, measurement = false }: { request:
             className="approval-panel__btn approval-panel__btn--approve"
             data-testid="approve-btn"
             onClick={measurement ? undefined : handleApprove}
-            disabled={measurement || isLoading || isComplete}
+            disabled={measurement || isLoading || isComplete || timeout.isExpired}
           >
             {status === "approving" ? (
               <span className="approval-panel__spinner" />
@@ -446,9 +479,11 @@ function PermissionPanel({ request, onHandled, measurement = false }: { request:
         </div>
       </div>
 
-      <div className="approval-panel__shortcuts">
-        <span>Enter</span> to approve, <span>Esc</span> to reject
-      </div>
+      {!timeout.isExpired && (
+        <div className="approval-panel__shortcuts">
+          <span>Enter</span> to approve, <span>Esc</span> to reject
+        </div>
+      )}
     </div>
   );
 }
@@ -473,6 +508,7 @@ export function ApprovalPanel({ request, onApprovalHandled, measurement = false 
 // Plan Panel for ExitPlanMode tool - displays the actual plan content
 function PlanPanel({ request, onHandled, measurement = false }: { request: ApprovalRequest; onHandled: () => void; measurement?: boolean }) {
   const [status, setStatus] = useState<"pending" | "submitting" | "done">("pending");
+  const timeout = useApprovalTimeout(request);
 
   const handleProceed = async () => {
     setStatus("submitting");
@@ -536,11 +572,12 @@ function PlanPanel({ request, onHandled, measurement = false }: { request: Appro
       </div>
 
       <div className="approval-panel__footer">
+        <TimeoutIndicator timeout={timeout} />
         <div className="approval-panel__buttons">
           <button
             className="approval-panel__btn approval-panel__btn--skip"
             onClick={measurement ? undefined : handleCancel}
-            disabled={measurement || status !== "pending"}
+            disabled={measurement || status !== "pending" || timeout.isExpired}
           >
             {status === "submitting" ? (
               <span className="approval-panel__spinner" />
@@ -551,7 +588,7 @@ function PlanPanel({ request, onHandled, measurement = false }: { request: Appro
           <button
             className="approval-panel__btn approval-panel__btn--proceed"
             onClick={measurement ? undefined : handleProceed}
-            disabled={measurement || status !== "pending"}
+            disabled={measurement || status !== "pending" || timeout.isExpired}
           >
             {status === "submitting" ? (
               <span className="approval-panel__spinner" />

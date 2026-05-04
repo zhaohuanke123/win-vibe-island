@@ -113,12 +113,12 @@ export function Overlay() {
     });
   }, []);
 
-  // Collapse clears detail view; removed sessions clear detail view
+  // Removed sessions clear detail view
   useEffect(() => {
-    if (!expanded) {
+    if (viewingSessionId && !sessions.find((s) => s.id === viewingSessionId)) {
       setViewingSessionId(null);
     }
-  }, [expanded]);
+  }, [sessions, viewingSessionId]);
 
   useEffect(() => {
     if (viewingSessionId && !sessions.find((s) => s.id === viewingSessionId)) {
@@ -184,6 +184,7 @@ export function Overlay() {
       invoke("update_overlay_size", {
         width: 600,
         height: APPROVAL_FOCUS_HEIGHT,
+        webviewScaleFactor: Number.isFinite(window.devicePixelRatio) ? window.devicePixelRatio : 1,
         borderRadius: 18,
         anchorCenter: true,
       }).catch((e) => {
