@@ -710,61 +710,11 @@ async fn handle_permission_request(
         }),
     );
 
-    // Check for auto-allow based on permission_suggestions
-    let has_auto_allow = payload
-        .permission_suggestions
-        .as_ref()
-        .map_or(false, |suggestions| {
-            suggestions.iter().any(|s| {
-                s.get("behavior")
-                    .and_then(|b| b.as_str())
-                    .map_or(false, |b| b == "allow")
-            })
-        });
-
-    if has_auto_allow {
-        // Clean up the pending approval
-        {
-            let state_guard = HOOK_SERVER_STATE.lock();
-            if let Some(ref state) = *state_guard {
-                let mut pending = state.pending_approvals.lock();
-                pending.remove(&tool_use_id);
-            }
-        }
-
-        log::info!(
-            "Auto-allowing permission request based on suggestion for tool_use_id={}",
-            tool_use_id
-        );
-
-        // Emit state_change back to running
-        let _ = state.app_handle.emit(
-            "state_change",
-            &serde_json::json!({
-                "session_id": session_id,
-                "state": "running",
-            }),
-        );
-
-        // Emit permission_resolved so frontend clears the approval
-        let _ = state.app_handle.emit(
-            "permission_resolved",
-            &serde_json::json!({
-                "tool_use_id": tool_use_id,
-                "session_id": session_id,
-                "behavior": "allow",
-            }),
-        );
-
-        return Ok(Json(serde_json::json!({
-            "hookSpecificOutput": {
-                "hookEventName": "PermissionRequest",
-                "decision": {
-                    "behavior": "allow"
-                }
-            }
-        })));
-    }
+    // Always show the approval UI — never auto-allow based on permission_suggestions.
+    // The overlay exists so the user can see and decide on every request.
+    // Previously auto-allowing caused command approvals to silently pass through
+    // without showing the UI, while questions/plans (which rarely carry suggestions)
+    // displayed correctly.
 
     // Wait for response with timeout
     let approval_timeout = get_config().hook_server.approval_timeout_secs;
