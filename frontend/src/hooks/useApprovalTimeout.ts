@@ -13,7 +13,7 @@ interface TimeoutState {
 export function useApprovalTimeout(request: ApprovalRequest | null): TimeoutState {
   const permissionTimeoutSecs = useConfigStore((s) => s.config.hookServer.permissionTimeoutSecs);
   const approvalTimeoutSecs = useConfigStore((s) => s.config.hookServer.approvalTimeoutSecs);
-  const setApprovalRequest = useSessionsStore((s) => s.setApprovalRequest);
+  const removeApprovalByToolUseId = useSessionsStore((s) => s.removeApprovalByToolUseId);
   const clearedRef = useRef(false);
 
   // Use the shorter timeout as the effective limit (Claude Code side wins)
@@ -37,12 +37,12 @@ export function useApprovalTimeout(request: ApprovalRequest | null): TimeoutStat
 
       if (next.isExpired && !clearedRef.current) {
         clearedRef.current = true;
-        setApprovalRequest(null);
+        removeApprovalByToolUseId(request.toolUseId);
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [request, effectiveTimeout, setApprovalRequest]);
+  }, [request, effectiveTimeout, removeApprovalByToolUseId]);
 
   return state;
 }

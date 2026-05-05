@@ -110,7 +110,7 @@ interface ProcessTerminatedEvent {
 }
 
 export function useAgentEvents() {
-  const { addSession, removeSession, updateSessionState, updateSessionInfo, setApprovalRequest } = useSessionsStore();
+  const { addSession, removeSession, updateSessionState, updateSessionInfo, addPendingApproval, removeApprovalByToolUseId, removeApprovalsBySessionId } = useSessionsStore();
 
   useEffect(() => {
     const unlisteners: UnlistenFn[] = [];
@@ -171,12 +171,9 @@ export function useAgentEvents() {
           });
         } else {
           updateSessionState(session_id, validState);
-          // Clear approval when session leaves "approval" state
+          // Clear approvals when session leaves "approval" state
           if (existingSession.state === "approval" && validState !== "approval") {
-            const currentApproval = useSessionsStore.getState().approvalRequest;
-            if (currentApproval && currentApproval.sessionId === session_id) {
-              setApprovalRequest(null);
-            }
+            removeApprovalsBySessionId(session_id);
           }
           // Set title from first prompt if not already set
           if (state === "running" && prompt && !existingSession.title) {
@@ -308,7 +305,7 @@ export function useAgentEvents() {
         if (notification_type === "permission_prompt") {
           updateSessionState(session_id, "approval");
           if (message) {
-            setApprovalRequest({
+            addPendingApproval({
               toolUseId: `notification-${Date.now()}`,
               sessionId: session_id,
               sessionLabel: useSessionsStore.getState().sessions.find(s => s.id === session_id)?.label || "Claude Code",
@@ -351,7 +348,7 @@ export function useAgentEvents() {
           planContent: plan_content,
         };
 
-        setApprovalRequest(approvalRequest);
+        addPendingApproval(approvalRequest);
       });
       unlisteners.push(unlistenPermissionRequest);
 
@@ -383,14 +380,14 @@ export function useAgentEvents() {
       unlisteners.push(unlistenProcessTerminated);
 
       // Listen for approval_timeout events
-      const unlistenApprovalTimeout = await listen<{ tool_use_id: string; session_id: string }>("approval_timeout", () => {
-        setApprovalRequest(null);
+      const unlistenApprovalTimeout = await listen<{ tool_use_id: string; session_id: string }>("approval_timeout", (event) => {
+        removeApprovalByToolUseId(event.payload.tool_use_id);
       });
       unlisteners.push(unlistenApprovalTimeout);
 
       // Listen for permission_resolved events (auto-allow)
-      const unlistenPermissionResolved = await listen<{ tool_use_id: string; session_id: string; behavior: string }>("permission_resolved", () => {
-        setApprovalRequest(null);
+      const unlistenPermissionResolved = await listen<{ tool_use_id: string; session_id: string; behavior: string }>("permission_resolved", (event) => {
+        removeApprovalByToolUseId(event.payload.tool_use_id);
       });
       unlisteners.push(unlistenPermissionResolved);
 
@@ -399,7 +396,8 @@ export function useAgentEvents() {
         useSessionsStore.setState({
           sessions: [],
           activeSessionId: null,
-          approvalRequest: null,
+          pendingApprovals: [],
+          currentApprovalIndex: 0,
         });
       });
       unlisteners.push(unlistenTestReset);
@@ -410,7 +408,7 @@ export function useAgentEvents() {
     return () => {
       unlisteners.forEach((unlisten) => unlisten());
     };
-  }, [addSession, removeSession, updateSessionState, updateSessionInfo, setApprovalRequest]);
+  }, [addSession, removeSession, updateSessionState, updateSessionInfo, addPendingApproval, removeApprovalByToolUseId, removeApprovalsBySessionId]);
 }
 
 // Helper to extract project name from cwd path

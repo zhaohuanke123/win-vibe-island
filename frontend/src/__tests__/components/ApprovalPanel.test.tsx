@@ -23,7 +23,8 @@ describe('ApprovalPanel', () => {
 
   beforeEach(() => {
     useSessionsStore.setState({
-      approvalRequest: null,
+      pendingApprovals: [],
+      currentApprovalIndex: 0,
       sessions: [],
     })
     vi.clearAllMocks()

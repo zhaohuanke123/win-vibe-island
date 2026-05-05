@@ -34,7 +34,8 @@ describe('SessionsStore', () => {
     useSessionsStore.setState({
       sessions: [],
       activeSessionId: null,
-      approvalRequest: null,
+      pendingApprovals: [],
+      currentApprovalIndex: 0,
       hookServerStatus: {
         connectionState: 'unknown',
         port: 7878,
@@ -193,30 +194,139 @@ describe('SessionsStore', () => {
     })
   })
 
-  describe('approvalRequest', () => {
-    it('should set approval request', () => {
+  describe('approval queue', () => {
+    it('should add a pending approval', () => {
       const store = useSessionsStore.getState()
       const request = createApprovalRequest({
+        toolUseId: 'tool-1',
         action: 'Execute command',
         riskLevel: 'medium',
       })
 
-      store.setApprovalRequest(request)
+      store.addPendingApproval(request)
 
-      expect(useSessionsStore.getState().approvalRequest).toEqual(request)
+      const state = useSessionsStore.getState()
+      expect(state.pendingApprovals).toHaveLength(1)
+      expect(state.pendingApprovals[0].toolUseId).toBe('tool-1')
+      expect(state.currentApprovalIndex).toBe(0)
     })
 
-    it('should clear approval request', () => {
+    it('should deduplicate approvals by toolUseId', () => {
+      const store = useSessionsStore.getState()
+      const request = createApprovalRequest({ toolUseId: 'tool-1' })
+
+      store.addPendingApproval(request)
+      store.addPendingApproval(request)
+
+      expect(useSessionsStore.getState().pendingApprovals).toHaveLength(1)
+    })
+
+    it('should add multiple approvals', () => {
       const store = useSessionsStore.getState()
 
-      store.setApprovalRequest(createApprovalRequest({
-        action: 'Test',
-        riskLevel: 'low',
-      }))
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-1' }))
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-2' }))
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-3' }))
+
+      const state = useSessionsStore.getState()
+      expect(state.pendingApprovals).toHaveLength(3)
+      expect(state.currentApprovalIndex).toBe(0)
+    })
+
+    it('should remove current approval and adjust index', () => {
+      const store = useSessionsStore.getState()
+
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-1' }))
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-2' }))
+      store.setCurrentApprovalIndex(1)
+
+      store.removeCurrentApproval()
+
+      const state = useSessionsStore.getState()
+      expect(state.pendingApprovals).toHaveLength(1)
+      expect(state.pendingApprovals[0].toolUseId).toBe('tool-1')
+      expect(state.currentApprovalIndex).toBe(0)
+    })
+
+    it('should remove approval by toolUseId', () => {
+      const store = useSessionsStore.getState()
+
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-1' }))
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-2' }))
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-3' }))
+
+      store.removeApprovalByToolUseId('tool-2')
+
+      const state = useSessionsStore.getState()
+      expect(state.pendingApprovals).toHaveLength(2)
+      expect(state.pendingApprovals[0].toolUseId).toBe('tool-1')
+      expect(state.pendingApprovals[1].toolUseId).toBe('tool-3')
+    })
+
+    it('should adjust index when removing approval before current', () => {
+      const store = useSessionsStore.getState()
+
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-1' }))
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-2' }))
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-3' }))
+      store.setCurrentApprovalIndex(2)
+
+      store.removeApprovalByToolUseId('tool-1')
+
+      const state = useSessionsStore.getState()
+      expect(state.pendingApprovals).toHaveLength(2)
+      expect(state.currentApprovalIndex).toBe(1)
+    })
+
+    it('should reset index to 0 when last approval is removed', () => {
+      const store = useSessionsStore.getState()
+
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-1' }))
+      store.removeCurrentApproval()
+
+      const state = useSessionsStore.getState()
+      expect(state.pendingApprovals).toHaveLength(0)
+      expect(state.currentApprovalIndex).toBe(0)
+    })
+
+    it('should remove approvals by session id', () => {
+      const store = useSessionsStore.getState()
+
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-1', sessionId: 'session-a' }))
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-2', sessionId: 'session-b' }))
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-3', sessionId: 'session-a' }))
+
+      store.removeApprovalsBySessionId('session-a')
+
+      const state = useSessionsStore.getState()
+      expect(state.pendingApprovals).toHaveLength(1)
+      expect(state.pendingApprovals[0].toolUseId).toBe('tool-2')
+    })
+
+    it('should clear all approvals via clearApprovalRequest', () => {
+      const store = useSessionsStore.getState()
+
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-1' }))
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-2' }))
 
       store.clearApprovalRequest()
 
-      expect(useSessionsStore.getState().approvalRequest).toBeNull()
+      const state = useSessionsStore.getState()
+      expect(state.pendingApprovals).toHaveLength(0)
+      expect(state.currentApprovalIndex).toBe(0)
+    })
+
+    it('setApprovalRequest(null) clears all approvals', () => {
+      const store = useSessionsStore.getState()
+
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-1' }))
+      store.addPendingApproval(createApprovalRequest({ toolUseId: 'tool-2' }))
+
+      store.setApprovalRequest(null)
+
+      const state = useSessionsStore.getState()
+      expect(state.pendingApprovals).toHaveLength(0)
+      expect(state.currentApprovalIndex).toBe(0)
     })
   })
 

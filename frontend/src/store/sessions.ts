@@ -118,7 +118,8 @@ export interface HookServerStatus {
 interface SessionsStore {
   sessions: Session[];
   activeSessionId: string | null;
-  approvalRequest: ApprovalRequest | null;
+  pendingApprovals: ApprovalRequest[];
+  currentApprovalIndex: number;
   hookServerStatus: HookServerStatus;
   errorLogs: string[];
   groups: string[];
@@ -128,6 +129,12 @@ interface SessionsStore {
   updateSessionState: (id: string, state: AgentState) => void;
   updateSessionInfo: (id: string, info: Partial<Session>) => void;
   setActiveSession: (id: string | null) => void;
+  addPendingApproval: (request: ApprovalRequest) => void;
+  removeCurrentApproval: () => void;
+  removeApprovalByToolUseId: (toolUseId: string) => void;
+  removeApprovalsBySessionId: (sessionId: string) => void;
+  setCurrentApprovalIndex: (index: number) => void;
+  // Deprecated: use addPendingApproval instead
   setApprovalRequest: (request: ApprovalRequest | null) => void;
   clearApprovalRequest: () => void;
   setHookServerStatus: (status: Partial<HookServerStatus>) => void;
@@ -142,10 +149,11 @@ interface SessionsStore {
   renameGroup: (oldName: string, newName: string) => void;
 }
 
-export const useSessionsStore = create<SessionsStore>((set) => ({
+export const useSessionsStore = create<SessionsStore>((set, get) => ({
   sessions: [],
   activeSessionId: null,
-  approvalRequest: null,
+  pendingApprovals: [],
+  currentApprovalIndex: 0,
   hookServerStatus: {
     connectionState: "unknown",
     port: useConfigStore.getState().getHookServerPort(),
@@ -186,9 +194,82 @@ export const useSessionsStore = create<SessionsStore>((set) => ({
 
   setActiveSession: (id) => set({ activeSessionId: id }),
 
-  setApprovalRequest: (request) => set({ approvalRequest: request }),
+  addPendingApproval: (request) =>
+    set((s) => {
+      // Deduplicate by toolUseId
+      if (s.pendingApprovals.some((a) => a.toolUseId === request.toolUseId)) {
+        return s;
+      }
+      return {
+        pendingApprovals: [...s.pendingApprovals, request],
+      };
+    }),
 
-  clearApprovalRequest: () => set({ approvalRequest: null }),
+  removeCurrentApproval: () =>
+    set((s) => {
+      if (s.pendingApprovals.length === 0) return s;
+      const newApprovals = s.pendingApprovals.filter((_, i) => i !== s.currentApprovalIndex);
+      let newIndex = 0;
+      if (newApprovals.length > 0) {
+        // If we removed the last item, go back; otherwise stay at same index
+        newIndex = Math.min(s.currentApprovalIndex, newApprovals.length - 1);
+      }
+      return {
+        pendingApprovals: newApprovals,
+        currentApprovalIndex: newIndex,
+      };
+    }),
+
+  removeApprovalByToolUseId: (toolUseId) =>
+    set((s) => {
+      const idx = s.pendingApprovals.findIndex((a) => a.toolUseId === toolUseId);
+      if (idx === -1) return s;
+      const newApprovals = s.pendingApprovals.filter((_, i) => i !== idx);
+      let newIndex = s.currentApprovalIndex;
+      if (newApprovals.length === 0) {
+        newIndex = 0;
+      } else if (idx < s.currentApprovalIndex) {
+        newIndex = s.currentApprovalIndex - 1;
+      } else if (idx === s.currentApprovalIndex) {
+        newIndex = Math.min(s.currentApprovalIndex, newApprovals.length - 1);
+      }
+      return {
+        pendingApprovals: newApprovals,
+        currentApprovalIndex: newIndex,
+      };
+    }),
+
+  removeApprovalsBySessionId: (sessionId) =>
+    set((s) => {
+      const newApprovals = s.pendingApprovals.filter((a) => a.sessionId !== sessionId);
+      if (newApprovals.length === s.pendingApprovals.length) return s;
+      let newIndex = 0;
+      if (newApprovals.length > 0) {
+        newIndex = Math.min(s.currentApprovalIndex, newApprovals.length - 1);
+      }
+      return {
+        pendingApprovals: newApprovals,
+        currentApprovalIndex: newIndex,
+      };
+    }),
+
+  setCurrentApprovalIndex: (index) => set({ currentApprovalIndex: index }),
+
+  // Deprecated: use addPendingApproval instead
+  setApprovalRequest: (request) =>
+    set((s) => {
+      if (request === null) {
+        return { pendingApprovals: [], currentApprovalIndex: 0 };
+      }
+      if (s.pendingApprovals.some((a) => a.toolUseId === request.toolUseId)) {
+        return s;
+      }
+      return {
+        pendingApprovals: [...s.pendingApprovals, request],
+      };
+    }),
+
+  clearApprovalRequest: () => set({ pendingApprovals: [], currentApprovalIndex: 0 }),
 
   setHookServerStatus: (status) =>
     set((s) => ({

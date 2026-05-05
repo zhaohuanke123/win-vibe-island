@@ -7,6 +7,8 @@ export interface VibeTestBridge {
   getSessions: () => Session[];
   getActiveSessionId: () => string | null;
   getApprovalRequest: () => ApprovalRequest | null;
+  getPendingApprovals: () => ApprovalRequest[];
+  getCurrentApprovalIndex: () => number;
   getHookServerStatus: () => HookServerStatus;
   resetAll: () => Promise<void>;
   isTauriRuntime: () => boolean;
@@ -66,7 +68,7 @@ function simulateEvent(event: string, payload: Record<string, unknown>) {
     case "permission_request": {
       const sessionId = payload.session_id as string;
       const session = store.sessions.find((s) => s.id === sessionId);
-      store.setApprovalRequest({
+      store.addPendingApproval({
         toolUseId: payload.tool_use_id as string,
         sessionId,
         sessionLabel: session?.label || "Test Session",
@@ -150,7 +152,8 @@ function simulateEvent(event: string, payload: Record<string, unknown>) {
       useSessionsStore.setState({
         sessions: [],
         activeSessionId: null,
-        approvalRequest: null,
+        pendingApprovals: [],
+        currentApprovalIndex: 0,
       });
       break;
     }
@@ -163,14 +166,20 @@ export function registerTestBridge() {
 
     getSessions: () => useSessionsStore.getState().sessions,
     getActiveSessionId: () => useSessionsStore.getState().activeSessionId,
-    getApprovalRequest: () => useSessionsStore.getState().approvalRequest,
+    getApprovalRequest: () => {
+      const s = useSessionsStore.getState();
+      return s.pendingApprovals[s.currentApprovalIndex] ?? null;
+    },
+    getPendingApprovals: () => useSessionsStore.getState().pendingApprovals,
+    getCurrentApprovalIndex: () => useSessionsStore.getState().currentApprovalIndex,
     getHookServerStatus: () => useSessionsStore.getState().hookServerStatus,
 
     resetAll: async () => {
       useSessionsStore.setState({
         sessions: [],
         activeSessionId: null,
-        approvalRequest: null,
+        pendingApprovals: [],
+        currentApprovalIndex: 0,
       });
       if (isTauriRuntime()) {
         await invoke("test_reset_sessions");

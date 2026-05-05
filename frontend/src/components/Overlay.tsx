@@ -13,6 +13,7 @@ import { useSessionsStore } from "../store/sessions";
 import { normalizeOverlayLayoutConfig, useConfigStore } from "../store/config";
 import type { ApprovalRequest, Session } from "../store/sessions";
 import "./Overlay.css";
+import "./ApprovalQueue.css";
 
 type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored";
 
@@ -31,11 +32,17 @@ function ApprovalFocusContent({
   approvalSession,
   sessionsCount,
   onApprovalHandled,
+  queueInfo,
+  onNavigatePrev,
+  onNavigateNext,
 }: {
   approvalRequest: ApprovalRequest;
   approvalSession: Session | null;
   sessionsCount: number;
   onApprovalHandled: () => void;
+  queueInfo?: { current: number; total: number };
+  onNavigatePrev?: () => void;
+  onNavigateNext?: () => void;
 }) {
   return (
     <div className="overlay__approval-focus" data-testid="approval-focus">
@@ -48,12 +55,37 @@ function ApprovalFocusContent({
             <span className="overlay__approval-context-state">{approvalSession.state}</span>
           )}
         </div>
-        <span className="overlay__approval-context-count">
-          {sessionsCount} session{sessionsCount === 1 ? "" : "s"}
-        </span>
+        <div className="overlay__approval-context-right">
+          {queueInfo && queueInfo.total > 1 && (
+            <div className="approval-queue-nav">
+              <button
+                className="approval-queue-nav__btn"
+                onClick={onNavigatePrev}
+                disabled={!onNavigatePrev}
+                title="Previous approval"
+              >
+                ‹
+              </button>
+              <span className="approval-queue-nav__counter">
+                {queueInfo.current}/{queueInfo.total}
+              </span>
+              <button
+                className="approval-queue-nav__btn"
+                onClick={onNavigateNext}
+                disabled={!onNavigateNext}
+                title="Next approval"
+              >
+                ›
+              </button>
+            </div>
+          )}
+          <span className="overlay__approval-context-count">
+            {sessionsCount} session{sessionsCount === 1 ? "" : "s"}
+          </span>
+        </div>
       </div>
       <ApprovalPanel
-        key={approvalRequest.timestamp}
+        key={approvalRequest.toolUseId}
         request={approvalRequest}
         onApprovalHandled={onApprovalHandled}
       />
@@ -65,8 +97,10 @@ export function Overlay() {
   const sessions = useSessionsStore((s) => s.sessions);
   const activeSessionId = useSessionsStore((s) => s.activeSessionId);
   const setActiveSession = useSessionsStore((s) => s.setActiveSession);
-  const approvalRequest = useSessionsStore((s) => s.approvalRequest);
-  const clearApprovalRequest = useSessionsStore((s) => s.clearApprovalRequest);
+  const pendingApprovals = useSessionsStore((s) => s.pendingApprovals);
+  const currentApprovalIndex = useSessionsStore((s) => s.currentApprovalIndex);
+  const removeCurrentApproval = useSessionsStore((s) => s.removeCurrentApproval);
+  const setCurrentApprovalIndex = useSessionsStore((s) => s.setCurrentApprovalIndex);
   const groups = useSessionsStore((s) => s.groups);
   const config = useConfigStore((s) => s.config);
   const overlayLayout = normalizeOverlayLayoutConfig(config.overlay);
@@ -78,11 +112,12 @@ export function Overlay() {
   const EXPANDED_BORDER_RADIUS = overlayLayout.expandedBorderRadius;
   const active = sessions.find((s) => s.id === activeSessionId);
   const approvalStateSession = sessions.find((s) => s.state === "approval") ?? null;
-  const approvalSession = approvalRequest
-    ? sessions.find((s) => s.id === approvalRequest.sessionId) ?? null
+  const currentApproval = pendingApprovals[currentApprovalIndex] ?? null;
+  const approvalSession = currentApproval
+    ? sessions.find((s) => s.id === currentApproval.sessionId) ?? null
     : approvalStateSession;
   const approvalStateFocusKey = approvalStateSession ? `session:${approvalStateSession.id}` : null;
-  const approvalFocusKey = approvalRequest ? `request:${approvalRequest.toolUseId}` : approvalStateFocusKey;
+  const approvalFocusKey = currentApproval ? `request:${currentApproval.toolUseId}` : approvalStateFocusKey;
   const [expanded, setExpanded] = useState(false);
   const [collapsedApprovalFocusKey, setCollapsedApprovalFocusKey] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -97,7 +132,7 @@ export function Overlay() {
   const [measuredHeight, setMeasuredHeight] = useState(EXPANDED_MAX as number);
 
   // Note: approval_request events are handled by useAgentEvents hook
-  // which sets the approvalRequest in the store
+  // which adds to pendingApprovals in the store
 
   // Auto-expand when approval request comes in
   useEffect(() => {
@@ -118,7 +153,7 @@ export function Overlay() {
       hadApprovalRequestRef.current = false;
       setExpanded(false);
     }
-  }, [approvalFocusKey, approvalRequest]);
+  }, [approvalFocusKey, currentApproval]);
 
   // Keep the capsule clickable in compact mode. The smaller compact footprint
   // replaces the old click-through behavior.
@@ -240,7 +275,7 @@ export function Overlay() {
   }, [
     isOverlayExpanded,
     isApprovalFocusMode,
-    approvalRequest,
+    currentApproval,
     showSettings,
     showActivity,
     sessions.length,
@@ -251,10 +286,26 @@ export function Overlay() {
   ]);
 
   const handleApprovalHandled = () => {
-    handledApprovalStateFocusKeyRef.current = approvalRequest ? `session:${approvalRequest.sessionId}` : approvalStateFocusKey;
-    setCollapsedApprovalFocusKey(handledApprovalStateFocusKeyRef.current);
-    clearApprovalRequest();
-    setExpanded(false);
+    const resolvedKey = currentApproval ? `session:${currentApproval.sessionId}` : approvalStateFocusKey;
+    handledApprovalStateFocusKeyRef.current = resolvedKey;
+    setCollapsedApprovalFocusKey(resolvedKey);
+    removeCurrentApproval();
+    // Only collapse if no more approvals remain
+    if (pendingApprovals.length <= 1) {
+      setExpanded(false);
+    }
+  };
+
+  const handleNavigatePrev = () => {
+    if (currentApprovalIndex > 0) {
+      setCurrentApprovalIndex(currentApprovalIndex - 1);
+    }
+  };
+
+  const handleNavigateNext = () => {
+    if (currentApprovalIndex < pendingApprovals.length - 1) {
+      setCurrentApprovalIndex(currentApprovalIndex + 1);
+    }
   };
 
   const handleBarClick = () => {
@@ -317,12 +368,15 @@ export function Overlay() {
                   <span>{error}</span>
                 </div>
               )}
-              {isApprovalFocusMode && approvalRequest ? (
+              {isApprovalFocusMode && currentApproval ? (
                 <ApprovalFocusContent
-                  approvalRequest={approvalRequest}
+                  approvalRequest={currentApproval}
                   approvalSession={approvalSession}
                   sessionsCount={sessions.length}
                   onApprovalHandled={handleApprovalHandled}
+                  queueInfo={pendingApprovals.length > 1 ? { current: currentApprovalIndex + 1, total: pendingApprovals.length } : undefined}
+                  onNavigatePrev={pendingApprovals.length > 1 && currentApprovalIndex > 0 ? handleNavigatePrev : undefined}
+                  onNavigateNext={pendingApprovals.length > 1 && currentApprovalIndex < pendingApprovals.length - 1 ? handleNavigateNext : undefined}
                 />
               ) : showSettings ? (
                 <SettingsPanel />
@@ -330,8 +384,8 @@ export function Overlay() {
                 <ActivityTimeline data-testid="activity-timeline" />
               ) : (
                 <>
-                  {approvalRequest && (
-                    <ApprovalPanel key={approvalRequest.timestamp} request={approvalRequest} onApprovalHandled={handleApprovalHandled} />
+                  {currentApproval && (
+                    <ApprovalPanel key={currentApproval.toolUseId} request={currentApproval} onApprovalHandled={handleApprovalHandled} />
                   )}
                   {viewingSession ? (
                     <SessionDetail session={viewingSession} onBack={() => setViewingSessionId(null)} data-testid="session-detail" />

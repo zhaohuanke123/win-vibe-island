@@ -36,7 +36,8 @@ describe('useAgentEvents', () => {
     useSessionsStore.setState({
       sessions: [],
       activeSessionId: null,
-      approvalRequest: null,
+      pendingApprovals: [],
+      currentApprovalIndex: 0,
       hookServerStatus: {
         connectionState: 'unknown',
         port: 7878,
@@ -406,7 +407,7 @@ describe('useAgentEvents', () => {
   })
 
   describe('permission_request event', () => {
-    it('should set approval state and request', async () => {
+    it('should set approval state and add to pending queue', async () => {
       useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
         label: 'Test Project',
@@ -436,10 +437,10 @@ describe('useAgentEvents', () => {
 
       const state = useSessionsStore.getState()
       expect(state.sessions[0].state).toBe('approval')
-      expect(state.approvalRequest).not.toBeNull()
-      expect(state.approvalRequest?.toolUseId).toBe('tool-123')
-      expect(state.approvalRequest?.toolInput).toEqual({ command: 'rm -rf /' })
-      expect(state.approvalRequest?.riskLevel).toBe('high')
+      expect(state.pendingApprovals).toHaveLength(1)
+      expect(state.pendingApprovals[0].toolUseId).toBe('tool-123')
+      expect(state.pendingApprovals[0].toolInput).toEqual({ command: 'rm -rf /' })
+      expect(state.pendingApprovals[0].riskLevel).toBe('high')
     })
 
     it('should include diff data when provided', async () => {
@@ -475,8 +476,40 @@ describe('useAgentEvents', () => {
       })
 
       const state = useSessionsStore.getState()
-      expect(state.approvalRequest?.diff).toBeDefined()
-      expect(state.approvalRequest?.diff?.fileName).toBe('test.ts')
+      expect(state.pendingApprovals[0]?.diff).toBeDefined()
+      expect(state.pendingApprovals[0]?.diff?.fileName).toBe('test.ts')
+    })
+
+    it('should queue multiple approvals', async () => {
+      useSessionsStore.getState().addSession(createSession({
+        id: 'session-1',
+        label: 'Test Project',
+        state: 'running',
+      }))
+
+      renderHook(() => useAgentEvents())
+
+      await vi.waitFor(() => {
+        expect(eventHandlers.has('permission_request')).toBe(true)
+      })
+
+      const handler = eventHandlers.get('permission_request')!
+
+      act(() => {
+        handler({
+          payload: { session_id: 'session-1', tool_use_id: 'tool-1', tool_name: 'Bash', action: 'cmd1', risk_level: 'medium' },
+        })
+        handler({
+          payload: { session_id: 'session-1', tool_use_id: 'tool-2', tool_name: 'Write', action: 'write1', risk_level: 'low' },
+        })
+        handler({
+          payload: { session_id: 'session-1', tool_use_id: 'tool-3', tool_name: 'Read', action: 'read1', risk_level: 'high' },
+        })
+      })
+
+      const state = useSessionsStore.getState()
+      expect(state.pendingApprovals).toHaveLength(3)
+      expect(state.pendingApprovals.map(a => a.toolUseId)).toEqual(['tool-1', 'tool-2', 'tool-3'])
     })
   })
 

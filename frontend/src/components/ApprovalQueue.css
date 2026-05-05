@@ -1,0 +1,52 @@
+/* Approval Queue Navigation */
+
+.overlay__approval-context-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.approval-queue-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+
+.approval-queue-nav__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+}
+
+.approval-queue-nav__btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+}
+
+.approval-queue-nav__btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.approval-queue-nav__counter {
+  font-size: 12px;
+  font-weight: 500;
+  color: #d1d5db;
+  min-width: 32px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
