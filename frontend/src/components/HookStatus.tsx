@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionsStore } from "../store/sessions";
 import "./HookStatus.css";
@@ -17,8 +17,10 @@ interface HookStatusProps {
   "data-testid"?: string;
 }
 
-export function HookStatus({ "data-testid": testId }: HookStatusProps = {}) {
-  const { hookServerStatus, setHookServerStatus, addErrorLog } = useSessionsStore();
+export const HookStatus = memo(function HookStatus({ "data-testid": testId }: HookStatusProps = {}) {
+  const hookServerStatus = useSessionsStore((s) => s.hookServerStatus);
+  const setHookServerStatus = useSessionsStore((s) => s.setHookServerStatus);
+  const addErrorLog = useSessionsStore((s) => s.addErrorLog);
   const heartbeatRef = useRef<number | null>(null);
   const reconnectRef = useRef<number | null>(null);
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
@@ -120,4 +122,4 @@ export function HookStatus({ "data-testid": testId }: HookStatusProps = {}) {
       )}
     </div>
   );
-}
+});

@@ -10,13 +10,19 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, LogicalSize, Size, WebviewWindow};
 
 #[cfg(target_os = "windows")]
-fn apply_window_round_region(window: &WebviewWindow, radius: u32) -> Result<(), String> {
+fn apply_window_round_region(window: &WebviewWindow, radius: u32, phys_w: u32, phys_h: u32) -> Result<(), String> {
+    use std::sync::atomic::{AtomicU64, Ordering};
     use windows::Win32::Foundation::{BOOL, HWND};
     use windows::Win32::Graphics::Gdi::{CreateRoundRectRgn, DeleteObject, SetWindowRgn};
 
+    static LAST_REGION_KEY: AtomicU64 = AtomicU64::new(0);
+    let key = ((phys_w as u64) << 32) | ((phys_h as u64) << 16) | (radius as u64);
+    if key == LAST_REGION_KEY.load(Ordering::Relaxed) {
+        return Ok(());
+    }
+
     let hwnd_raw = window.hwnd().map_err(|e| e.to_string())?;
     let hwnd = HWND(hwnd_raw.0 as *mut _);
-    let size = window.inner_size().map_err(|e| e.to_string())?;
     let scale = window.scale_factor().unwrap_or(1.0);
     let radius_px = ((radius as f64 * scale).round() as i32).max(1);
 
@@ -24,8 +30,8 @@ fn apply_window_round_region(window: &WebviewWindow, radius: u32) -> Result<(), 
         let region = CreateRoundRectRgn(
             0,
             0,
-            size.width as i32 + 1,
-            size.height as i32 + 1,
+            phys_w as i32 + 1,
+            phys_h as i32 + 1,
             radius_px * 2,
             radius_px * 2,
         );
@@ -40,6 +46,7 @@ fn apply_window_round_region(window: &WebviewWindow, radius: u32) -> Result<(), 
         }
     }
 
+    LAST_REGION_KEY.store(key, Ordering::Relaxed);
     Ok(())
 }
 
@@ -378,7 +385,7 @@ pub fn set_window_size(
     #[cfg(target_os = "windows")]
     {
         let radius = if height <= 80 { height / 2 } else { 18 };
-        let _ = apply_window_round_region(&window, radius);
+        let _ = apply_window_round_region(&window, radius, physical_width, physical_height);
     }
 
     // Re-center horizontally at top of screen
@@ -459,43 +466,40 @@ pub fn update_overlay_size(
     border_radius: Option<u32>,
     anchor_center: Option<bool>,
 ) -> Result<(), String> {
-    use std::sync::atomic::{AtomicI64, Ordering};
-    use std::time::SystemTime;
-
-    static LAST_RESIZE_MS: AtomicI64 = AtomicI64::new(0);
-    let now_ms = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0);
-    let last = LAST_RESIZE_MS.load(Ordering::Relaxed);
-    if now_ms - last < 16 {
-        return Ok(());
-    }
-    LAST_RESIZE_MS.store(now_ms, Ordering::Relaxed);
-
     let dpi_scale = resize_scale_factor(&window, webview_scale_factor)?;
 
     let physical_width = ((width as f64) * dpi_scale).round() as u32;
     let physical_height = ((height as f64) * dpi_scale).round() as u32;
 
-    log::info!(
-        "update_overlay_size: CSS({}x{}) DPI({}) -> Physical({}x{}), inner_before=({:?})",
+    log::trace!(
+        "update_overlay_size: CSS({}x{}) DPI({}) -> Physical({}x{})",
         width,
         height,
         dpi_scale,
         physical_width,
         physical_height,
-        window.inner_size()
     );
 
     let target_x: Option<i32> = if anchor_center.unwrap_or(false) {
-        let position = window.outer_position().map_err(|e| e.to_string())?;
-        let current_size = window.outer_size().map_err(|e| e.to_string())?;
-        let current_width_logical = current_size.width as f64 / dpi_scale;
-        let current_x_logical = position.x as f64 / dpi_scale;
-        let center_x = current_x_logical + current_width_logical / 2.0;
-        let logical_width = width as f64;
-        Some(((center_x - logical_width / 2.0) * dpi_scale).round() as i32)
+        use std::sync::atomic::{AtomicI32, AtomicU32, Ordering};
+
+        static CACHED_CENTER_X: AtomicI32 = AtomicI32::new(0);
+        static CACHED_WIDTH: AtomicU32 = AtomicU32::new(0);
+
+        let cached_w = CACHED_WIDTH.load(Ordering::Relaxed);
+        let center_x_physical = if cached_w == physical_width {
+            CACHED_CENTER_X.load(Ordering::Relaxed)
+        } else {
+            let position = window.outer_position().map_err(|e| e.to_string())?;
+            let current_size = window.outer_size().map_err(|e| e.to_string())?;
+            let cx = position.x + (current_size.width as i32 / 2);
+            CACHED_CENTER_X.store(cx, Ordering::Relaxed);
+            CACHED_WIDTH.store(physical_width, Ordering::Relaxed);
+            cx
+        };
+
+        let new_x = center_x_physical - (physical_width as i32 / 2);
+        Some(new_x)
     } else {
         None
     };
@@ -511,7 +515,7 @@ pub fn update_overlay_size(
     #[cfg(target_os = "windows")]
     {
         let radius = border_radius.unwrap_or(if height <= 80 { height / 2 } else { 18 });
-        apply_window_round_region(&window, radius)?;
+        apply_window_round_region(&window, radius, physical_width, physical_height)?;
     }
 
     if let Some(x) = target_x {

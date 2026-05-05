@@ -206,7 +206,7 @@
   padding: 7px 8px;
   border-radius: 6px;
   cursor: pointer;
-  will-change: background, transform;
+  will-change: transform;
   transition: background 200ms ease, transform 150ms ease;
 }
 

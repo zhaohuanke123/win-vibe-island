@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, memo } from "react";
 import { motion } from "framer-motion";
 import { StatusDot } from "./StatusDot";
 import { SessionContextMenu } from "./SessionContextMenu";
@@ -46,7 +46,7 @@ const STATE_FILTERS: { label: string; value: StateFilter }[] = [
   { label: "Idle", value: "idle" },
 ];
 
-export function SessionList({
+export const SessionList = memo(function SessionList({
   sessions,
   activeSessionId,
   viewingSessionId,
@@ -355,4 +355,4 @@ export function SessionList({
       )}
     </div>
   );
-}
+});

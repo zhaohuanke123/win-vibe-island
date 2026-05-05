@@ -62,7 +62,12 @@ function ApprovalFocusContent({
 }
 
 export function Overlay() {
-  const { sessions, activeSessionId, setActiveSession, approvalRequest, clearApprovalRequest, groups } = useSessionsStore();
+  const sessions = useSessionsStore((s) => s.sessions);
+  const activeSessionId = useSessionsStore((s) => s.activeSessionId);
+  const setActiveSession = useSessionsStore((s) => s.setActiveSession);
+  const approvalRequest = useSessionsStore((s) => s.approvalRequest);
+  const clearApprovalRequest = useSessionsStore((s) => s.clearApprovalRequest);
+  const groups = useSessionsStore((s) => s.groups);
   const config = useConfigStore((s) => s.config);
   const overlayLayout = normalizeOverlayLayoutConfig(config.overlay);
   const BAR_HEIGHT = config.ui.dimensions.barHeight;

@@ -982,3 +982,50 @@ and any relevant notes.
 ## Pending Tasks
 
 All tasks completed.
+
+---
+
+## [2026-05-05] - 文档清理 v1.0
+
+### What was done
+
+Complete project doc restructuring to eliminate duplication and ambiguity:
+
+**Phase 1 — 移动/删除明确冗余项:**
+- `TASK.md → docs/archive/TASK.md`（历史任务定义，保留参考）
+- `PLAN_PHASE2.md → docs/archive/PLAN_PHASE2.md`
+- `docs/cc-experience-improvement.md → docs/archive/`
+- `docs/research-dynamic-island-animation.md → docs/archive/`
+- `docs/research-windows-window-management.md → docs/archive/`
+- 删除根目录 `executor.md`（已移至 `agents/executor.md`）
+- 删除根目录 `verifier.md`（已移至 `agents/verifier.md`）
+
+**Phase 2 — 合并重叠文档:**
+- `CLAUDE.md` 已合并入 `AGENTS.md`（它本就是 AGENTS.md 的子集），然后删除 CLAUDE.md
+  - 更新 AGENTS.md：文件导航表指向 agents/ 路径、docs/testing.md、docs/README.md
+  - 更新目录结构：去掉已删文件、新增 docs/archive/、agents/
+- `DESIGN.md` 已合并入 `architecture.md`
+  - 新增 Runtime Architecture 启动流程、已知实现边界、Claude Code 集成等内容
+  - architecture.md 目录结构也同步更新到最新文件清单
+  - 状态/配置表（Session 34-38 等）已过时不保留（task.json 是权威状态源）
+  - 然后删除 DESIGN.md
+- `docs/testing-strategy.md` 已合并入 `docs/testing.md`
+  - testing.md 保持为唯一测试文档，保留全部三层 API 细节
+  - 新增 Part 1 测试策略（覆盖目标、边界、mock、技术栈）
+  - 删除 testing-strategy.md
+
+**Phase 3 — 索引化:**
+- 创建 `docs/README.md` 作为文档索引
+
+### Evidence
+
+- `cat docs/testing.md | head -5` — 合并后的测试文档包含 Part 1（策略）和 Part 2（API）
+- `[ ! -f CLAUDE.md ] && [ ! -f DESIGN.md ] && [ ! -f docs/testing-strategy.md ]` — 被删文件已不存在
+- `[ -f agents/executor.md ] && [ -f agents/verifier.md ]` — 被移文件在正确位置
+- `[ -f docs/README.md ]` — 索引已创建
+- `ls docs/archive/` — 5 个归档文件
+
+### Documentation Gate
+
+本次操作用户直接通过 Telegram 下达指令，未触发正式编码任务，属于文档维护性质变更。
+

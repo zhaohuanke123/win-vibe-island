@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { motion, type Transition } from "framer-motion";
 import { useConfigStore } from "../store/config";
 import "./StatusDot.css";
@@ -9,7 +10,7 @@ interface StatusDotProps {
   "data-testid"?: string;
 }
 
-export function StatusDot({ state, "data-testid": testId }: StatusDotProps) {
+export const StatusDot = memo(function StatusDot({ state, "data-testid": testId }: StatusDotProps) {
   const getStateColor = useConfigStore((s) => s.getStateColor);
   const getAnimationDuration = useConfigStore((s) => s.getAnimationDuration);
   const getSpringConfig = useConfigStore((s) => s.getSpringConfig);
@@ -98,4 +99,4 @@ export function StatusDot({ state, "data-testid": testId }: StatusDotProps) {
       transition={getTransition()}
     />
   );
-}
+});

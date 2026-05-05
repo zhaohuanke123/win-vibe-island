@@ -1,6 +1,183 @@
-# Vibe Island 测试 API 文档
+# Vibe Island 测试文档
 
-## 概述
+> 合并自原 `testing-strategy.md`（策略层）和本文件（API 层）。
+
+---
+
+## Part 1: 测试策略
+
+### 测试技术栈
+
+#### Frontend
+
+| Tool | Current Status |
+|------|----------------|
+| Vitest | 已安装，`npm test` 运行 |
+| @testing-library/react | 已安装 |
+| @testing-library/jest-dom | 已安装 |
+| jsdom | 已安装 |
+
+#### Backend
+
+| Tool | Current Status |
+|------|----------------|
+| Rust built-in test | 已使用 |
+| tokio-test | 已安装 |
+| tempfile | 已安装，用于 hook_config 测试 |
+
+当前 `Cargo.toml` 未安装 `mockall`。
+
+---
+
+### Current Test Files
+
+#### Frontend
+
+```
+frontend/src/__tests__/
+├── setup.ts
+├── components/
+│   ├── ApprovalPanel.test.tsx
+│   └── StatusDot.test.tsx
+├── hooks/
+│   └── useAgentEvents.test.ts
+└── store/
+    └── sessions.test.ts
+```
+
+覆盖范围：
+
+| File | Coverage Intent |
+|------|-----------------|
+| `sessions.test.ts` | Zustand store 的 session、approval、hook status、tool history、error log 行为 |
+| `useAgentEvents.test.ts` | Tauri event 到 store 的映射，包括 session、tool、approval、process events |
+| `StatusDot.test.tsx` | 各状态渲染和动画属性 |
+| `ApprovalPanel.test.tsx` | 审批请求展示、Approve/Reject 调用、快捷键、loading 状态 |
+
+#### Backend
+
+```
+src-tauri/
+├── src/
+│   ├── hook_server.rs     # 内联单元测试
+│   └── hook_config.rs     # 内联单元测试
+└── tests/
+    └── hook_server_integration.rs
+```
+
+覆盖范围：
+
+| File | Coverage Intent |
+|------|-----------------|
+| `hook_server.rs` | session id/label 提取、风险等级、动作描述、diff 提取、hook payload helper |
+| `hook_config.rs` | required hooks 生成、Vibe Island hook 识别、非破坏性 merge/remove、mode serialization |
+| `hook_server_integration.rs` | hook endpoint payload schema 和核心 HTTP 行为 |
+
+---
+
+### 运行测试
+
+#### Frontend
+
+```bash
+cd frontend
+npm test
+```
+
+Useful variants:
+
+```bash
+npm test -- sessions.test.ts
+npm test -- --coverage
+npm run test:watch
+```
+
+#### Backend
+
+```bash
+cd src-tauri
+cargo test
+```
+
+Useful variants:
+
+```bash
+cargo test hook_config
+cargo test hook_server
+cargo test --test hook_server_integration
+cargo test -- --nocapture
+```
+
+#### Build Checks
+
+```bash
+cd frontend && npm run build
+cd src-tauri && cargo check
+```
+
+---
+
+### Test Boundaries
+
+#### Covered
+
+- Frontend state management and event handling.
+- ApprovalPanel IPC invocation behavior.
+- StatusDot state rendering.
+- Hook server helper logic.
+- Hook config generation, merge, uninstall behavior.
+- Basic hook endpoint integration expectations.
+
+#### Not Yet Covered
+
+- `HookStatus.tsx` health polling component.
+- `DiffViewer.tsx` rendering.
+- `HookConfigStatus.tsx` and `ErrorLog.tsx`.
+- `Overlay.tsx` expand/collapse and window resize IPC behavior.
+- `process_watcher.rs` unit tests.
+- `window_focus.rs` behavior tests.
+- `commands.rs` integration tests.
+- Actual Windows named pipe end-to-end tests.
+- Manual screenshot or visual regression tests.
+
+---
+
+### Recommended Next Tests
+
+1. Add `HookStatus.test.tsx` with mocked `fetch` and `invoke`.
+2. Add `DiffViewer.test.tsx` for added/deleted/unchanged line rendering.
+3. Add `Overlay.test.tsx` for approval auto-expand and `set_window_size` calls.
+4. Add `process_watcher.rs` tests for known agent name matching.
+5. Add a Windows-only Named Pipe integration test behind `#[cfg(target_os = "windows")]`.
+
+---
+
+### Mock Strategy
+
+Frontend tests mock Tauri APIs in `frontend/src/__tests__/setup.ts`:
+
+- `@tauri-apps/api/event`
+- `@tauri-apps/api/core`
+
+Backend tests currently avoid heavy mocking and focus on pure helper functions plus integration-style endpoint tests.
+
+---
+
+### Coverage Targets
+
+| Module | Target |
+|--------|--------|
+| `frontend/src/store/sessions.ts` | 90% |
+| `frontend/src/hooks/useAgentEvents.ts` | 85% |
+| Core components | 80% |
+| `src-tauri/src/hook_server.rs` | 85% |
+| `src-tauri/src/hook_config.rs` | 85% |
+
+---
+
+## Part 2: 测试 API
+
+### 概述
 
 应用提供三层测试能力，覆盖从 UI 逻辑到真实窗口行为的全链路。
 
@@ -10,7 +187,7 @@
 | Tauri 真实 hook | curl → hook server:7878 | 验证真实业务入口、Rust 处理、前端状态更新 |
 | Native 窗口 | PowerShell Win32 探测 | 验证真实窗口尺寸（compact=52px, approval=720px） |
 
-### 调用链路
+#### 调用链路
 
 ```
 # 浏览器模式（无需 Tauri 运行时）
@@ -45,7 +222,7 @@ useAgentEvents.ts → Zustand → DOM
 
 ---
 
-## 前置条件
+### 前置条件
 
 ```bash
 # 安装 Playwright
@@ -55,7 +232,7 @@ npx playwright install chromium
 
 ---
 
-## 方式 1：浏览器模式测试
+### 方式 1：浏览器模式测试
 
 启动前端 dev server（无需 Tauri）：
 
@@ -63,7 +240,7 @@ npx playwright install chromium
 cd frontend && npm run dev
 ```
 
-### Test Bridge API
+#### Test Bridge API
 
 应用运行后，前端暴露 `window.__VIBE_TEST_BRIDGE__`：
 
@@ -91,7 +268,7 @@ bridge.invoke("simulate_session_start", { session_id, label, cwd })
 bridge.invoke("get_window_geometry")  // → { width, height, x, y, isVisible }
 ```
 
-### Playwright 测试
+#### Playwright 测试
 
 ```bash
 # 运行 E2E 测试
@@ -135,18 +312,18 @@ test("approval flow", async ({ page }) => {
 
 ---
 
-## 方式 2：Hook Server 回归测试
+### 方式 2：Hook Server 回归测试
 
 测试真实 Rust → emit → 前端链路 + native 窗口尺寸。
 
-### 前提
+#### 前提
 
 ```bash
 cd src-tauri && cargo tauri dev
 # 等待 hook server 就绪
 ```
 
-### 运行回归脚本
+#### 运行回归脚本
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tests/scripts/hook/run-overlay-height-regression.ps1
@@ -163,7 +340,7 @@ powershell -ExecutionPolicy Bypass -File tests/scripts/hook/run-overlay-height-r
 8. 探测收缩后回到 compact
 9. 输出 PASS/FAIL 汇总
 
-### 手动 curl 测试
+#### 手动 curl 测试
 
 ```bash
 # Session start
@@ -189,7 +366,7 @@ curl -X POST http://localhost:7878/hooks/stop \
 
 ---
 
-## 方式 3：Rust Test Commands（需要 Tauri WebView 上下文）
+### 方式 3：Rust Test Commands（需要 Tauri WebView 上下文）
 
 这些命令只在 debug build 中可用，release build 返回错误。
 
@@ -216,7 +393,7 @@ await invoke("get_window_geometry")  // → { width, height, x, y, scaleFactor, 
 
 ---
 
-## data-testid 速查
+### data-testid 速查
 
 | testid | 组件 | 何时可见 |
 |--------|------|----------|
@@ -240,7 +417,7 @@ await invoke("get_window_geometry")  // → { width, height, x, y, scaleFactor, 
 
 ---
 
-## 验证覆盖状态
+### 验证覆盖状态
 
 | 链路 | 状态 | 说明 |
 |------|------|------|
@@ -252,7 +429,7 @@ await invoke("get_window_geometry")  // → { width, height, x, y, scaleFactor, 
 
 ---
 
-## 安全
+### 安全
 
 - Test Bridge 只在 `DEV` 或 `VITE_ENABLE_TEST_BRIDGE=true` 时注册
 - Rust test commands 在 release build 中返回错误

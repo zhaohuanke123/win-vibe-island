@@ -28,6 +28,15 @@ pub fn run() {
         }
     }
 
+    // Increase Windows timer resolution from ~15.6ms to ~1ms for smoother animations
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Media::timeBeginPeriod;
+        unsafe {
+            let _ = timeBeginPeriod(1);
+        }
+    }
+
     tauri::Builder::default()
         .setup(|app| {
             // Initialize log plugin in debug mode
@@ -83,8 +92,15 @@ pub fn run() {
 
                 if let Ok(Some(monitor)) = window.primary_monitor() {
                     let screen_width = monitor.size().width as i32;
-                    // Use a smaller initial width that fits the content
-                    let window_width = 240;
+
+                    // Use the ACTUAL window outer size for centering, not a hardcoded width.
+                    // The Tauri window is created at 420px (from tauri.conf.json), and using
+                    // a mismatched width (e.g. 240) would leave the center 90px off to the right.
+                    // The frontend resizes via update_overlay_size shortly after mount.
+                    let window_width = window
+                        .outer_size()
+                        .map(|s| s.width as i32)
+                        .unwrap_or(420);
 
                     // Center horizontally at top of screen
                     let x = (screen_width - window_width) / 2;

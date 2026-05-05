@@ -10,7 +10,7 @@
   background: transparent;
   overflow: hidden;
   transform-origin: top center;
-  will-change: width, height, border-radius, transform;
+  will-change: transform;
   transform: translateZ(0);
 }
 
@@ -30,7 +30,6 @@
   overflow: hidden;
   overflow: clip;
   background: rgba(17, 17, 17, 0.95);
-  backdrop-filter: blur(12px);
   contain: paint;
   isolation: isolate;
   -webkit-mask-image: -webkit-radial-gradient(white, black);
@@ -60,7 +59,6 @@
   background: transparent;
   border-radius: inherit;
   cursor: pointer;
-  backdrop-filter: blur(12px);
   transition: background 200ms ease, border-radius 200ms ease;
   min-width: 0;
   overflow: hidden;
@@ -138,10 +136,10 @@
   padding: 8px;
   background: transparent;
   border-radius: 0 0 18px 18px;
-  backdrop-filter: blur(12px);
+  contain: layout paint;
   overflow: hidden;
   transform-origin: top center;
-  will-change: transform, opacity;
+  will-change: transform;
 }
 
 .overlay--approval-mode .overlay__panel {
