@@ -44,6 +44,8 @@ export interface OverlayConfigDefaults {
   expandedWidth: number;
   expandedMinHeight: number;
   expandedMaxHeight: number;
+  approvalFocusWidth: number;
+  approvalFocusHeight: number;
   alpha: number;
   compactBorderRadius: number;
   expandedBorderRadius: number;
@@ -121,8 +123,44 @@ export interface UiDimensions {
 // Default Values (fallback when config not loaded)
 // ============================================================================
 
+export const OVERLAY_LAYOUT_MINIMUMS = {
+  expandedWidth: 600,
+  expandedMinHeight: 400,
+  expandedMaxHeight: 720,
+  approvalFocusWidth: 600,
+  approvalFocusHeight: 720,
+} as const;
+
+export function normalizeOverlayLayoutConfig(overlay: OverlayConfigDefaults) {
+  const expandedWidth = Math.max(overlay.expandedWidth, OVERLAY_LAYOUT_MINIMUMS.expandedWidth);
+  const expandedMinHeight = Math.max(
+    overlay.expandedMinHeight,
+    OVERLAY_LAYOUT_MINIMUMS.expandedMinHeight,
+  );
+  const expandedMaxHeight = Math.max(
+    overlay.expandedMaxHeight,
+    OVERLAY_LAYOUT_MINIMUMS.expandedMaxHeight,
+    expandedMinHeight,
+  );
+
+  return {
+    ...overlay,
+    expandedWidth,
+    expandedMinHeight,
+    expandedMaxHeight,
+    approvalFocusWidth: Math.max(
+      overlay.approvalFocusWidth,
+      OVERLAY_LAYOUT_MINIMUMS.approvalFocusWidth,
+    ),
+    approvalFocusHeight: Math.max(
+      overlay.approvalFocusHeight,
+      OVERLAY_LAYOUT_MINIMUMS.approvalFocusHeight,
+    ),
+  };
+}
+
 const DEFAULT_CONFIG: AppConfig = {
-  version: 2,
+  version: 3,
   hookServer: {
     port: 7878,
     approvalTimeoutSecs: 120,
@@ -141,8 +179,10 @@ const DEFAULT_CONFIG: AppConfig = {
     compactWidth: 320,
     compactHeight: 56,
     expandedWidth: 600,
-    expandedMinHeight: 180,
+    expandedMinHeight: 400,
     expandedMaxHeight: 720,
+    approvalFocusWidth: 600,
+    approvalFocusHeight: 720,
     alpha: 240,
     compactBorderRadius: 26,
     expandedBorderRadius: 18,

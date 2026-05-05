@@ -1,4 +1,4 @@
-import { useConfigStore } from "../store/config";
+import { normalizeOverlayLayoutConfig, useConfigStore } from "../store/config";
 
 // Spring animation parameters from config
 export const SPRING_CONFIG = {
@@ -31,10 +31,10 @@ export const OVERLAY_DIMENSIONS = {
   },
   expanded: {
     get width() {
-      return Math.max(useConfigStore.getState().config.overlay.expandedWidth, 600);
+      return normalizeOverlayLayoutConfig(useConfigStore.getState().config.overlay).expandedWidth;
     },
     get height() {
-      return Math.max(useConfigStore.getState().config.overlay.expandedMaxHeight, 720);
+      return normalizeOverlayLayoutConfig(useConfigStore.getState().config.overlay).expandedMaxHeight;
     },
     get borderRadius() {
       return useConfigStore.getState().config.overlay.expandedBorderRadius;

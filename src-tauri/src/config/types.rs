@@ -189,6 +189,14 @@ pub struct OverlayConfigDefaults {
     #[serde(default = "default_expanded_max_height")]
     pub expanded_max_height: i32,
 
+    /// Approval/question/plan focus mode width
+    #[serde(default = "default_approval_focus_width")]
+    pub approval_focus_width: i32,
+
+    /// Approval/question/plan focus mode height
+    #[serde(default = "default_approval_focus_height")]
+    pub approval_focus_height: i32,
+
     /// Default transparency (0-255)
     #[serde(default = "default_alpha")]
     pub alpha: u8,
@@ -207,8 +215,10 @@ fn default_overlay_y() -> i32 { 100 }
 fn default_compact_width() -> i32 { 320 }
 fn default_compact_height() -> i32 { 56 }
 fn default_expanded_width() -> i32 { 600 }
-fn default_expanded_min_height() -> i32 { 180 }
+fn default_expanded_min_height() -> i32 { 400 }
 fn default_expanded_max_height() -> i32 { 720 }
+fn default_approval_focus_width() -> i32 { 600 }
+fn default_approval_focus_height() -> i32 { 720 }
 fn default_alpha() -> u8 { 240 }
 fn default_compact_radius() -> u32 { 26 }
 fn default_expanded_radius() -> u32 { 18 }
@@ -223,6 +233,8 @@ impl Default for OverlayConfigDefaults {
             expanded_width: default_expanded_width(),
             expanded_min_height: default_expanded_min_height(),
             expanded_max_height: default_expanded_max_height(),
+            approval_focus_width: default_approval_focus_width(),
+            approval_focus_height: default_approval_focus_height(),
             alpha: default_alpha(),
             compact_border_radius: default_compact_radius(),
             expanded_border_radius: default_expanded_radius(),

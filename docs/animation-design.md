@@ -131,13 +131,13 @@ export const EASING = {
 
 ### 3.3 明显弹性灵动岛尺寸
 
-Overlay 主动画由 Framer Motion 驱动，并通过 `update_overlay_size` 同步 Tauri 窗口真实宽高。紧凑态不再保持 420px 固定宽度，而是收成可点击小胶囊；展开态从窗口中心向两侧弹性扩展。普通展开内容可以按 DOM 内容高度自适应但最大不超过 720px；审批/问答/计划请求出现时使用固定 600x720 专注模式，审批内容优先于 session 列表。
+Overlay 主动画由 Framer Motion 驱动，并通过 `update_overlay_size` 同步 Tauri 窗口真实宽高。紧凑态不再保持 420px 固定宽度，而是收成可点击小胶囊；展开态从窗口中心向两侧弹性扩展。普通展开内容可以按 DOM 内容高度自适应，配置归一化后高度最低 400px、最高至少 720px；审批/问答/计划请求出现时使用配置化但带安全下限的固定 600x720 专注模式，审批内容优先于 session 列表。
 
 | 状态 | 宽度 | 高度 | 圆角 | 行为 |
 |------|------|------|------|------|
 | compact | 236px | 52px | 26px | 仅显示状态点、会话标签和 Hook 小点，可点击展开 |
-| adaptive expanded | 600px | content height, max 720px | 18px | 普通展开内容，按内容高度自适应 |
-| approval focus | 600px | 720px | 18px | 审批/问答/计划专注处理模式 |
+| adaptive expanded | 600px | content height, min 400px, max at least 720px | 18px | 普通展开内容，按内容高度自适应 |
+| approval focus | at least 600px | at least 720px | 18px | 审批/问答/计划专注处理模式 |
 
 弹簧参数：
 
@@ -163,7 +163,7 @@ export const SPRING_CONFIG = {
 - 胶囊态保持主窗口可交互，不启用点击穿透
 - 外层容器同时动画 `borderRadius` 和 `clipPath`，实际黑色 surface 只由 shell 绘制；bar/panel 保持透明，避免子层背景覆盖父层底部圆角
 - 主 WebView 启动时将 zoom 重置为 `1.0`；前端同步窗口尺寸时传入 `window.devicePixelRatio`，后端使用它和 native DPI 的较大值换算物理像素，避免 WebView2 实际 CSS viewport 小于目标尺寸
-- 审批请求到达时延后一帧触发展开，保证从胶囊态到固定 600x720 专注模式有可见 spring 动画；审批处理或超时清理后自动收回胶囊
+- 审批请求到达时延后一帧触发展开，保证从胶囊态到配置化 focus 尺寸有可见 spring 动画；focus 尺寸归一化后不小于 600x720，审批处理或超时清理后自动收回胶囊
 - 审批/问答/Plan 模式只显示轻量 session 上下文摘要，不渲染完整 session 列表，避免压缩主任务内容
 - 审批面板内部固定为 header/body/footer 三段：header 和 footer `flex: 0 0 auto`，body `flex: 1 1 auto; min-height: 0; overflow-y: auto`
 - Approve/Reject/Submit/Proceed/Cancel 等动作按钮属于 footer，不属于正文滚动区；长正文只能压缩 body 并让 body 滚动，不能把 footer 挤出 600x720 Tauri 窗口

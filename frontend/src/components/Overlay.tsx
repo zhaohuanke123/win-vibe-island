@@ -10,7 +10,7 @@ import { SessionDetail } from "./SessionDetail";
 import { SessionList } from "./SessionList";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { useSessionsStore } from "../store/sessions";
-import { useConfigStore } from "../store/config";
+import { normalizeOverlayLayoutConfig, useConfigStore } from "../store/config";
 import type { ApprovalRequest, Session } from "../store/sessions";
 import "./Overlay.css";
 
@@ -18,6 +18,12 @@ type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored";
 
 function clampOverlayHeight(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, Math.ceil(value)));
+}
+
+function reportTauriError(context: string, error: unknown) {
+  if (import.meta.env.DEV) {
+    console.warn(`[Overlay] ${context}:`, error);
+  }
 }
 
 function ApprovalFocusContent({
@@ -58,12 +64,13 @@ function ApprovalFocusContent({
 export function Overlay() {
   const { sessions, activeSessionId, setActiveSession, approvalRequest, clearApprovalRequest } = useSessionsStore();
   const config = useConfigStore((s) => s.config);
+  const overlayLayout = normalizeOverlayLayoutConfig(config.overlay);
   const BAR_HEIGHT = config.ui.dimensions.barHeight;
-  const EXPANDED_MIN = config.overlay.expandedMinHeight;
-  const EXPANDED_MAX = config.overlay.expandedMaxHeight;
-  const APPROVAL_FOCUS_HEIGHT = config.overlay.expandedMaxHeight;
-  const EXPANDED_WIDTH = Math.max(config.overlay.expandedWidth, 600);
-  const EXPANDED_BORDER_RADIUS = config.overlay.expandedBorderRadius;
+  const EXPANDED_MIN = overlayLayout.expandedMinHeight;
+  const EXPANDED_MAX = overlayLayout.expandedMaxHeight;
+  const APPROVAL_FOCUS_WIDTH = overlayLayout.approvalFocusWidth;
+  const APPROVAL_FOCUS_HEIGHT = overlayLayout.approvalFocusHeight;
+  const EXPANDED_BORDER_RADIUS = overlayLayout.expandedBorderRadius;
   const active = sessions.find((s) => s.id === activeSessionId);
   const approvalStateSession = sessions.find((s) => s.state === "approval") ?? null;
   const approvalSession = approvalRequest
@@ -111,7 +118,9 @@ export function Overlay() {
   // Keep the capsule clickable in compact mode. The smaller compact footprint
   // replaces the old click-through behavior.
   useEffect(() => {
-    invoke("set_window_interactive", { interactive: true }).catch(() => {});
+    invoke("set_window_interactive", { interactive: true }).catch((e) => {
+      reportTauriError("failed to set window interactive mode", e);
+    });
   }, []);
 
   // Removed sessions clear detail view
@@ -164,7 +173,9 @@ export function Overlay() {
   // which Windows routes to the foreground/focus window — not the window under the cursor.
   useEffect(() => {
     if (isOverlayExpanded && isApprovalFocusMode) {
-      invoke("set_window_interactive", { interactive: true }).catch(() => {});
+      invoke("set_window_interactive", { interactive: true }).catch((e) => {
+        reportTauriError("failed to focus overlay for approval", e);
+      });
     }
   }, [isOverlayExpanded, isApprovalFocusMode]);
 
@@ -173,12 +184,14 @@ export function Overlay() {
 
     const syncApprovalSize = () => {
       invoke("update_overlay_size", {
-        width: EXPANDED_WIDTH,
+        width: APPROVAL_FOCUS_WIDTH,
         height: APPROVAL_FOCUS_HEIGHT,
         webviewScaleFactor: Number.isFinite(window.devicePixelRatio) ? window.devicePixelRatio : 1,
         borderRadius: EXPANDED_BORDER_RADIUS,
         anchorCenter: true,
-      }).catch(() => {});
+      }).catch((e) => {
+        reportTauriError("failed to sync approval focus size", e);
+      });
     };
 
     syncApprovalSize();
@@ -189,7 +202,7 @@ export function Overlay() {
       window.clearTimeout(firstRetry);
       window.clearTimeout(secondRetry);
     };
-  }, [isOverlayExpanded, isApprovalFocusMode]);
+  }, [isOverlayExpanded, isApprovalFocusMode, APPROVAL_FOCUS_WIDTH, APPROVAL_FOCUS_HEIGHT, EXPANDED_BORDER_RADIUS]);
 
   // Non-approval panels use ResizeObserver-based adaptive height. Approval,
   // question, and plan focus mode stays fixed at 600x720 in Tauri to avoid
@@ -219,7 +232,18 @@ export function Overlay() {
       cancelAnimationFrame(raf);
       observer.disconnect();
     };
-  }, [isOverlayExpanded, isApprovalFocusMode, approvalRequest, showSettings, showActivity, sessions.length, viewingSessionId]);
+  }, [
+    isOverlayExpanded,
+    isApprovalFocusMode,
+    approvalRequest,
+    showSettings,
+    showActivity,
+    sessions.length,
+    viewingSessionId,
+    BAR_HEIGHT,
+    EXPANDED_MIN,
+    EXPANDED_MAX,
+  ]);
 
   const handleApprovalHandled = () => {
     handledApprovalStateFocusKeyRef.current = approvalRequest ? `session:${approvalRequest.sessionId}` : approvalStateFocusKey;

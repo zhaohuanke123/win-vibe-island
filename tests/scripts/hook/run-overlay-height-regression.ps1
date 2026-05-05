@@ -27,8 +27,29 @@ public static class NativeWin {
     public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
     [DllImport("user32.dll")]
     public static extern bool IsWindowVisible(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    public static extern uint GetDpiForWindow(IntPtr hWnd);
 }
 "@
+
+function Get-WindowCssRect($hwnd) {
+    $rect = New-Object RECT
+    [void][NativeWin]::GetWindowRect($hwnd, [ref]$rect)
+    $dpi = [NativeWin]::GetDpiForWindow($hwnd)
+    if ($dpi -eq 0) { $dpi = 96 }
+    $scale = $dpi / 96.0
+    $physicalW = $rect.Right - $rect.Left
+    $physicalH = $rect.Bottom - $rect.Top
+    return @{
+        PhysicalWidth = $physicalW
+        PhysicalHeight = $physicalH
+        CssWidth = [math]::Round($physicalW / $scale)
+        CssHeight = [math]::Round($physicalH / $scale)
+        Dpi = $dpi
+        Scale = $scale
+        Rect = $rect
+    }
+}
 
 # Step 0: Wait for hook server
 Write-Host "Waiting for hook server on port $HookPort..."
@@ -56,12 +77,11 @@ if ($hwnd -eq [IntPtr]::Zero) {
     exit 1
 }
 
-$rect = New-Object RECT
-[void][NativeWin]::GetWindowRect($hwnd, [ref]$rect)
-$compactH = $rect.Bottom - $rect.Top
-$compactW = $rect.Right - $rect.Left
-Write-Host "Window found: ${compactW}x${compactH} at ($($rect.Left), $($rect.Top))"
-Write-Result "Compact height reasonable" ($compactH -gt 20 -and $compactH -lt 150) "height=${compactH}px (expected ~52)"
+$compact = Get-WindowCssRect $hwnd
+$compactH = $compact.CssHeight
+$compactW = $compact.CssWidth
+Write-Host "Window found: $($compact.PhysicalWidth)x$($compact.PhysicalHeight) physical, ${compactW}x${compactH} CSS @ scale $($compact.Scale)"
+Write-Result "Compact height reasonable" ($compactH -gt 20 -and $compactH -lt 150) "height=${compactH} CSS px (expected ~52)"
 Write-Host ""
 
 # Step 2: Send session_start — overlay stays compact (does not auto-expand for sessions)
@@ -70,9 +90,9 @@ $body = @{ session_id = "reg-1"; cwd = "D:\test"; source = "test" } | ConvertTo-
 Invoke-RestMethod -Uri "$baseUrl/hooks/session-start" -Method Post -Body $body -ContentType "application/json" -TimeoutSec 5 | Out-Null
 Start-Sleep -Milliseconds 800
 
-[void][NativeWin]::GetWindowRect($hwnd, [ref]$rect)
-$h = $rect.Bottom - $rect.Top
-Write-Result "Compact after session start" ($h -le $compactH + 50) "height=${h}px (overlay stays compact for sessions)"
+$current = Get-WindowCssRect $hwnd
+$h = $current.CssHeight
+Write-Result "Compact after session start" ($h -le $compactH + 50) "height=${h} CSS px (overlay stays compact for sessions)"
 Write-Host ""
 
 # Step 3: Send 5 more sessions
@@ -82,9 +102,9 @@ for ($i = 2; $i -le 6; $i++) {
 }
 Start-Sleep -Milliseconds 800
 
-[void][NativeWin]::GetWindowRect($hwnd, [ref]$rect)
-$h = $rect.Bottom - $rect.Top
-Write-Result "6 sessions still compact" ($h -le $compactH + 50) "height=${h}px (sessions do not auto-expand)"
+$current = Get-WindowCssRect $hwnd
+$h = $current.CssHeight
+Write-Result "6 sessions still compact" ($h -le $compactH + 50) "height=${h} CSS px (sessions do not auto-expand)"
 Write-Host ""
 
 # Step 4: Send permission_request WITHOUT permission_suggestions (stays pending for measurement)
@@ -105,11 +125,11 @@ $job = Start-Job -ScriptBlock {
 # Wait for approval panel to render and animation to settle
 Start-Sleep -Milliseconds 2500
 
-[void][NativeWin]::GetWindowRect($hwnd, [ref]$rect)
-$h = $rect.Bottom - $rect.Top
-$w = $rect.Right - $rect.Left
-Write-Result "Approval focus mode" ($h -gt 650 -and $h -le 780) "height=${h}px width=${w}px (expected ~720x~600 focus mode)"
-Write-Host "  Approval visible: ${w}x${h} px"
+$approval = Get-WindowCssRect $hwnd
+$h = $approval.CssHeight
+$w = $approval.CssWidth
+Write-Result "Approval focus mode CSS size" ($h -ge 720 -and $w -ge 600) "css=${w}x${h}, physical=$($approval.PhysicalWidth)x$($approval.PhysicalHeight), dpi=$($approval.Dpi)"
+Write-Host "  Approval visible: ${w}x${h} CSS px"
 Write-Host ""
 
 # Step 5: Approve via test endpoint and check collapse
@@ -119,10 +139,10 @@ Invoke-RestMethod -Uri "$baseUrl/hooks/test/approve" -Method Post -Body $approve
 
 Start-Sleep -Milliseconds 1500
 
-[void][NativeWin]::GetWindowRect($hwnd, [ref]$rect)
-$h = $rect.Bottom - $rect.Top
-Write-Result "Collapsed after approve" ($h -le $compactH + 50) "height=${h}px (should return near compact=${compactH})"
-Write-Host "  After collapse: $($rect.Right - $rect.Left)x${h} px"
+$current = Get-WindowCssRect $hwnd
+$h = $current.CssHeight
+Write-Result "Collapsed after approve" ($h -le $compactH + 50) "height=${h} CSS px (should return near compact=${compactH})"
+Write-Host "  After collapse: $($current.CssWidth)x${h} CSS px"
 
 # Clean up background job
 $null = Receive-Job $job -Wait -AutoRemoveJob -ErrorAction SilentlyContinue

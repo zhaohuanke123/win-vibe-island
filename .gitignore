@@ -6,6 +6,8 @@ frontend/dist/
 
 # Rust
 src-tauri/target/
+src-tauri/target-check/
+src-tauri/target-quality-test/
 
 # OS
 .DS_Store

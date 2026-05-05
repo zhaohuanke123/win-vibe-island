@@ -30,6 +30,12 @@ function getWebviewScaleFactor() {
   return Number.isFinite(window.devicePixelRatio) ? window.devicePixelRatio : 1;
 }
 
+function reportResizeError(error: unknown) {
+  if (import.meta.env.DEV) {
+    console.warn("[AnimatedOverlay] failed to sync overlay size:", error);
+  }
+}
+
 export function AnimatedOverlay({ isExpanded, expandedHeight, className, children, "data-testid": testId }: AnimatedOverlayProps) {
   const lastSyncRef = useRef(0);
   const hasInitializedRef = useRef(false);
@@ -64,7 +70,7 @@ export function AnimatedOverlay({ isExpanded, expandedHeight, className, childre
       webviewScaleFactor: getWebviewScaleFactor(),
       borderRadius: Math.round(borderRadius),
       anchorCenter: true,
-    }).catch(() => {});
+    }).catch(reportResizeError);
   };
 
   useEffect(() => {

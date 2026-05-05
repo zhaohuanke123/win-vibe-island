@@ -32,7 +32,7 @@ pub fn update_config(updates: serde_json::Value) -> Result<AppConfig, String> {
     let current_json = serde_json::to_value(&*config)
         .map_err(|e| format!("Failed to serialize current config: {}", e))?;
 
-    let merged = merge_json(&current_json, &updates);
+    let merged = normalize_config_value(merge_json(&current_json, &updates));
 
     let new_config: AppConfig = serde_json::from_value(merged)
         .map_err(|e| format!("Failed to parse merged config: {}", e))?;
@@ -119,7 +119,7 @@ fn load_from_file() -> Result<AppConfig, String> {
         .and_then(|v| v.as_u64())
         .unwrap_or(0) as u32;
 
-    let migrated = migrate_config(version, raw)?;
+    let migrated = normalize_config_value(migrate_config(version, raw)?);
 
     // Parse with defaults for missing fields
     let config: AppConfig = serde_json::from_value(migrated)
@@ -178,18 +178,18 @@ fn migrate_config(version: u32, raw: serde_json::Value) -> Result<serde_json::Va
             if let Some(obj) = migrated.as_object_mut() {
                 obj.insert("version".to_string(), serde_json::json!(CONFIG_VERSION));
 
-                if let Some(overlay) = obj.get_mut("overlay").and_then(|v| v.as_object_mut()) {
-                    if overlay.get("expandedWidth").and_then(|v| v.as_i64()) == Some(420) {
-                        overlay.insert("expandedWidth".to_string(), serde_json::json!(600));
-                    }
-                    if overlay.get("expandedMaxHeight").and_then(|v| v.as_i64()) == Some(600) {
-                        overlay.insert("expandedMaxHeight".to_string(), serde_json::json!(720));
-                    }
-                }
             }
             Ok(migrated)
         }
         2 => {
+            log::info!("Migrating config from version 2 to {}", CONFIG_VERSION);
+            let mut migrated = raw;
+            if let Some(obj) = migrated.as_object_mut() {
+                obj.insert("version".to_string(), serde_json::json!(CONFIG_VERSION));
+            }
+            Ok(migrated)
+        }
+        3 => {
             // Current version - no migration needed
             Ok(raw)
         }
@@ -200,6 +200,42 @@ fn migrate_config(version: u32, raw: serde_json::Value) -> Result<serde_json::Va
             // Future versions - just try to parse with defaults
             Ok(raw)
         }
+    }
+}
+
+/// Enforce layout invariants after migration or config updates. The dimensions
+/// remain configurable, but stale or invalid config cannot make the overlay
+/// smaller than its usable layout contracts.
+fn normalize_config_value(mut raw: serde_json::Value) -> serde_json::Value {
+    if let Some(obj) = raw.as_object_mut() {
+        obj.insert("version".to_string(), serde_json::json!(CONFIG_VERSION));
+
+        if let Some(overlay) = obj.get_mut("overlay").and_then(|v| v.as_object_mut()) {
+            ensure_i64_at_least(overlay, "expandedWidth", 600);
+            ensure_i64_at_least(overlay, "expandedMinHeight", 400);
+
+            let expanded_min = overlay
+                .get("expandedMinHeight")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(400);
+            ensure_i64_at_least(overlay, "expandedMaxHeight", expanded_min.max(720));
+
+            ensure_i64_at_least(overlay, "approvalFocusWidth", 600);
+            ensure_i64_at_least(overlay, "approvalFocusHeight", 720);
+        }
+    }
+
+    raw
+}
+
+fn ensure_i64_at_least(
+    obj: &mut serde_json::Map<String, serde_json::Value>,
+    key: &str,
+    min: i64,
+) {
+    let current = obj.get(key).and_then(|v| v.as_i64());
+    if current.map_or(true, |value| value < min) {
+        obj.insert(key.to_string(), serde_json::json!(min));
     }
 }
 
@@ -239,6 +275,9 @@ mod tests {
         assert_eq!(config.hook_server.port, 7878);
         assert_eq!(config.hook_server.approval_timeout_secs, 120);
         assert_eq!(config.pipe_server.buffer_size, 4096);
+        assert_eq!(config.overlay.expanded_min_height, 400);
+        assert_eq!(config.overlay.approval_focus_width, 600);
+        assert_eq!(config.overlay.approval_focus_height, 720);
     }
 
     #[test]
@@ -257,5 +296,27 @@ mod tests {
         assert_eq!(merged["a"], 1);
         assert_eq!(merged["b"]["c"], 10);
         assert_eq!(merged["b"]["d"], 3);
+    }
+
+    #[test]
+    fn test_normalize_overlay_layout_config() {
+        let raw = serde_json::json!({
+            "version": CONFIG_VERSION,
+            "overlay": {
+                "expandedWidth": 420,
+                "expandedMinHeight": 180,
+                "expandedMaxHeight": 300,
+                "approvalFocusWidth": 500,
+                "approvalFocusHeight": 600
+            }
+        });
+
+        let normalized = normalize_config_value(raw);
+
+        assert_eq!(normalized["overlay"]["expandedWidth"], 600);
+        assert_eq!(normalized["overlay"]["expandedMinHeight"], 400);
+        assert_eq!(normalized["overlay"]["expandedMaxHeight"], 720);
+        assert_eq!(normalized["overlay"]["approvalFocusWidth"], 600);
+        assert_eq!(normalized["overlay"]["approvalFocusHeight"], 720);
     }
 }

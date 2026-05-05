@@ -6,6 +6,27 @@ and any relevant notes.
 
 ---
 
+## [2026-05-05] - Overlay Height Config Safety Regression
+
+### Documentation Gate:
+- User reported the recently changed expanded overlay height is incorrect after commits `d0d2e7750fbfefc2f920ad3ff47c8bdec7679cdb` and `ec83c47144a33de45d9a92ddcfca008bfefd38f4`.
+- Investigation found `ec83c47` moved overlay dimensions into the config system but left ordinary expanded minimum height able to resolve to `180` instead of the required usable floor, and approval focus height still depended on the generic expanded max height instead of a dedicated `600x720` focus config.
+- `d0d2e77` added Bash command analysis to approval content, increasing approval body height and making the missing focus-layout safety more visible.
+- This is an implementation bug in the config-backed layout defaults and normalization, not a rollback of the config system.
+
+### Planned correction:
+- Keep overlay dimensions in the config system.
+- Add explicit approval focus width/height config fields.
+- Normalize config-backed layout values so user or migrated config can widen/tallify the overlay but cannot shrink ordinary expanded mode below 400px or approval focus below 600x720.
+- Keep approval footer visible and long approval content scrolling only in `.approval-panel__body`.
+
+### Documentation:
+- Requirement ref: `DESIGN.md#Overlay.tsx`
+- Design ref: `docs/animation-design.md#3.3 明显弹性灵动岛尺寸`
+- Docs updated: yes
+
+---
+
 ## Project Status
 
 - **Started:** 2026-04-25
