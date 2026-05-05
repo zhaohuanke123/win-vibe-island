@@ -245,9 +245,11 @@ async fn run_hook_server(state: Arc<HookServerState>) -> Result<(), String> {
         .route("/hooks/permission-request", post(handle_permission_request))
         .route("/hooks/ping", post(handle_ping))
         .route("/hooks/health", get(handle_health))
-        .route("/hooks/test/approve", post(handle_test_approve))
         .layer(cors)
         .with_state(state);
+
+    #[cfg(debug_assertions)]
+    let app = app.route("/hooks/test/approve", post(handle_test_approve));
 
     let port = get_config().hook_server.port;
     let addr = SocketAddr::from(([127, 0, 0, 1], port));

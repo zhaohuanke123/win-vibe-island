@@ -149,7 +149,7 @@ interface SessionsStore {
   renameGroup: (oldName: string, newName: string) => void;
 }
 
-export const useSessionsStore = create<SessionsStore>((set, get) => ({
+export const useSessionsStore = create<SessionsStore>((set, _get) => ({
   sessions: [],
   activeSessionId: null,
   pendingApprovals: [],
