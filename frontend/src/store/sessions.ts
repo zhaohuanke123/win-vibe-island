@@ -72,6 +72,9 @@ export interface Session {
   // Model 信息
   model?: string;
   source?: string;
+
+  // 用户自定义分组标签
+  tag?: string;
 }
 
 export interface DiffData {
@@ -118,6 +121,7 @@ interface SessionsStore {
   approvalRequest: ApprovalRequest | null;
   hookServerStatus: HookServerStatus;
   errorLogs: string[];
+  groups: string[];
 
   addSession: (session: Session) => void;
   removeSession: (id: string) => void;
@@ -131,6 +135,11 @@ interface SessionsStore {
   clearErrorLogs: () => void;
   addToolExecution: (sessionId: string, execution: ToolExecution) => void;
   updateToolExecution: (sessionId: string, executionId: string, update: Partial<ToolExecution>) => void;
+  renameSession: (id: string, label: string) => void;
+  setSessionTag: (id: string, tag?: string) => void;
+  createGroup: (name: string) => void;
+  deleteGroup: (name: string) => void;
+  renameGroup: (oldName: string, newName: string) => void;
 }
 
 export const useSessionsStore = create<SessionsStore>((set) => ({
@@ -142,6 +151,7 @@ export const useSessionsStore = create<SessionsStore>((set) => ({
     port: useConfigStore.getState().getHookServerPort(),
   },
   errorLogs: [],
+  groups: [],
 
   addSession: (session) =>
     set((s) => ({
@@ -212,6 +222,42 @@ export const useSessionsStore = create<SessionsStore>((set) => ({
               ),
             }
           : ses
+      ),
+    })),
+
+  renameSession: (id, label) =>
+    set((s) => ({
+      sessions: s.sessions.map((ses) =>
+        ses.id === id ? { ...ses, label, title: label } : ses
+      ),
+    })),
+
+  setSessionTag: (id, tag) =>
+    set((s) => ({
+      sessions: s.sessions.map((ses) =>
+        ses.id === id ? { ...ses, tag } : ses
+      ),
+    })),
+
+  createGroup: (name) =>
+    set((s) => {
+      if (s.groups.includes(name)) return s;
+      return { groups: [...s.groups, name] };
+    }),
+
+  deleteGroup: (name) =>
+    set((s) => ({
+      groups: s.groups.filter((g) => g !== name),
+      sessions: s.sessions.map((ses) =>
+        ses.tag === name ? { ...ses, tag: undefined } : ses
+      ),
+    })),
+
+  renameGroup: (oldName, newName) =>
+    set((s) => ({
+      groups: s.groups.map((g) => (g === oldName ? newName : g)),
+      sessions: s.sessions.map((ses) =>
+        ses.tag === oldName ? { ...ses, tag: newName } : ses
       ),
     })),
 }));

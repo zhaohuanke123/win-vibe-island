@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { StatusDot } from "./StatusDot";
+import { SessionContextMenu } from "./SessionContextMenu";
 import type { Session, AgentState } from "../store/sessions";
 import "./SessionList.css";
 
@@ -9,6 +10,11 @@ interface SessionListProps {
   activeSessionId: string | null;
   viewingSessionId: string | null;
   onSessionClick: (session: Session) => void;
+  onRenameSession: (id: string, label: string) => void;
+  onDeleteSession: (id: string) => void;
+  onSetSessionTag: (id: string, tag?: string) => void;
+  onCreateGroup: (name: string) => void;
+  groups: string[];
   "data-testid"?: string;
 }
 
@@ -16,7 +22,7 @@ type SortBy = "lastActivity" | "createdAt";
 type StateFilter = "all" | AgentState;
 
 interface GroupData {
-  cwd: string;
+  tag: string;
   label: string;
   sessions: Session[];
 }
@@ -27,19 +33,6 @@ function formatTime(timestamp: number): string {
   if (diff < 60000) return "just now";
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
   return `${Math.floor(diff / 3600000)}h ago`;
-}
-
-function extractProjectName(cwd: string): string {
-  if (!cwd) return "Unknown";
-  const normalized = cwd.replace(/\\/g, "/").replace(/\/$/, "");
-  const last = normalized.split("/").pop() || normalized;
-  // Limit to 2 segments from the right for context (e.g. "vibe-island" or "projects/vibe-island")
-  const segments = normalized.split("/");
-  if (segments.length >= 2) {
-    const short = segments.slice(-2).join("/");
-    return short.length > 40 ? segments[segments.length - 1] : short;
-  }
-  return last;
 }
 
 const STATE_FILTERS: { label: string; value: StateFilter }[] = [
@@ -58,13 +51,29 @@ export function SessionList({
   activeSessionId,
   viewingSessionId,
   onSessionClick,
+  onRenameSession,
+  onDeleteSession,
+  onSetSessionTag,
+  onCreateGroup,
+  groups,
   "data-testid": testId,
 }: SessionListProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
   const [sortBy, setSortBy] = useState<SortBy>("lastActivity");
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  const [groupByCwd, setGroupByCwd] = useState(true);
+  const [groupByTag, setGroupByTag] = useState(true);
+  const [contextMenu, setContextMenu] = useState<{ session: Session; x: number; y: number } | null>(null);
+  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (renamingSessionId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingSessionId]);
 
   const processed = useMemo(() => {
     let filtered = sessions;
@@ -89,47 +98,94 @@ export function SessionList({
     return sorted;
   }, [sessions, stateFilter, searchQuery, sortBy]);
 
-  const groups = useMemo<GroupData[]>(() => {
-    if (!groupByCwd) return [];
+  const groupedData = useMemo<GroupData[]>(() => {
+    if (!groupByTag) return [];
 
     const map = new Map<string, Session[]>();
     for (const s of processed) {
-      const cwd = s.cwd || "Unknown";
-      if (!map.has(cwd)) map.set(cwd, []);
-      map.get(cwd)!.push(s);
+      const tag = s.tag || "";
+      if (!map.has(tag)) map.set(tag, []);
+      map.get(tag)!.push(s);
     }
 
-    return Array.from(map.entries())
-      .map(([cwd, groupSessions]) => ({
-        cwd,
-        label: extractProjectName(cwd),
-        sessions: groupSessions,
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [processed, groupByCwd]);
+    // Order: store's groups first (in order), then "Ungrouped" at the end
+    const result: GroupData[] = [];
+    for (const g of groups) {
+      const sessions = map.get(g);
+      if (sessions) {
+        result.push({ tag: g, label: g, sessions });
+        map.delete(g);
+      }
+    }
+    // Remaining ungrouped
+    const ungrouped = map.get("");
+    if (ungrouped) {
+      result.push({ tag: "", label: "Ungrouped", sessions: ungrouped });
+      map.delete("");
+    }
+    // Any other tags not in the groups array
+    for (const [tag, sessions] of map) {
+      result.push({ tag, label: tag, sessions });
+    }
 
-  const toggleGroup = (cwd: string) => {
+    return result;
+  }, [processed, groupByTag, groups]);
+
+  const toggleGroup = (tag: string) => {
     setCollapsedGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(cwd)) {
-        next.delete(cwd);
+      if (next.has(tag)) {
+        next.delete(tag);
       } else {
-        next.add(cwd);
+        next.add(tag);
       }
       return next;
     });
   };
 
+  const handleContextMenu = (e: React.MouseEvent, s: Session) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ session: s, x: e.clientX, y: e.clientY });
+  };
+
+  const handleRenameStart = () => {
+    if (!contextMenu) return;
+    setRenamingSessionId(contextMenu.session.id);
+    setRenameValue(contextMenu.session.label);
+  };
+
+  const handleRenameSubmit = () => {
+    if (renamingSessionId && renameValue.trim()) {
+      onRenameSession(renamingSessionId, renameValue.trim());
+    }
+    setRenamingSessionId(null);
+    setRenameValue("");
+  };
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleRenameSubmit();
+    if (e.key === "Escape") {
+      setRenamingSessionId(null);
+      setRenameValue("");
+    }
+  };
+
   const renderSession = (s: Session) => {
     const isActive = s.id === activeSessionId;
     const isViewed = s.id === viewingSessionId;
+    const isRenaming = renamingSessionId === s.id;
+
     return (
       <motion.div
         key={s.id}
         className={`session-list__session${isActive ? " session-list__session--active" : ""}${isViewed ? " session-list__session--viewed" : ""}`}
         data-testid="session-item"
         data-session-id={s.id}
-        onClick={() => onSessionClick(s)}
+        onClick={() => {
+          if (!isRenaming) onSessionClick(s);
+        }}
+        onContextMenu={(e) => handleContextMenu(e, s)}
         variants={{
           hidden: { opacity: 0, y: 6 },
           show: { opacity: 1, y: 0 },
@@ -139,17 +195,31 @@ export function SessionList({
         <div className="session-list__session-row">
           <StatusDot state={s.state} data-testid="status-dot" />
           <div className="session-list__session-text">
-            <span className="session-list__session-label" title={s.title || s.label}>
-              {s.title || s.label}
-            </span>
-            {s.title && (
-              <span className="session-list__session-sublabel" title={s.label}>
-                {s.label}
-              </span>
+            {isRenaming ? (
+              <input
+                ref={renameInputRef}
+                className="session-list__rename-input"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={handleRenameKeyDown}
+                onBlur={handleRenameSubmit}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <>
+                <span className="session-list__session-label" title={s.title || s.label}>
+                  {s.title || s.label}
+                </span>
+                {s.title && (
+                  <span className="session-list__session-sublabel" title={s.label}>
+                    {s.label}
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
-        {s.currentTool && (
+        {s.currentTool && !isRenaming && (
           <div className="session-list__session-info">
             <span className="session-list__session-tool">{s.currentTool.name}</span>
             {(s.currentTool.input?.file_path as string) && (
@@ -159,7 +229,7 @@ export function SessionList({
             )}
           </div>
         )}
-        {s.lastActivity && (
+        {s.lastActivity && !isRenaming && (
           <div className="session-list__session-time">{formatTime(s.lastActivity)}</div>
         )}
       </motion.div>
@@ -207,10 +277,10 @@ export function SessionList({
           {sortBy === "lastActivity" ? "Recent" : "Created"}
         </button>
         <button
-          className={`session-list__group-btn${groupByCwd ? " session-list__group-btn--active" : ""}`}
-          onClick={() => setGroupByCwd(!groupByCwd)}
+          className={`session-list__group-btn${groupByTag ? " session-list__group-btn--active" : ""}`}
+          onClick={() => setGroupByTag(!groupByTag)}
           data-testid="group-toggle"
-          title={groupByCwd ? "Grouped by project" : "Flat list"}
+          title={groupByTag ? "Grouped by tags" : "Flat list"}
         >
           Group
         </button>
@@ -223,32 +293,32 @@ export function SessionList({
         <div className="session-list__empty" data-testid="sessions-empty">No matching sessions</div>
       )}
 
-      {groupByCwd ? (
+      {groupByTag ? (
         <motion.div
           className="session-list__groups"
           initial="hidden"
           animate="show"
           variants={{ hidden: {}, show: { transition: { staggerChildren: 0.04 } } }}
         >
-          {groups.map((group) => {
-            const collapsed = collapsedGroups.has(group.cwd);
+          {groupedData.map((group) => {
+            const collapsed = collapsedGroups.has(group.tag);
             return (
               <motion.div
-                key={group.cwd}
+                key={group.tag || "__ungrouped__"}
                 className="session-list__group"
                 variants={{ hidden: { opacity: 0, y: 4 }, show: { opacity: 1, y: 0 } }}
                 transition={{ duration: 0.14, ease: "easeOut" }}
               >
                 <div
                   className="session-list__group-header"
-                  onClick={() => toggleGroup(group.cwd)}
+                  onClick={() => toggleGroup(group.tag)}
                   data-testid="group-header"
-                  data-group={group.cwd}
+                  data-group={group.tag}
                 >
                   <span className={`session-list__group-arrow${collapsed ? " session-list__group-arrow--collapsed" : ""}`}>
                     ▾
                   </span>
-                  <span className="session-list__group-label" title={group.cwd}>{group.label}</span>
+                  <span className="session-list__group-label">{group.label}</span>
                   <span className="session-list__group-count">{group.sessions.length}</span>
                 </div>
                 {!collapsed && (
@@ -269,6 +339,19 @@ export function SessionList({
         >
           {processed.map(renderSession)}
         </motion.div>
+      )}
+
+      {contextMenu && (
+        <SessionContextMenu
+          session={contextMenu.session}
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          groups={groups}
+          onClose={() => setContextMenu(null)}
+          onRename={handleRenameStart}
+          onDelete={onDeleteSession}
+          onSetTag={onSetSessionTag}
+          onCreateGroup={onCreateGroup}
+        />
       )}
     </div>
   );

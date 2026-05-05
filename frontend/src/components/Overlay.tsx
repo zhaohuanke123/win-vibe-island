@@ -62,7 +62,7 @@ function ApprovalFocusContent({
 }
 
 export function Overlay() {
-  const { sessions, activeSessionId, setActiveSession, approvalRequest, clearApprovalRequest } = useSessionsStore();
+  const { sessions, activeSessionId, setActiveSession, approvalRequest, clearApprovalRequest, groups } = useSessionsStore();
   const config = useConfigStore((s) => s.config);
   const overlayLayout = normalizeOverlayLayoutConfig(config.overlay);
   const BAR_HEIGHT = config.ui.dimensions.barHeight;
@@ -336,6 +336,11 @@ export function Overlay() {
                       activeSessionId={activeSessionId}
                       viewingSessionId={viewingSessionId}
                       onSessionClick={handleSessionClick}
+                      onRenameSession={(id, label) => useSessionsStore.getState().renameSession(id, label)}
+                      onDeleteSession={(id) => useSessionsStore.getState().removeSession(id)}
+                      onSetSessionTag={(id, tag) => useSessionsStore.getState().setSessionTag(id, tag)}
+                      onCreateGroup={(name) => useSessionsStore.getState().createGroup(name)}
+                      groups={groups}
                       data-testid="sessions-list"
                     />
                   )}

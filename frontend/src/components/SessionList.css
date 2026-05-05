@@ -317,3 +317,16 @@
   color: #6b7280;
   font-size: 12px;
 }
+
+/* Rename input */
+.session-list__rename-input {
+  width: 100%;
+  padding: 2px 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #d1d5db;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  border-radius: 3px;
+  outline: none;
+}

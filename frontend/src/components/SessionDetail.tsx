@@ -111,6 +111,12 @@ export function SessionDetail({ session, onBack, "data-testid": testId }: Sessio
               <span className="session-detail__info-value">{session.source}</span>
             </div>
           )}
+          {session.tag && (
+            <div className="session-detail__info-item">
+              <span className="session-detail__info-key">Group</span>
+              <span className="session-detail__info-value">{session.tag}</span>
+            </div>
+          )}
         </div>
 
         {session.currentTool && (
