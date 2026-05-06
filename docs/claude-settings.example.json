@@ -63,6 +63,16 @@
         ]
       }
     ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://localhost:7878/hooks/session-end"
+          }
+        ]
+      }
+    ],
     "PermissionRequest": [
       {
         "matcher": "*",

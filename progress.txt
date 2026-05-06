@@ -1029,3 +1029,30 @@ Complete project doc restructuring to eliminate duplication and ambiguity:
 
 本次操作用户直接通过 Telegram 下达指令，未触发正式编码任务，属于文档维护性质变更。
 
+
+## 2026-05-06 — Claude Code hook title refresh strategy
+
+### Documentation Gate
+
+- 用户请求按照 Claude Code 官方 Hook 节奏实现 session title 读取策略。
+- 行为变更已先记录到 `docs/hooks-setup.md` 和 `architecture.md`：`UserPromptSubmit` 使用 prompt 临时标题，`PostToolUse` 节流刷新，`Stop` 延迟最终刷新，`SessionEnd` 兜底刷新。
+- 标题来源优先级记录为 `customTitle > aiTitle > agentName > prompt-temp > session-id`。
+
+### Planned Implementation
+
+- 后端从 hook HTTP body 中保存/读取 `session_id`、`transcript_path`、`cwd` 上下文。
+- 后端读取 JSONL 近期行而不是每次全量扫描，并为 `PostToolUse` 做同 session 1.5s 节流。
+- 前端监听后端 title 更新事件，并按来源优先级避免低优先级标题覆盖高优先级标题。
+
+### Implementation Notes
+
+- Implemented backend `session_title` emission with prompt-temp, throttled PostToolUse JSONL refresh, delayed Stop refresh, and SessionEnd fallback refresh.
+- Added `SessionEnd` to generated and example Claude Code hook configuration.
+- Added frontend title source priority handling and persistence for `titleSource`.
+
+### Evidence
+
+- `npm run build` in `frontend/` passed.
+- `npm run lint` in `frontend/` still fails on pre-existing React compiler / lint findings outside this change (ApprovalPanel test `any`, render-time `Date.now`, ref access during render, synchronous state updates in effects).
+- `cargo check --manifest-path src-tauri/Cargo.toml` could not complete in this Linux container because `glib-2.0.pc` is missing for `glib-sys`.
+- `rustup target add x86_64-pc-windows-gnu && cargo check --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-gnu` could not complete because the Rust target download failed with an unsuccessful tunnel.

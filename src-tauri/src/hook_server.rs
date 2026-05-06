@@ -10,6 +10,7 @@
 //! - Notification: When Claude needs user attention
 //! - Stop: When Claude finishes a response
 //! - UserPromptSubmit: When user submits a prompt
+//! - SessionEnd: When a Claude Code session ends
 //! - PermissionRequest: When Claude needs permission to execute a tool
 
 use crate::approval_types::approval_types;
@@ -22,9 +23,12 @@ use axum::{
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
+use std::io::{Read, Seek, SeekFrom};
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 use tokio::sync::oneshot;
 
@@ -61,6 +65,25 @@ pub struct HookHealthStatus {
     pub total_requests: u64,
     pub error_count: u64,
     pub pending_approvals: usize,
+}
+
+/// Session title update emitted to the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionTitleUpdate {
+    pub session_id: String,
+    pub title: String,
+    pub source: String,
+    pub transcript_path: Option<String>,
+    pub updated_at: i64,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TitleCandidate {
+    title: String,
+    source: String,
+    priority: u8,
 }
 
 /// Response to a permission request
@@ -114,6 +137,10 @@ struct HookServerState {
     error_logs: Mutex<VecDeque<HookErrorLog>>,
     /// Last heartbeat timestamp
     last_heartbeat: Mutex<Option<i64>>,
+    /// Last title read time per session, used to throttle frequent PostToolUse hooks
+    title_read_times: Mutex<HashMap<String, Instant>>,
+    /// Last emitted title per session so unchanged JSONL refreshes do not spam the UI
+    title_cache: Mutex<HashMap<String, SessionTitleUpdate>>,
 }
 
 /// Generic hook payload - captures all fields from Claude Code hooks
@@ -184,6 +211,8 @@ pub fn start_hook_server(app: AppHandle) -> Result<(), String> {
         error_count: Mutex::new(0),
         error_logs: Mutex::new(VecDeque::new()),
         last_heartbeat: Mutex::new(None),
+        title_read_times: Mutex::new(HashMap::new()),
+        title_cache: Mutex::new(HashMap::new()),
     });
     *state_guard = Some(state.clone());
     drop(state_guard);
@@ -242,6 +271,7 @@ async fn run_hook_server(state: Arc<HookServerState>) -> Result<(), String> {
         .route("/hooks/notification", post(handle_notification))
         .route("/hooks/stop", post(handle_stop))
         .route("/hooks/user-prompt-submit", post(handle_user_prompt_submit))
+        .route("/hooks/session-end", post(handle_session_end))
         .route("/hooks/permission-request", post(handle_permission_request))
         .route("/hooks/ping", post(handle_ping))
         .route("/hooks/health", get(handle_health))
@@ -298,6 +328,283 @@ fn get_session_label(payload: &HookPayload) -> String {
     "Claude Code".to_string()
 }
 
+const POST_TOOL_TITLE_THROTTLE_MS: u64 = 1500;
+const STOP_TITLE_DELAY_MS: u64 = 200;
+const TITLE_SCAN_MAX_LINES: usize = 240;
+const TITLE_SCAN_MAX_BYTES: u64 = 1024 * 1024;
+const PROMPT_TITLE_MAX_CHARS: usize = 40;
+
+fn title_source_priority(source: &str) -> u8 {
+    match source {
+        "customTitle" => 5,
+        "aiTitle" => 4,
+        "agentName" => 3,
+        "prompt-temp" => 2,
+        "session-id" => 1,
+        _ => 0,
+    }
+}
+
+fn truncate_chars(input: &str, max_chars: usize) -> String {
+    let trimmed = input.trim();
+    let mut out: String = trimmed.chars().take(max_chars).collect();
+    if trimmed.chars().count() > max_chars {
+        out.push('…');
+    }
+    out
+}
+
+fn normalize_title_source(key: &str) -> Option<(&'static str, u8)> {
+    match key {
+        "custom-title" | "customTitle" | "custom_title" => Some(("customTitle", 5)),
+        "ai-title" | "aiTitle" | "ai_title" => Some(("aiTitle", 4)),
+        "agent-name" | "agentName" | "agent_name" => Some(("agentName", 3)),
+        _ => None,
+    }
+}
+
+fn select_better_title(current: &mut Option<TitleCandidate>, candidate: TitleCandidate) {
+    let should_replace = current
+        .as_ref()
+        .map(|existing| candidate.priority >= existing.priority)
+        .unwrap_or(true);
+    if should_replace && !candidate.title.trim().is_empty() {
+        *current = Some(candidate);
+    }
+}
+
+fn string_from_title_value(value: &serde_json::Value) -> Option<String> {
+    match value {
+        serde_json::Value::String(s) => {
+            let title = truncate_chars(s, 120);
+            (!title.is_empty()).then_some(title)
+        }
+        serde_json::Value::Object(map) => ["title", "name", "value", "content", "text", "summary"]
+            .iter()
+            .find_map(|key| map.get(*key).and_then(string_from_title_value)),
+        _ => None,
+    }
+}
+
+fn sibling_title_from_object(map: &serde_json::Map<String, serde_json::Value>) -> Option<String> {
+    [
+        "title",
+        "customTitle",
+        "aiTitle",
+        "agentName",
+        "name",
+        "value",
+        "content",
+        "text",
+    ]
+    .iter()
+    .find_map(|key| map.get(*key).and_then(string_from_title_value))
+}
+
+fn find_title_candidate(value: &serde_json::Value) -> Option<TitleCandidate> {
+    let mut best: Option<TitleCandidate> = None;
+    find_title_candidate_inner(value, &mut best);
+    best
+}
+
+fn find_title_candidate_inner(value: &serde_json::Value, best: &mut Option<TitleCandidate>) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, child) in map {
+                if let Some((source, priority)) = normalize_title_source(key) {
+                    if let Some(title) = string_from_title_value(child) {
+                        select_better_title(
+                            best,
+                            TitleCandidate {
+                                title,
+                                source: source.to_string(),
+                                priority,
+                            },
+                        );
+                    }
+                }
+            }
+
+            for discriminator in ["type", "name", "event", "event_type", "record_type"] {
+                if let Some(kind) = map.get(discriminator).and_then(|v| v.as_str()) {
+                    if let Some((source, priority)) = normalize_title_source(kind) {
+                        if let Some(title) = sibling_title_from_object(map) {
+                            select_better_title(
+                                best,
+                                TitleCandidate {
+                                    title,
+                                    source: source.to_string(),
+                                    priority,
+                                },
+                            );
+                        }
+                    }
+                }
+            }
+
+            for child in map.values() {
+                find_title_candidate_inner(child, best);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                find_title_candidate_inner(item, best);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn read_recent_lines(
+    path: PathBuf,
+    max_lines: usize,
+    max_bytes: u64,
+) -> std::io::Result<Vec<String>> {
+    let mut file = std::fs::File::open(path)?;
+    let len = file.metadata()?.len();
+    let read_len = len.min(max_bytes);
+    file.seek(SeekFrom::End(-(read_len as i64)))?;
+
+    let mut bytes = Vec::with_capacity(read_len as usize);
+    file.read_to_end(&mut bytes)?;
+    let mut buffer = String::from_utf8_lossy(&bytes).into_owned();
+    if len > read_len {
+        if let Some(index) = buffer.find('\n') {
+            buffer = buffer[index + 1..].to_string();
+        }
+    }
+
+    let mut lines: Vec<String> = buffer
+        .lines()
+        .rev()
+        .take(max_lines)
+        .map(|line| line.to_string())
+        .collect();
+    lines.reverse();
+    Ok(lines)
+}
+
+async fn read_title_from_jsonl(path: String) -> Option<TitleCandidate> {
+    tokio::task::spawn_blocking(move || {
+        let lines = read_recent_lines(
+            PathBuf::from(path),
+            TITLE_SCAN_MAX_LINES,
+            TITLE_SCAN_MAX_BYTES,
+        )
+        .ok()?;
+        let mut best: Option<TitleCandidate> = None;
+        for line in lines.into_iter().rev() {
+            let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) else {
+                continue;
+            };
+            if let Some(candidate) = find_title_candidate(&value) {
+                select_better_title(&mut best, candidate);
+                if best.as_ref().map(|c| c.priority == 5).unwrap_or(false) {
+                    break;
+                }
+            }
+        }
+        best
+    })
+    .await
+    .ok()
+    .flatten()
+}
+
+async fn emit_session_title(state: &Arc<HookServerState>, update: SessionTitleUpdate) {
+    let should_emit = {
+        let mut cache = state.title_cache.lock();
+        let existing = cache.get(&update.session_id);
+        let should_emit = match existing {
+            Some(existing) => {
+                title_source_priority(&update.source) >= title_source_priority(&existing.source)
+                    && (existing.title != update.title || existing.source != update.source)
+            }
+            None => true,
+        };
+
+        if should_emit {
+            cache.insert(update.session_id.clone(), update.clone());
+        }
+        should_emit
+    };
+
+    if should_emit {
+        let _ = state.app_handle.emit("session_title", &update);
+    }
+}
+
+async fn emit_prompt_temp_title(
+    state: &Arc<HookServerState>,
+    payload: &HookPayload,
+    session_id: &str,
+) {
+    let Some(prompt) = payload.prompt.as_deref() else {
+        return;
+    };
+    let title = truncate_chars(prompt, PROMPT_TITLE_MAX_CHARS);
+    if title.is_empty() {
+        return;
+    }
+
+    emit_session_title(
+        state,
+        SessionTitleUpdate {
+            session_id: session_id.to_string(),
+            title,
+            source: "prompt-temp".to_string(),
+            transcript_path: payload.transcript_path.clone(),
+            updated_at: chrono_timestamp(),
+            reason: "user-prompt-submit".to_string(),
+        },
+    )
+    .await;
+}
+
+async fn refresh_title_from_hook(
+    state: Arc<HookServerState>,
+    payload: HookPayload,
+    reason: &'static str,
+    throttle_post_tool: bool,
+    delay: Option<Duration>,
+) {
+    let Some(transcript_path) = payload.transcript_path.clone() else {
+        return;
+    };
+    let session_id = get_session_id(&payload);
+
+    if throttle_post_tool {
+        let now = Instant::now();
+        let mut reads = state.title_read_times.lock();
+        if let Some(last_read) = reads.get(&session_id) {
+            if now.duration_since(*last_read) < Duration::from_millis(POST_TOOL_TITLE_THROTTLE_MS) {
+                return;
+            }
+        }
+        reads.insert(session_id.clone(), now);
+        drop(reads);
+    }
+
+    if let Some(delay) = delay {
+        tokio::time::sleep(delay).await;
+    }
+
+    if let Some(candidate) = read_title_from_jsonl(transcript_path.clone()).await {
+        emit_session_title(
+            &state,
+            SessionTitleUpdate {
+                session_id,
+                title: candidate.title,
+                source: candidate.source,
+                transcript_path: Some(transcript_path),
+                updated_at: chrono_timestamp(),
+                reason: reason.to_string(),
+            },
+        )
+        .await;
+    }
+}
+
 /// Handle SessionStart hook - triggered when a new session begins
 async fn handle_session_start(
     State(state): State<Arc<HookServerState>>,
@@ -336,6 +643,16 @@ async fn handle_session_start(
             "state": "idle",
         }),
     );
+
+    // SessionStart is only a reliable title source when resuming an existing transcript.
+    if payload.transcript_path.is_some() && payload.source.as_deref() == Some("resume") {
+        let refresh_state = state.clone();
+        let refresh_payload = payload.clone();
+        tokio::spawn(async move {
+            refresh_title_from_hook(refresh_state, refresh_payload, "session-start", false, None)
+                .await;
+        });
+    }
 
     Ok(StatusCode::OK)
 }
@@ -436,6 +753,12 @@ async fn handle_post_tool_use(
             "state": "streaming",
         }),
     );
+
+    let refresh_state = state.clone();
+    let refresh_payload = payload.clone();
+    tokio::spawn(async move {
+        refresh_title_from_hook(refresh_state, refresh_payload, "post-tool-use", true, None).await;
+    });
 
     Ok(StatusCode::OK)
 }
@@ -569,6 +892,19 @@ async fn handle_stop(
         }),
     );
 
+    let refresh_state = state.clone();
+    let refresh_payload = payload.clone();
+    tokio::spawn(async move {
+        refresh_title_from_hook(
+            refresh_state,
+            refresh_payload,
+            "stop",
+            false,
+            Some(Duration::from_millis(STOP_TITLE_DELAY_MS)),
+        )
+        .await;
+    });
+
     Ok(StatusCode::OK)
 }
 
@@ -593,6 +929,39 @@ async fn handle_user_prompt_submit(
             "session_id": session_id,
             "state": "running",
             "prompt": payload.prompt,
+        }),
+    );
+
+    emit_prompt_temp_title(&state, &payload, &session_id).await;
+
+    Ok(StatusCode::OK)
+}
+
+/// Handle SessionEnd hook - triggered when a Claude Code session exits
+async fn handle_session_end(
+    State(state): State<Arc<HookServerState>>,
+    Json(payload): Json<HookPayload>,
+) -> Result<StatusCode, StatusCode> {
+    increment_request_count(&state);
+
+    log::info!(
+        "SessionEnd hook received: session_id={:?}",
+        payload.session_id
+    );
+
+    let session_id = get_session_id(&payload);
+
+    // SessionEnd has a short timeout in Claude Code, so only do the same lightweight
+    // recent-line title scan. Keep the session in the frontend cache so persistence
+    // can save the final title instead of deleting it immediately.
+    refresh_title_from_hook(state.clone(), payload, "session-end", false, None).await;
+
+    let _ = state.app_handle.emit(
+        "state_change",
+        &serde_json::json!({
+            "session_id": session_id,
+            "state": "done",
+            "reason": "session-end",
         }),
     );
 
@@ -649,7 +1018,10 @@ async fn handle_permission_request(
 
     // Extract plan content if this is an ExitPlanMode tool
     let plan_content = if approval_type == approval_types::PLAN {
-        tool_input.get("plan").and_then(|v| v.as_str()).map(|s| s.to_string())
+        tool_input
+            .get("plan")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
     } else {
         None
     };
@@ -957,9 +1329,13 @@ fn extract_questions(tool_input: &serde_json::Value) -> Option<Vec<serde_json::V
         .map(|q| {
             let question = q.get("question").and_then(|v| v.as_str()).unwrap_or("");
             let header = q.get("header").and_then(|v| v.as_str()).unwrap_or("");
-            let multi_select = q.get("multiSelect").and_then(|v| v.as_bool()).unwrap_or(false);
+            let multi_select = q
+                .get("multiSelect")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
 
-            let options = q.get("options")
+            let options = q
+                .get("options")
                 .and_then(|v| v.as_array())
                 .map(|opts| {
                     opts.iter()
@@ -1103,7 +1479,10 @@ async fn handle_test_approve(
         .ok_or_else(|| (StatusCode::BAD_REQUEST, "Missing tool_use_id".to_string()))?
         .to_string();
 
-    log::info!("[test] Approving permission request for tool_use_id={}", tool_use_id);
+    log::info!(
+        "[test] Approving permission request for tool_use_id={}",
+        tool_use_id
+    );
 
     let (session_id, approved_behavior) = {
         let mut pending = state.pending_approvals.lock();
@@ -1540,5 +1919,58 @@ mod tests {
         });
         let diff = extract_diff_data("Read", &input);
         assert!(diff.is_none());
+    }
+}
+
+#[cfg(test)]
+mod title_tests {
+    use super::*;
+
+    #[test]
+    fn extracts_highest_priority_title_from_nested_json() {
+        let value = serde_json::json!({
+            "message": {
+                "agent-name": "Research agent",
+                "metadata": {
+                    "ai-title": "AI title",
+                    "custom-title": { "title": "Custom title" }
+                }
+            }
+        });
+
+        let candidate = find_title_candidate(&value).expect("title candidate");
+        assert_eq!(candidate.title, "Custom title");
+        assert_eq!(candidate.source, "customTitle");
+    }
+
+    #[test]
+    fn extracts_title_from_discriminator_record() {
+        let value = serde_json::json!({
+            "type": "ai-title",
+            "title": "Implement hook title refresh"
+        });
+
+        let candidate = find_title_candidate(&value).expect("title candidate");
+        assert_eq!(candidate.title, "Implement hook title refresh");
+        assert_eq!(candidate.source, "aiTitle");
+    }
+
+    #[test]
+    fn reads_recent_jsonl_lines_for_title() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("session.jsonl");
+        std::fs::write(
+            &path,
+            "{\"message\":\"ignore\"}\n{\"type\":\"agent-name\",\"name\":\"Planner\"}\n{\"ai-title\":\"Final AI title\"}\n",
+        )
+        .expect("write jsonl");
+
+        let rt = tokio::runtime::Runtime::new().expect("runtime");
+        let candidate = rt
+            .block_on(read_title_from_jsonl(path.to_string_lossy().to_string()))
+            .expect("title candidate");
+
+        assert_eq!(candidate.title, "Final AI title");
+        assert_eq!(candidate.source, "aiTitle");
     }
 }

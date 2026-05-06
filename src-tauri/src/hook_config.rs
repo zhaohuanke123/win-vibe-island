@@ -54,6 +54,7 @@ const REQUIRED_HOOKS: &[&str] = &[
     "Notification",
     "Stop",
     "UserPromptSubmit",
+    "SessionEnd",
     "PermissionRequest",
 ];
 
@@ -264,6 +265,16 @@ fn generate_hook_config() -> serde_json::Value {
                         {
                             "type": "http",
                             "url": format!("{}/hooks/user-prompt-submit", base_url)
+                        }
+                    ]
+                }
+            ],
+            "SessionEnd": [
+                {
+                    "hooks": [
+                        {
+                            "type": "http",
+                            "url": format!("{}/hooks/session-end", base_url)
                         }
                     ]
                 }

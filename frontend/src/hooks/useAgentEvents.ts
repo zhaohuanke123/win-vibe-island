@@ -30,6 +30,15 @@ interface StateChangeEvent {
   reason?: string;
 }
 
+interface SessionTitleEvent {
+  sessionId: string;
+  title: string;
+  source: string;
+  transcriptPath?: string;
+  updatedAt: number;
+  reason: string;
+}
+
 interface ToolUseEvent {
   session_id: string;
   tool_name: string;
@@ -163,6 +172,7 @@ export function useAgentEvents() {
             id: session_id,
             label: "Claude Code",
             title: prompt ? truncatePrompt(prompt) : undefined,
+            titleSource: prompt ? "prompt-temp" : undefined,
             cwd: "",
             state: validState,
             toolHistory: [],
@@ -175,9 +185,9 @@ export function useAgentEvents() {
           if (existingSession.state === "approval" && validState !== "approval") {
             removeApprovalsBySessionId(session_id);
           }
-          // Set title from first prompt if not already set
-          if (state === "running" && prompt && !existingSession.title) {
-            updateSessionInfo(session_id, { title: truncatePrompt(prompt) });
+          // Set title from prompt as a temporary fallback unless a stronger title exists.
+          if (state === "running" && prompt && shouldApplyTitle(existingSession.titleSource, "prompt-temp")) {
+            updateSessionInfo(session_id, { title: truncatePrompt(prompt), titleSource: "prompt-temp" });
           }
         }
 
@@ -211,6 +221,34 @@ export function useAgentEvents() {
         }
       });
       unlisteners.push(unlistenState);
+
+
+      // Listen for session_title events (prompt-temp and JSONL-derived title refreshes)
+      const unlistenTitle = await listen<SessionTitleEvent>("session_title", (event) => {
+        const { sessionId, title, source } = event.payload;
+        if (!title) return;
+
+        const session = useSessionsStore.getState().sessions.find(s => s.id === sessionId);
+        if (!session) {
+          addSession({
+            id: sessionId,
+            label: "Claude Code",
+            title,
+            titleSource: source,
+            cwd: "",
+            state: "idle" as AgentState,
+            toolHistory: [],
+            createdAt: Date.now(),
+            lastActivity: Date.now(),
+          });
+          return;
+        }
+
+        if (shouldApplyTitle(session.titleSource, source)) {
+          updateSessionInfo(sessionId, { title, titleSource: source });
+        }
+      });
+      unlisteners.push(unlistenTitle);
 
       // Listen for tool_use events (from PreToolUse hook)
       const unlistenToolUse = await listen<ToolUseEvent>("tool_use", (event) => {
@@ -423,7 +461,28 @@ function extractProjectName(cwd: string): string {
   return parts[parts.length - 1] || "Claude Code";
 }
 
-function truncatePrompt(prompt: string, maxLen = 60): string {
+function titleSourcePriority(source?: string): number {
+  switch (source) {
+    case "customTitle":
+      return 5;
+    case "aiTitle":
+      return 4;
+    case "agentName":
+      return 3;
+    case "prompt-temp":
+      return 2;
+    case "session-id":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+function shouldApplyTitle(existingSource: string | undefined, nextSource: string): boolean {
+  return titleSourcePriority(nextSource) >= titleSourcePriority(existingSource);
+}
+
+function truncatePrompt(prompt: string, maxLen = 40): string {
   const firstLine = prompt.split("\n")[0].trim();
   if (firstLine.length <= maxLen) return firstLine;
   return firstLine.slice(0, maxLen) + "…";
