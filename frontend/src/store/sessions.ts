@@ -46,6 +46,7 @@ export interface Session {
   id: string;
   label: string;
   title?: string;
+  titleSource?: string;
   cwd: string;
   state: AgentState;
   pid?: number;
@@ -149,7 +150,7 @@ interface SessionsStore {
   renameGroup: (oldName: string, newName: string) => void;
 }
 
-export const useSessionsStore = create<SessionsStore>((set, _get) => ({
+export const useSessionsStore = create<SessionsStore>((set) => ({
   sessions: [],
   activeSessionId: null,
   pendingApprovals: [],

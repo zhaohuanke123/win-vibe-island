@@ -105,6 +105,16 @@ If you use `manual` mode, add this to Claude Code settings:
         ]
       }
     ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://localhost:7878/hooks/session-end"
+          }
+        ]
+      }
+    ],
     "PermissionRequest": [
       {
         "matcher": "*",
@@ -129,12 +139,13 @@ This matches the current generated config in `src-tauri/src/hook_config.rs` and 
 
 | Hook | Payload Fields Used | Vibe Island Behavior |
 |------|---------------------|----------------------|
-| `SessionStart` | `session_id`, `cwd`, `source`, `model`, `agent_type` | Creates/updates a session and sets it to `idle` |
+| `SessionStart` | `session_id`, `cwd`, `source`, `model`, `agent_type`, `transcript_path` | Creates/updates a session and sets it to `idle`; for resumed sessions it may read an existing JSONL title |
 | `PreToolUse` | `session_id`, `cwd`, `tool_name`, `tool_input` | Ensures session exists, sets `thinking`, emits `tool_use` |
-| `PostToolUse` | `session_id`, `tool_name`, `tool_response`, `duration_ms` | Emits `tool_complete`, sets `streaming` |
+| `PostToolUse` | `session_id`, `transcript_path`, `tool_name`, `tool_response`, `duration_ms` | Emits `tool_complete`, sets `streaming`, and performs a throttled title refresh from recent JSONL lines |
 | `Notification` | `session_id`, `notification_type`, `message` | `permission_prompt` sets `approval`, `idle_prompt` sets `idle` |
-| `Stop` | `session_id`, `reason` | Sets `done` |
-| `UserPromptSubmit` | `session_id`, `prompt` | Sets `running` |
+| `Stop` | `session_id`, `transcript_path`, `reason` | Sets `done`, then delays briefly and performs the final title refresh from JSONL |
+| `UserPromptSubmit` | `session_id`, `prompt`, `transcript_path`, `cwd` | Sets `running` and immediately emits a prompt-derived temporary title |
+| `SessionEnd` | `session_id`, `transcript_path` | Performs a lightweight fallback title refresh and leaves the session cached for persistence |
 | `PermissionRequest` | `session_id`, `tool_name`, `tool_input`, `tool_use_id`, `permission_suggestions` | Shows approval UI and waits for user decision |
 
 The backend also has implemented routes for:
@@ -181,7 +192,7 @@ The backend waits up to 120 seconds for a frontend response, while the generated
 
 ## Session Tracking
 
-Vibe Island tracks each Claude Code conversation by `session_id`.
+Vibe Island tracks each Claude Code conversation by `session_id`. Hook payloads arrive as HTTP request bodies when using the generated HTTP hooks; equivalent stdin JSON from Claude Code contains the same event context fields.
 
 Fallback order:
 
@@ -190,6 +201,15 @@ Fallback order:
 3. generated `unknown-<timestamp>`
 
 Session labels are generated from the last segment of `cwd`; if `cwd` is missing, the UI shows `Claude Code`.
+
+Session titles use a staged strategy so new sessions are never blank while final Claude-generated titles still win:
+
+1. `UserPromptSubmit` truncates the user prompt to 40 characters and emits it as `prompt-temp`.
+2. `PostToolUse` reads recent lines from `transcript_path` at most once per session every 1.5 seconds, looking for title records.
+3. `Stop` waits about 200 ms, rereads recent JSONL lines, and emits the final title.
+4. `SessionEnd` does the same lightweight JSONL read as a fallback and leaves the final title in the session cache for persistence.
+
+Title source priority is `customTitle` > `aiTitle` > `agentName` > `prompt-temp` > `session-id`; lower-priority updates must not overwrite higher-priority titles.
 
 ---
 

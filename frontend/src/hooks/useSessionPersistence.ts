@@ -10,6 +10,7 @@ function serializeSession(s: Session): Record<string, unknown> {
     id: s.id,
     label: s.label,
     title: s.title,
+    titleSource: s.titleSource,
     cwd: s.cwd,
     state: s.state,
     pid: s.pid,
@@ -65,6 +66,7 @@ async function restoreSessions() {
         id: item.id,
         label: item.label || "Restored",
         title: item.title as string | undefined,
+        titleSource: item.titleSource as string | undefined,
         cwd: (item.cwd as string) || "",
         state: "done",
         pid: item.pid as number | undefined,
@@ -78,6 +80,7 @@ async function restoreSessions() {
       });
     }
   } catch (e) {
+    console.error("Failed to restore sessions:", e);
   }
 }
 
