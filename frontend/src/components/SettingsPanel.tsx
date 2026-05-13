@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { logger } from "../client/logger";
 import "./SettingsPanel.css";
 
 type NotificationSound =
@@ -37,7 +38,7 @@ export function SettingsPanel() {
           }))
         );
       })
-      .catch((e) => console.error("Failed to load sounds:", e));
+      .catch((e) => logger.warn("NOTIFICATION_ERROR", "Failed to load sounds", { error: String(e) }));
 
     // Load saved preference
     const saved = localStorage.getItem("notificationSound");
@@ -55,7 +56,7 @@ export function SettingsPanel() {
     try {
       await invoke("play_notification_sound", { sound });
     } catch (e) {
-      console.error("Failed to play sound:", e);
+      logger.warn("NOTIFICATION_ERROR", "Failed to play sound", { error: String(e) });
     } finally {
       setIsLoading(false);
     }

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion, type Transition } from "framer-motion";
 import { OVERLAY_DIMENSIONS, SIZE_SYNC_THROTTLE_MS, SPRING_CONFIG } from "../config/animation";
+import { logger } from "../client/logger";
 
 interface AnimatedOverlayProps {
   isExpanded: boolean;
@@ -31,9 +32,7 @@ function getWebviewScaleFactor() {
 }
 
 function reportResizeError(error: unknown) {
-  if (import.meta.env.DEV) {
-    console.warn("[AnimatedOverlay] failed to sync overlay size:", error);
-  }
+  logger.warn("TAURI_IPC_ERROR", "failed to sync overlay size", { error: String(error) });
 }
 
 export function AnimatedOverlay({ isExpanded, expandedHeight, className, children, "data-testid": testId }: AnimatedOverlayProps) {

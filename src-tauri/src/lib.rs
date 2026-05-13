@@ -9,6 +9,7 @@ mod hook_server;
 mod overlay;
 mod pipe_server;
 mod process_watcher;
+mod logger;
 mod session_store;
 mod window_focus;
 
@@ -39,13 +40,9 @@ pub fn run() {
 
     tauri::Builder::default()
         .setup(|app| {
-            // Initialize log plugin in debug mode
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
+            // Initialize Rust-side JSONL logger
+            if let Err(e) = logger::init(app.handle()) {
+                eprintln!("[ERROR] Failed to initialize JSONL logger: {}", e);
             }
 
             // Position the main window at the top-center of the screen (Dynamic Island style)
@@ -314,6 +311,7 @@ pub fn run() {
             commands::load_sessions,
             commands::get_session_store_path,
             commands::analyze_command,
+            logger::log_entry,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

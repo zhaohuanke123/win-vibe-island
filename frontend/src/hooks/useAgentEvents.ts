@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import type { UnlistenFn } from "@tauri-apps/api/event";
+import { logger } from "../client/logger";
 import { useSessionsStore } from "../store/sessions";
 import type { AgentState } from "../store/sessions";
 import { APPROVAL_TYPES } from "../store/sessions";
@@ -204,7 +205,7 @@ export function useAgentEvents() {
             const savedSound = localStorage.getItem("notificationSound") || "hero";
             if (savedSound !== "none") {
               invoke("play_notification_sound", { sound: savedSound }).catch((e) =>
-                console.error("Failed to play notification sound:", e)
+                logger.warn("NOTIFICATION_ERROR", "Failed to play notification sound", { error: String(e) })
               );
             }
           }

@@ -14,10 +14,11 @@ Windows 桌面悬浮 Overlay 应用，监控 AI 编程助手会话（Claude Code
 1. 本文件（AGENTS.md）    ← 项目配置和导航入口（当前文件）
 2. WORKFLOW.md            ← 工作流程和 Documentation Gate
 3. architecture.md        ← 架构约束 + 模块详情（含启动流程、路由表、已知边界）
-4. task.json              ← 任务列表、依赖、文档引用
-5. progress.txt           ← 当前进度、测试证据、跳过文档记录
-6. docs/README.md         ← 文档索引（需要时查阅）
-7. 源码和测试             ← 仅在 Documentation Gate 通过后读取和修改
+4. LOGGING_CONTRACT.md    ← AI-Native 错误处理规范
+5. task.json              ← 任务列表、依赖、文档引用
+6. progress.txt           ← 当前进度、测试证据、跳过文档记录
+7. docs/README.md         ← 文档索引（需要时查阅）
+8. 源码和测试             ← 仅在 Documentation Gate 通过后读取和修改
 ```
 
 Gate 通过后如需查阅具体模块（测试、Hooks 配置、动画、状态流程），先看 `docs/README.md` 索引定位目标文档。
@@ -62,11 +63,12 @@ Memory 只能提醒 agent 读取本文件，不能替代项目状态文件。
 | [architecture.md](architecture.md) | 架构约束 + 模块详情 | 编码前 |
 | [task.json](task.json) | 任务定义、依赖、文档引用 | 需要知道做什么时 |
 | [progress.txt](progress.txt) | 开发历史、文档更新、测试证据 | 需要了解上下文时 |
-| [docs/hooks-setup.md](docs/hooks-setup.md) | Claude Code Hooks 配置指南 | 配置 hooks 时 |
-| [docs/testing.md](docs/testing.md) | 测试策略与 API 文档 | 测试时 |
-| [docs/animation-design.md](docs/animation-design.md) | 动画系统方案与参数 | 调动画时 |
-| [docs/states-and-flows.md](docs/states-and-flows.md) | Agent 状态与 UI 流程 | 需要确认状态行为时 |
-| [docs/README.md](docs/README.md) | 文档索引 | 首次阅读文档时 |
+|| [LOGGING_CONTRACT.md](LOGGING_CONTRACT.md) | AI-Native 错误处理规范 | 写/读错误处理代码时 |
+|| [docs/hooks-setup.md](docs/hooks-setup.md) | Claude Code Hooks 配置指南 | 配置 hooks 时 |
+|| [docs/testing.md](docs/testing.md) | 测试策略与 API 文档 | 测试时 |
+|| [docs/animation-design.md](docs/animation-design.md) | 动画系统方案与参数 | 调动画时 |
+|| [docs/states-and-flows.md](docs/states-and-flows.md) | Agent 状态与 UI 流程 | 需要确认状态行为时 |
+|| [docs/README.md](docs/README.md) | 文档索引 | 首次阅读文档时 |
 
 ---
 
@@ -93,8 +95,11 @@ Memory 只能提醒 agent 读取本文件，不能替代项目状态文件。
 │       ├── overlay.rs     ← Win32 Overlay 窗口
 │       ├── window_focus.rs← 窗口焦点管理
 │       └── process_watcher.rs ← 进程监控
+├── LOGGING_CONTRACT.md    ← AI-Native 错误处理规范
 ├── frontend/              ← React 前端
 │   └── src/
+│       ├── shared/        ← 跨层共享（AppError, ErrorDictionary）
+│       ├── client/         ← 客户端 Logger + ErrorBoundary
 │       ├── components/    ← UI 组件
 │       ├── hooks/         ← React Hooks
 │       ├── store/         ← Zustand 状态

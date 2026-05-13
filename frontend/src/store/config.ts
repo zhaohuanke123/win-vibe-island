@@ -7,6 +7,7 @@
 
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
+import { logger } from "../client/logger";
 
 // ============================================================================
 // Configuration Types (synced with Rust backend)
@@ -257,7 +258,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
       const config = await invoke<AppConfig>("get_app_config");
       set({ config, isLoading: false });
     } catch (e) {
-      console.error("Failed to load config:", e);
+      logger.warn("STORE_OPERATION_ERROR", "Failed to load config", { error: String(e) });
       set({ error: String(e), isLoading: false });
     }
   },
@@ -269,7 +270,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
       });
       set({ config: newConfig });
     } catch (e) {
-      console.error("Failed to update config:", e);
+      logger.warn("STORE_OPERATION_ERROR", "Failed to update config", { error: String(e) });
       set({ error: String(e) });
     }
   },
@@ -279,7 +280,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
       const newConfig = await invoke<AppConfig>("reset_app_config", { section });
       set({ config: newConfig });
     } catch (e) {
-      console.error("Failed to reset config:", e);
+      logger.warn("STORE_OPERATION_ERROR", "Failed to reset config", { error: String(e) });
       set({ error: String(e) });
     }
   },

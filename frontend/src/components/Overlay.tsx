@@ -11,6 +11,7 @@ import { SessionList } from "./SessionList";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { useSessionsStore } from "../store/sessions";
 import { normalizeOverlayLayoutConfig, useConfigStore } from "../store/config";
+import { logger } from "../client/logger";
 import type { ApprovalRequest, Session } from "../store/sessions";
 import "./Overlay.css";
 import "./ApprovalQueue.css";
@@ -22,9 +23,7 @@ function clampOverlayHeight(value: number, min: number, max: number) {
 }
 
 function reportTauriError(context: string, error: unknown) {
-  if (import.meta.env.DEV) {
-    console.warn(`[Overlay] ${context}:`, error);
-  }
+  logger.warn("TAURI_IPC_ERROR", context, { error: String(error) });
 }
 
 function ApprovalFocusContent({

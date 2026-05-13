@@ -4,10 +4,11 @@ import { GeometrySandbox } from "./components/GeometrySandbox";
 import { useAgentEvents } from "./hooks/useAgentEvents";
 import { useSessionPersistence } from "./hooks/useSessionPersistence";
 import { initConfig } from "./store/config";
+import { logger } from "./client/logger";
 import "./index.css";
 
 // Initialize config on app load
-initConfig().catch(console.error);
+initConfig().catch((e) => logger.capture(e, "STORE_OPERATION_ERROR"));
 
 function MainOverlayApp() {
   useAgentEvents();

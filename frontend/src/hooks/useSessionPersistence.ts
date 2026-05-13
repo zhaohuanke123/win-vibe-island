@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionsStore } from "../store/sessions";
+import { logger } from "../client/logger";
 import type { Session } from "../store/sessions";
 
 const SAVE_INTERVAL_MS = 10000; // 10 seconds
@@ -34,7 +35,7 @@ async function persistSessions() {
     }
     await invoke("save_sessions", { sessionsJson: JSON.stringify(data) });
   } catch (e) {
-    console.error("Failed to persist sessions:", e);
+    logger.warn("STORE_OPERATION_ERROR", "Failed to persist sessions", { error: String(e) });
   }
 }
 
