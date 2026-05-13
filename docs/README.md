@@ -20,6 +20,7 @@
 | [docs/hooks-setup.md](hooks-setup.md) | Claude Code Hooks 配置指南 |
 | [docs/animation-design.md](animation-design.md) | 动画系统方案与参数 |
 | [docs/states-and-flows.md](states-and-flows.md) | Agent 状态与 UI 流程 |
+| [docs/state-machine.md](state-machine.md) | 状态转换矩阵定义与维护规则 |
 | [docs/release-process.md](release-process.md) | 发布流程与 checklist |
 
 ## 任务与进度
