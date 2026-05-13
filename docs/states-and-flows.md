@@ -6,6 +6,11 @@
 
 ## 一、Agent 会话状态 (AgentState)
 
+> ⚠️ **状态转换矩阵有代码级约束**
+> 见 `frontend/src/shared/state-machine.ts` → `TRANSITION_MATRIX`
+> 所有 `updateSessionState` 调用会经过 `safeTransition()` 校验，
+> 不合法转换会记录 WARN 日志（不阻塞 UI）。
+
 ### 状态定义
 
 | 状态 | 颜色 | 动画效果 | 触发场景 |

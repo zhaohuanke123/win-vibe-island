@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { useConfigStore } from "./config";
+import { safeTransition } from "../shared/state-machine";
 
 export type AgentState = "idle" | "thinking" | "running" | "streaming" | "approval" | "error" | "done";
 
@@ -179,11 +180,17 @@ export const useSessionsStore = create<SessionsStore>((set, _get) => ({
     })),
 
   updateSessionState: (id, state) =>
-    set((s) => ({
-      sessions: s.sessions.map((ses) =>
-        ses.id === id ? { ...ses, state, lastActivity: Date.now() } : ses
-      ),
-    })),
+    set((s) => {
+      const session = s.sessions.find((ses) => ses.id === id);
+      if (session && session.state !== state) {
+        safeTransition(id, session.state, state, { action: "updateSessionState" });
+      }
+      return {
+        sessions: s.sessions.map((ses) =>
+          ses.id === id ? { ...ses, state, lastActivity: Date.now() } : ses
+        ),
+      };
+    }),
 
   updateSessionInfo: (id, info) =>
     set((s) => ({

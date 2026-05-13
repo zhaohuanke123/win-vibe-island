@@ -92,7 +92,7 @@ export const ErrorRegistry: Record<ErrorCode, ErrorRegistryEntry> = {
     severity: "ERROR",
     userMessage: "State error",
     aiHint: {
-      checkFiles: ["store/sessions.ts", "store/config.ts", "store/timeline.ts"],
+      checkFiles: ["store/sessions.ts", "store/config.ts", "store/timeline.ts", "shared/state-machine.ts"],
       possibleCause: "Invalid state mutation or missing field",
       resolutionGuide:
         "Verify the store action and payload shape match the store type",
