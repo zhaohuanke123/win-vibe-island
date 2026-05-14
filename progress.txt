@@ -256,6 +256,63 @@ and any relevant notes.
 
 ---
 
+## [2026-05-13] - DiffViewer 自适应 + 自动化测试文档
+
+### Documentation Gate:
+- User reported two DiffViewer issues：硬编码 max-height:200px 截断（显示框太小）和只显示 diff 变化不显示全文件
+- 需求：改为自适应高度，在改代码前先更新需求文档和自动化测试方案
+
+### What was done:
+- 创建 `docs/diffviewer-spec.md`：DiffViewer 自适应规范
+  - 定义了高度/宽度/行数截断的自适应行为
+  - 明确区分"diff viewer 显示差异"vs"全文件查看"是不同需求
+  - 列出所有边界情况（空diff、纯新增、纯删除、超大 diff）
+  - 标注安全边界：不改 ApprovalPanel/Overlay，不影响窗口尺寸
+- 更新 `docs/testing.md`：新增 Part 3 - Win App 自动化测试策略
+  - 分析 Tauri 应用（NOACTIVATE + 透明 Overlay）的自动化难点
+  - 定义 L1-L4 四层测试策略
+  - 推荐 Playwright 浏览器模式为主（DiffViewer 是纯 UI 组件）
+  - 撰写 DiffViewer 变更的完整测试计划（7 个 Vitest 用例 + 3 个 Playwright 用例）
+- 创建 `tests/scripts/tauri-diffviewer-smoke.sh`：Tauri 自动冒烟脚本
+  - 自动检测/启动 Tauri dev 进程
+  - 发送 session_start + 含大 diff 的 permission_request
+  - 通过 JSONL 日志断言（无 ERROR、无 IPC 错误、hook 被处理）
+  - Win32 PowerShell 窗口探测（可选）
+  - 支持 --keep / --skip-build / --port / --timeout 参数
+  - 自动 cleanup（trap EXIT）
+- 更新 `task.json`：新增 Task #39（DiffViewer 自适应 + 自动化测试）
+
+### Testing:
+- `bash -n` 语法检查通过
+- 脚本尚未实际运行（需要 Tauri dev 环境）
+
+---
+
+## [2026-05-13] - DiffViewer 自适应实现 + 测试
+
+### Documentation Gate:
+- `docs/diffviewer-spec.md` 已定义自适应行为
+- `docs/testing.md` Part 3 已定义测试策略
+- `task.json` Task #39 已添加
+
+### What was done:
+- **CSS**: 移除 `.diff-viewer` 的 `max-height: 200px` 和 `overflow-y: auto`，让组件自然撑开，溢出由父容器 `.approval-panel__body` 管理
+- **TS**: `maxLines` 默认值从 `100` 提高到 `10000`（消除了行数截断）
+- **测试**:
+  - 创建 `DiffViewer.test.tsx`（12 个 Vitest 用例：空内容、纯新增、纯删除、小 diff、大 diff、无截断、文件名、行号、前缀符号）
+  - 创建 `diff-viewer.spec.ts`（3 个 Playwright 浏览器 E2E：小 diff 无滚动、大 diff 可滚动、无 diff 不渲染）
+
+### Testing:
+- `npx vitest run --pool=threads` → **94 passed, 1 pre-existing failure** (StatusDot framer-motion binding)
+- `npx vitest run src/__tests__/components/DiffViewer.test.tsx --pool=threads` → **12/12 passed** ✅
+- Tauri 冒烟脚本待手动运行（需 `cargo tauri dev` 环境）
+
+### Notes:
+- DiffViewer 自适应范围小：不改 IPC、不改窗口、不改动画 → 风险可控
+- 浏览器中 DiffViewer 渲染与 WebView2 一致，Playwright 可完全覆盖
+
+---
+
 ## [2026-05-03] - Task #37: 工具执行详情
 
 ### What was done:

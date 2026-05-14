@@ -5,8 +5,6 @@
   overflow: hidden;
   font-family: "Consolas", "Monaco", "Courier New", monospace;
   font-size: 11px;
-  max-height: 200px;
-  overflow-y: auto;
   max-width: 100%;
   min-width: 0;
   overflow-x: auto;

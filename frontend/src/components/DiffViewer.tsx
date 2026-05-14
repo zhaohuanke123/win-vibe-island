@@ -26,7 +26,7 @@ export function DiffViewer({
   oldContent,
   newContent,
   fileName,
-  maxLines = 100,
+  maxLines = 10000,
 }: DiffViewerProps) {
   const diffLines = useMemo(() => {
     return computeDiff(oldContent, newContent, maxLines);

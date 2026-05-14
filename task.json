@@ -934,6 +934,38 @@
         "frontend/src/store/timeline.ts",
         "frontend/src/components/Overlay.tsx"
       ]
+    },
+    {
+      "id": 39,
+      "title": "DiffViewer 自适应高度 + 自动化测试",
+      "description": "移除 DiffViewer 硬编码 max-height:200px 截断和 maxLines=100 行数截断，改为内容自适应高度。增加 Vitest 单元测试和 Playwright E2E 覆盖。",
+      "steps": [
+        "去除 DiffViewer.css 的 max-height:200px 和 overflow-y:auto",
+        "将 maxLines 默认值从 100 提高到 10000（或移除此参数）",
+        "验证父容器 .approval-panel__body 已正确管理溢出滚动",
+        "编写 DiffViewer.test.tsx（空内容、小 diff、大 diff、文件名、新增/删除文件）",
+        "编写 tests/e2e/specs/diff-viewer.spec.ts（小 diff 无滚动、大 diff 可滚动、空 diff 不可见）",
+        "npm run build + cargo check 验证无编译错误",
+        "人工 Tauri 回归验证：curl 发送含大 diff 的 permission_request，确认自适应和无双重滚动条",
+        "更新 progress.txt 记录变更和测试结果"
+      ],
+      "status": "completed",
+      "priority": "medium",
+      "dependencies": [
+        14
+      ],
+      "requirement_ref": "docs/diffviewer-spec.md",
+      "design_ref": "docs/diffviewer-spec.md#3-自适应行为定义",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "frontend/src/components/DiffViewer.tsx",
+        "frontend/src/components/DiffViewer.css",
+        "frontend/src/__tests__/components/DiffViewer.test.tsx",
+        "tests/e2e/specs/diff-viewer.spec.ts"
+      ]
     }
   ]
 }

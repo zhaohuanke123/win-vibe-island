@@ -434,3 +434,151 @@ await invoke("get_window_geometry")  // → { width, height, x, y, scaleFactor, 
 - Test Bridge 只在 `DEV` 或 `VITE_ENABLE_TEST_BRIDGE=true` 时注册
 - Rust test commands 在 release build 中返回错误
 - `simulateEvent()` 直接操作 Zustand，不走真实事件链路，仅用于浏览器模式快速测试
+
+---
+
+## Part 3: Win App 自动化测试策略
+
+> 针对 Tauri 原生窗口下 UI 行为的自动化测试方案。
+>
+> 背景：Vibe Island 是 `WS_EX_NOACTIVATE` 透明悬浮 Overlay，标准的 WebDriver / WinAppDriver 方案无法直接使用。
+
+---
+
+### 3.1 Tauri 应用的固有测试难点
+
+| 难点 | 原因 | 影响 |
+|------|------|------|
+| `WS_EX_NOACTIVATE` | 窗口无法获得键盘/鼠标焦点 | 标准 WebDriver / tauri-driver 无法 sendKeys / click |
+| 透明 Overlay | WebView 背景全透明 | 截图对比时背景信息不可靠 |
+| WebView2 非 Chromium | 不是标准 Chrome DevTools Protocol | Playwright 的 `chromium.launch()` 无法直接 attach |
+| DPI 缩放 | 125%/150% 下 CSS 像素与物理像素不一致 | 窗口尺寸断言需要计算 devicePixelRatio |
+| IPC 异步链路 | Rust hook → app.emit → 前端 → DOM → Win32 resize | Bug 可能出现在任一环节，非纯 UI 测试能覆盖 |
+
+---
+
+### 3.2 测试分层策略
+
+```
+┌─────────────────────────────────────────────┐
+│  Layer 1: Vitest 单元测试                    │
+│  组件逻辑、状态管理、纯函数                   │
+│  无需 Tauri / 浏览器                         │
+│  ─── npm test                                │
+├─────────────────────────────────────────────┤
+│  Layer 2: Playwright 浏览器 E2E              │
+│  UI 交互、DOM 渲染、Test Bridge 模拟         │
+│  需要 dev server，无需 Tauri                 │
+│  ─── npx playwright test                     │
+├─────────────────────────────────────────────┤
+│  Layer 3: Rust 集成测试                      │
+│  hook_server、hook_config、command 逻辑      │
+│  无需 GUI                                    │
+│  ─── cargo test                              │
+├─────────────────────────────────────────────┤
+│  Layer 4: Tauri 回归脚本                     │
+│  Native 窗口探测 + curl 模拟 hook            │
+│  需要 Tauri dev 窗口                         │
+│  ─── PowerShell 脚本                         │
+└─────────────────────────────────────────────┘
+```
+
+#### 各层覆盖范围
+
+| 测试层 | 覆盖 | 不覆盖 |
+|--------|------|--------|
+| Layer 1: Vitest | 组件渲染逻辑、状态转换、辅助函数 | WebView2 行为、Win32 窗口、IPC 实际通信 |
+| Layer 2: Playwright | DOM 布局、滚动行为、组件可见性 | Tauri IPC、Native 窗口尺寸、实际 DPI |
+| Layer 3: cargo test | Hook payload 解析、配置生成 | UI、WebView |
+| Layer 4: 回归脚本 | Native 窗口尺寸、Tauri IPC 全链路 | 细粒度 UI 状态、组件内部行为 |
+
+---
+
+### 3.3 推荐方案：Playwright（浏览器模式）为主
+
+#### 为什么选择浏览器模式
+
+对于 DiffViewer 这种**不依赖 Tauri IPC 和 Win32 窗口**的组件，浏览器模式是最佳测试方式：
+
+- DiffViewer 全是纯 UI：props → render，无 IPC 调用
+- 展示行为（高度、滚动、行数）在浏览器和 WebView2 中一致
+- 跑得飞快（毫秒级），不需要编译 Rust 或启动 Tauri
+- Playwright 截图对比能精确验证布局
+
+#### 对于必须验证 Tauri 窗口的行为
+
+| 场景 | 方案 | 当前状态 |
+|------|------|----------|
+| 窗口尺寸（expand/collapse） | PowerShell 回归脚本 | ✅ 已有 |
+| 全链路：curl → hook → emit → 前端 → resize | 人工 Tauri 验证 | ✅ 已有记录 |
+| DiffViewer 冒烟（日志 + 窗口探测） | `tests/scripts/tauri-diffviewer-smoke.sh` | ✅ 新增 |
+| 细粒度 UI 状态在 Tauri 环境 | 暂无可行的自动方案 | ❌ |
+
+#### 浏览器模式的局限
+
+浏览器模式下无法验证：
+- Tauri `invoke()` 的实际调用
+- Win32 窗口尺寸变化
+- WebView2 渲染差异（字体、DPI 缩放）
+- `devicePixelRatio` 与 Native 窗口的同步
+
+对于这些，保留人工回归测试 + PowerShell 探测脚本。
+
+---
+
+### 3.4 DiffViewer 自适应变更的测试计划
+
+在修改代码之前，必须验证：
+
+#### Step 1: Vitest 单元测试
+
+文件：`frontend/src/__tests__/components/DiffViewer.test.tsx`
+
+| 测试用例 | 输入 | 断言 |
+|----------|------|------|
+| 空内容 → null | `oldContent='', newContent=''` | container 不存在或空 |
+| 小 diff | 2 行 add + 10 行 context | 渲染 12 行，无 scrollbar |
+| 大 diff | 50+ 行变更 | 所有行渲染，容器高度 > 200px |
+| 文件名 | `fileName='test.ts'` | header 显示 📄test.ts |
+| 无文件名 | `fileName=undefined` | 无 header 渲染 |
+| 纯新增文件 | `oldContent=''` | 所有行标记 `add` |
+| 纯删除文件 | `newContent=''` | 所有行标记 `remove` |
+
+#### Step 2: Playwright 浏览器 E2E
+
+文件：`tests/e2e/specs/diff-viewer.spec.ts`
+
+| 测试用例 | 操作 |
+|----------|------|
+| 小 diff 无滚动 | simulatePermissionRequest → 验证 `.diff-viewer` 存在 → 验证 `scrollHeight <= clientHeight` |
+| 大 diff 可滚动 | simulatePermissionRequest（大 diff 内容）→ 验证 body `scrollHeight > clientHeight` |
+| 空 diff 不可见 | simulatePermissionRequest（无 diff）→ 验证 `.diff-viewer` 不存在 |
+
+#### Step 3: 构建验证
+
+```bash
+cd frontend && npm run build        # 确保无 TS/CSS 编译错误
+cd src-tauri && cargo check          # 确保 Rust 端无影响
+```
+
+#### Step 4: Tauri 回归验证（人工）
+
+- 启动 `cargo tauri dev`
+- curl 发送包含大 diff 的 permission request
+- 观察 approval panel 展开后 diff viewer 高度自适应、无双重滚动条
+
+---
+
+### 3.5 未来可行方向（暂不实施）
+
+| 方向 | 可行性 | 障碍 |
+|------|--------|------|
+| `tauri-driver`（WebDriver） | 中等 | `WS_EX_NOACTIVATE` 导致无法 forward 键盘/鼠标事件 |
+| WinAppDriver / WinUI 3 测试 | 低 | 应用是 Tauri/WebView2，不是 UWP |
+| 截图对比（CDP） | 中高 | 只适用于浏览器模式，无法确认 Tauri 环境 |
+| 内嵌 Test Runner（Tauri 内运行） | 高 | 利用 Test Bridge 在 Tauri WebView 内执行测试脚本，但需额外构建一种 \"test mode\" 启动参数 |
+
+最可行的未来方案是**内嵌 Test Runner**：
+1. 编译时传入 `--features test-mode`，启动一个可聚焦、非透明的测试窗口
+2. 在该窗口中执行 Playwright / Puppeteer 控制
+3. 但这是一个独立项目，不混入本次 DiffViewer 变更

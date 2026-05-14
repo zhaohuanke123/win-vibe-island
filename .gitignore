@@ -28,3 +28,4 @@ Thumbs.db
 .playwright-mcp/
 skills-lock.json
 *.log.firecrawl/
+.firecrawl/
