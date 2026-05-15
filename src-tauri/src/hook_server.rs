@@ -773,12 +773,10 @@ async fn handle_permission_request(
     // without showing the UI, while questions/plans (which rarely carry suggestions)
     // displayed correctly.
 
-    // Wait for response with timeout (fail-open: allow on timeout so agent isn't blocked)
-    let approval_timeout = get_config().hook_server.approval_timeout_secs;
-    // Hard cap at 5 seconds for fail-open guarantee (agent must not hang)
-    let hard_timeout = std::time::Duration::from_secs(approval_timeout.min(5));
-    let decision = match tokio::time::timeout(hard_timeout, response_rx).await {
-        Ok(Ok(decision)) => {
+    // Wait for user response — no timeout, hangs until user explicitly decides
+    // (no auto-allow/deny; agent stays blocked on this endpoint until the user acts)
+    let decision = match response_rx.await {
+        Ok(decision) => {
             log::info!("Permission decision received: {:?}", decision);
             // Emit state_change back to running/idle
             let _ = state.app_handle.emit(
@@ -790,42 +788,11 @@ async fn handle_permission_request(
             );
             decision
         }
-        Ok(Err(_)) => {
+        Err(_) => {
             log::warn!("Permission response channel closed unexpectedly");
             PermissionDecision {
                 behavior: "deny".to_string(),
                 message: Some("Approval response channel closed".to_string()),
-                updated_input: None,
-            }
-        }
-        Err(_) => {
-            log::warn!(
-                "Permission request timed out after {}s — fail-open: allowing agent to proceed",
-                hard_timeout.as_secs()
-            );
-            // Clean up the pending approval
-            {
-                let state_guard = HOOK_SERVER_STATE.lock();
-                if let Some(ref state) = *state_guard {
-                    let mut pending = state.pending_approvals.lock();
-                    pending.remove(&tool_use_id);
-                }
-            }
-            // Notify frontend to clear the approval request
-            let _ = state.app_handle.emit(
-                "approval_timeout",
-                &serde_json::json!({
-                    "tool_use_id": tool_use_id,
-                    "session_id": session_id,
-                }),
-            );
-            // FAIL-OPEN: allow agent to continue on timeout
-            PermissionDecision {
-                behavior: "allow".to_string(),
-                message: Some(format!(
-                    "Permission request timed out after {}s — auto-allowed (fail-open)",
-                    hard_timeout.as_secs()
-                )),
                 updated_input: None,
             }
         }

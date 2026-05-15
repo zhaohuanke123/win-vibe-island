@@ -62,9 +62,23 @@ test.describe("DiffViewer", () => {
     // Content should include the changed line
     await expect(diffViewer).toContainText("CHANGED");
 
+    // Wait for the overlay animation to settle so the body has a stable height
+    const body = page.locator(".approval-panel__body");
+    await body.evaluate(
+      (el) =>
+        new Promise<void>((resolve) => {
+          const check = () => {
+            if ((el as HTMLElement).clientHeight > 100) return resolve();
+            requestAnimationFrame(check);
+          };
+          check();
+          // Safety timeout in case animation is already done
+          setTimeout(resolve, 3000);
+        }),
+    );
+
     // For small diff, the approval panel body should NOT need scrolling
     // (content fits within the panel)
-    const body = page.locator(".approval-panel__body");
     const scrollHeight = await body.evaluate((el: HTMLElement) => el.scrollHeight);
     const clientHeight = await body.evaluate((el: HTMLElement) => el.clientHeight);
     expect(scrollHeight).toBeLessThanOrEqual(clientHeight + 50); // small diff fits

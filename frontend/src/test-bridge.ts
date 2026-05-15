@@ -161,6 +161,25 @@ function simulateEvent(event: string, payload: Record<string, unknown>) {
 }
 
 export function registerTestBridge() {
+  // Mock Tauri internals so invoke() works in browser-only E2E tests
+  if (!window.__TAURI_INTERNALS__) {
+    window.__TAURI_INTERNALS__ = {
+      invoke: (cmd: string, args?: Record<string, unknown>) => {
+        switch (cmd) {
+          case "submit_approval_response": {
+            const toolUseId = args?.toolUseId as string;
+            if (toolUseId) {
+              useSessionsStore.getState().removeApprovalByToolUseId(toolUseId);
+            }
+            return Promise.resolve();
+          }
+          default:
+            return Promise.resolve();
+        }
+      },
+    };
+  }
+
   window.__VIBE_TEST_BRIDGE__ = {
     invoke: safeInvoke,
 

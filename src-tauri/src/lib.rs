@@ -55,6 +55,34 @@ pub fn run() {
 
             // Position the main window at the top-center of the screen (Dynamic Island style)
             if let Some(window) = app.get_webview_window("main") {
+                // Force WS_POPUP on the window to strip any residual WS_CAPTION / WS_THICKFRAME
+                // that DWM may draw as a faint title bar on Windows 11 borderless windows.
+                #[cfg(target_os = "windows")]
+                {
+                    use windows::Win32::Foundation::HWND;
+                    use windows::Win32::Graphics::Dwm::DwmExtendFrameIntoClientArea;
+                    use windows::Win32::UI::Controls::MARGINS;
+                    use windows::Win32::UI::WindowsAndMessaging::*;
+
+                    if let Ok(hwnd_raw) = window.hwnd() {
+                        let hwnd = HWND(hwnd_raw.0 as *mut _);
+                        unsafe {
+                            let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+                            let popup_only = style
+                                & !((WS_CAPTION.0 | WS_THICKFRAME.0 | WS_SYSMENU.0 | WS_MINIMIZEBOX.0 | WS_MAXIMIZEBOX.0) as isize);
+                            SetWindowLongPtrW(hwnd, GWL_STYLE, popup_only);
+
+                            let margins = MARGINS {
+                                cxLeftWidth: -1,
+                                cxRightWidth: -1,
+                                cyTopHeight: -1,
+                                cyBottomHeight: -1,
+                            };
+                            let _ = DwmExtendFrameIntoClientArea(hwnd, &margins);
+                        }
+                    }
+                }
+
                 if let Err(e) = window.set_zoom(1.0) {
                     log::warn!("Failed to reset WebView zoom: {}", e);
                 }
