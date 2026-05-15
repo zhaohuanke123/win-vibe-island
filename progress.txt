@@ -1196,6 +1196,52 @@ All 9 AgentEvent variants handled by SessionState apply():
 
 ### Status: completed ✅
 
+---
+
+## [2026-05-15] Task 45 — SessionState 前端镜像 Reducer ✅
+
+### Documentation Gate:
+- Requirement ref: docs/open-island-alignment-prd.md §1.2
+- Design ref: docs/open-island-alignment-prd.md §1.2
+
+### What was done:
+
+**New files:**
+- `frontend/src/shared/session-reducer.ts` — AgentEvent TypeScript types + `sessionReducer(state, event)` pure function
+
+**Modified files:**
+- `frontend/src/store/sessions.ts` — added `dispatchAgentEvent(event)` method that delegates to reducer
+- `frontend/src/hooks/useAgentEvents.ts` — added listener for unified `agent_event` Tauri event
+
+### Architecture:
+
+```
+Tauri backend → emit "agent_event" (AgentEvent JSON)
+                        ↓
+useAgentEvents.ts → dispatchAgentEvent(event)
+                        ↓
+sessions.ts store → sessionReducer({sessions}, event)
+                        ↓
+                  updated sessions array
+```
+
+All 9 AgentEvent variants handled by sessionReducer:
+- sessionStarted → create/update session
+- activityUpdated → update phase + tool info
+- permissionRequested → "approval" state
+- questionAsked → "approval" state
+- sessionCompleted → "done" state
+- toolUseStarted → track current tool
+- toolUseCompleted → add to history, clear tool
+- jumpTargetUpdated → update pid
+- errorOccurred → "error" state + message
+
+### Testing:
+- `npm run build` passed (tsc + vite, 489 modules, 815ms)
+- Zero new TS errors or warnings
+
+### Status: completed ✅
+
 ## [2026-05-05] - 文档清理 v1.0
 
 ### What was done
