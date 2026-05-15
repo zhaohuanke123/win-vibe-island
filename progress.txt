@@ -6,6 +6,44 @@ and any relevant notes.
 
 ---
 
+## [2026-05-15] - Open Island 对标规划 (Tasks 43-50)
+
+### Documentation Gate:
+- Requirement ref: docs/open-island-alignment-prd.md
+- PRD based on deep analysis of Open Island (Octane0411/open-vibe-island)
+- Source analysis: AgentEvent enum, SessionState.apply(), ClaudeHookInstallationManager, ClaudeTranscriptDiscovery, ClaudeUsage
+
+### What was planned:
+
+**Phase 1: 架构重构 (P0)**
+- Task 43: AgentEvent 统一事件枚举
+- Task 44: SessionState 纯 Reducer (Rust 后端)
+- Task 45: SessionState 前端镜像 Reducer
+- Task 46: Fail-Open 硬保证 + 超时保护
+
+**Phase 2: Hook 管理 (P0)**
+- Task 47: Hook Manifest 清单机制
+
+**Phase 3: Session 发现 (P1)**
+- Task 48: Transcript 扫描与 Session 恢复
+
+**Phase 4: 终端跳回 (P1)**
+- Task 49: 终端跳回增强 — 多终端精确聚焦
+
+**Phase 5: Usage (P2)**
+- Task 50: Claude Code Usage Dashboard
+
+### Files created:
+- docs/open-island-alignment-prd.md
+
+### Files modified:
+- task.json (8 new tasks, version → 2.0.0)
+- docs/README.md (index update)
+
+### Status: Pending implementation
+
+---
+
 ## [2026-05-15] - Sprint 1: UX Optimization (Tasks 40-42)
 
 ### Documentation Gate:

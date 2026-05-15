@@ -12,6 +12,7 @@
 //! - UserPromptSubmit: When user submits a prompt
 //! - PermissionRequest: When Claude needs permission to execute a tool
 
+use crate::adapters::claude_adapter::ClaudeCodeAdapter;
 use crate::approval_types::approval_types;
 use crate::config::get_config;
 use axum::{
@@ -329,6 +330,14 @@ async fn handle_session_start(
         }),
     );
 
+    // Emit unified AgentEvent
+    let _ = state.app_handle.emit(
+        "agent_event",
+        &ClaudeCodeAdapter::to_session_started(
+            &serde_json::to_value(&payload).unwrap_or_default()
+        ),
+    );
+
     // Also emit initial state
     let _ = state.app_handle.emit(
         "state_change",
@@ -377,6 +386,14 @@ async fn handle_pre_tool_use(
             "tool_name": payload.tool_name,
             "tool_input": payload.tool_input,
         }),
+    );
+
+    // Emit unified AgentEvent
+    let _ = state.app_handle.emit(
+        "agent_event",
+        &ClaudeCodeAdapter::to_thinking_updated(
+            &serde_json::to_value(&payload).unwrap_or_default()
+        ),
     );
 
     // Extract file path if present
@@ -568,6 +585,14 @@ async fn handle_stop(
             "state": "done",
             "reason": payload.reason,
         }),
+    );
+
+    // Emit unified AgentEvent
+    let _ = state.app_handle.emit(
+        "agent_event",
+        &ClaudeCodeAdapter::to_session_completed(
+            &serde_json::to_value(&payload).unwrap_or_default()
+        ),
     );
 
     Ok(StatusCode::OK)

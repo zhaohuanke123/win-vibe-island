@@ -101,7 +101,7 @@ describe("StateMachine: 转换矩阵完整性", () => {
   });
 
   it("所有目标状态都是合法的 AgentState", () => {
-    for (const [from, toList] of Object.entries(TRANSITION_MATRIX)) {
+    for (const [_from, toList] of Object.entries(TRANSITION_MATRIX)) {
       for (const to of toList) {
         expect(ALL_STATES).toContain(to as AgentState);
       }

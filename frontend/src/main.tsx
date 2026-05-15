@@ -13,7 +13,7 @@ if (import.meta.env.DEV || import.meta.env.VITE_ENABLE_TEST_BRIDGE === "true") {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary
-      onError={(error, info) => {
+      onError={(error, _info) => {
         logger.capture(error, "COMPONENT_RENDER_ERROR");
       }}
     >

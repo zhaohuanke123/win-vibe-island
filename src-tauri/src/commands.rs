@@ -7,7 +7,7 @@ use crate::process_watcher;
 use crate::session_store;
 use crate::window_focus::{self, FocusResult};
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, LogicalSize, Size, WebviewWindow};
+use tauri::{AppHandle, Emitter, LogicalSize, Manager, Size, WebviewWindow};
 
 #[cfg(target_os = "windows")]
 fn apply_window_round_region(window: &WebviewWindow, radius: u32, phys_w: u32, phys_h: u32) -> Result<(), String> {

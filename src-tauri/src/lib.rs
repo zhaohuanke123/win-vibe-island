@@ -1,3 +1,5 @@
+mod adapters;
+mod agent_event;
 mod approval_types;
 mod audio;
 mod command_analyzer;

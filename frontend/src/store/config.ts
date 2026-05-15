@@ -245,7 +245,7 @@ interface ConfigStore {
   // Getters (convenience methods)
   getHookServerPort: () => number;
   getStateColor: (state: string) => string;
-  getAnimationDuration: (state: string) => string;
+  getAnimationDuration: (state: string) => number;
   getSpringConfig: (type: "expand" | "collapse" | "transition" | "micro") => SpringParams;
 }
 

@@ -21,7 +21,7 @@ export function useLogger() {
   }, []);
 
   const logAndThrow = useCallback(
-    (code: ErrorCode, message: string, context?: ErrorContext) => {
+    (code: ErrorCode, _message: string, context?: ErrorContext) => {
       const err = new AppError(code, context);
       logger.error(err);
       throw err;

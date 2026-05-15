@@ -23,6 +23,7 @@
 | [docs/state-machine.md](state-machine.md) | 状态转换矩阵定义与维护规则 |
 || [docs/release-process.md](release-process.md) | 发布流程与 checklist |
 || [docs/ux-optimization-prd.md](ux-optimization-prd.md) | UX 优化 PRD — Firecrawl + writing-plans 体验改善方案 |
+|| [docs/open-island-alignment-prd.md](open-island-alignment-prd.md) | Open Island 对标架构升级 PRD — v2.0 路线图 |
 
 ## 任务与进度
 
