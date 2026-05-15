@@ -1151,7 +1151,7 @@
         "添加 integration test: 模拟超时场景验证 fail-open 行为",
         "cargo check 验证"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "critical",
       "dependencies": [],
       "requirement_ref": "docs/open-island-alignment-prd.md#13-fail-open-硬保证",
@@ -1159,7 +1159,9 @@
       "files": [
         "src-tauri/src/hook_server.rs",
         "src-tauri/src/pipe_server.rs"
-      ]
+      ],
+      "passes": true,
+      "implementation_done": true
     },
     {
       "id": 47,

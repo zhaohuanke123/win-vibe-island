@@ -773,10 +773,11 @@ async fn handle_permission_request(
     // without showing the UI, while questions/plans (which rarely carry suggestions)
     // displayed correctly.
 
-    // Wait for response with timeout
+    // Wait for response with timeout (fail-open: allow on timeout so agent isn't blocked)
     let approval_timeout = get_config().hook_server.approval_timeout_secs;
-    let timeout_duration = std::time::Duration::from_secs(approval_timeout);
-    let decision = match tokio::time::timeout(timeout_duration, response_rx).await {
+    // Hard cap at 5 seconds for fail-open guarantee (agent must not hang)
+    let hard_timeout = std::time::Duration::from_secs(approval_timeout.min(5));
+    let decision = match tokio::time::timeout(hard_timeout, response_rx).await {
         Ok(Ok(decision)) => {
             log::info!("Permission decision received: {:?}", decision);
             // Emit state_change back to running/idle
@@ -799,8 +800,8 @@ async fn handle_permission_request(
         }
         Err(_) => {
             log::warn!(
-                "Permission request timed out after {} seconds",
-                approval_timeout
+                "Permission request timed out after {}s — fail-open: allowing agent to proceed",
+                hard_timeout.as_secs()
             );
             // Clean up the pending approval
             {
@@ -818,11 +819,12 @@ async fn handle_permission_request(
                     "session_id": session_id,
                 }),
             );
+            // FAIL-OPEN: allow agent to continue on timeout
             PermissionDecision {
-                behavior: "deny".to_string(),
+                behavior: "allow".to_string(),
                 message: Some(format!(
-                    "Permission request timed out after {} seconds",
-                    approval_timeout
+                    "Permission request timed out after {}s — auto-allowed (fail-open)",
+                    hard_timeout.as_secs()
                 )),
                 updated_input: None,
             }

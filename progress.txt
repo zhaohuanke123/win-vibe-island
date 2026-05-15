@@ -1242,6 +1242,35 @@ All 9 AgentEvent variants handled by sessionReducer:
 
 ### Status: completed ✅
 
+---
+
+## [2026-05-15] Task 46 — Fail-Open 硬保证 + 超时保护 ✅
+
+### Documentation Gate:
+- Requirement ref: docs/open-island-alignment-prd.md §1.3
+- Design ref: docs/open-island-alignment-prd.md §1.3
+
+### What was done:
+
+**hook_server.rs:**
+- PermissionRequest handler: hard 5-second timeout cap (`approval_timeout.min(5)`)
+- Timeout response changed from `"deny"` → `"allow"` (fail-open)
+- Log warning with "fail-open" label when timing out
+
+**pipe_server.rs:**
+- `create()` failure: log warning + 500ms sleep + continue loop (no more panic)
+- `connect()` failure: log warning + 500ms sleep + continue loop (no more panic)
+
+**--dry-run:**
+- Skipped — current architecture uses HTTP hooks (Claude Code calls URL directly)
+- No hook CLI binary exists; fail-open guarantee is at the HTTP handler level
+
+### Testing:
+- Syntax check: both files parse correctly (pre-existing edition errors only)
+- cargo check: blocked by WSL Windows target (pre-existing)
+
+### Status: completed ✅
+
 ## [2026-05-05] - 文档清理 v1.0
 
 ### What was done

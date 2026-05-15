@@ -153,16 +153,24 @@ async fn run_pipe_server(
         }
 
         // Create a new pipe server instance
-        let server = ServerOptions::new()
+        let server = match ServerOptions::new()
             .first_pipe_instance(false)
             .create(pipe_name)
-            .map_err(|e| format!("Failed to create named pipe: {}", e))?;
+        {
+            Ok(s) => s,
+            Err(e) => {
+                log::warn!("Failed to create named pipe (will retry): {}", e);
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                continue;
+            }
+        };
 
-        // Wait for a client to connect
-        server
-            .connect()
-            .await
-            .map_err(|e| format!("Failed to wait for pipe connection: {}", e))?;
+        // Wait for a client to connect (fail-open: retry on error)
+        if let Err(e) = server.connect().await {
+            log::warn!("Pipe connection failed (will retry): {}", e);
+            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+            continue;
+        }
 
         if !state.is_running() {
             break;
