@@ -9,7 +9,7 @@ We use [Semantic Versioning](https://semver.org/):
 - **MINOR**: New features, backward compatible
 - **PATCH**: Bug fixes, backward compatible
 
-Current version: `0.1.0`
+Current version: `1.1.0`
 
 Version numbers are defined in:
 - `src-tauri/Cargo.toml` - `version` field
