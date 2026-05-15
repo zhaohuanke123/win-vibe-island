@@ -1,5 +1,6 @@
 mod adapters;
 mod agent_event;
+mod agent_session;
 mod approval_types;
 mod audio;
 mod command_analyzer;
@@ -13,6 +14,7 @@ mod pipe_server;
 mod process_watcher;
 mod logger;
 mod session_store;
+mod session_state;
 mod window_focus;
 
 use tauri::{
@@ -47,6 +49,9 @@ pub fn run() {
             if let Err(e) = logger::init(app.handle()) {
                 eprintln!("[ERROR] Failed to initialize JSONL logger: {}", e);
             }
+
+            // Initialize SessionState (single source of truth for agent sessions)
+            session_state::init(app.handle().clone());
 
             // Position the main window at the top-center of the screen (Dynamic Island style)
             if let Some(window) = app.get_webview_window("main") {

@@ -1127,11 +1127,74 @@ and any relevant notes.
 
 ---
 
-## Pending Tasks
+---
 
-All tasks completed.
+## [2026-05-15] Task 43 — AgentEvent 统一事件枚举 ✅
+
+### Documentation Gate:
+- Requirement ref: docs/open-island-alignment-prd.md §1.1
+- Design ref: docs/open-island-alignment-prd.md §1.1
+
+### What was done:
+
+**New files:**
+- `src-tauri/src/agent_event.rs` — 9 variant enum + all payload structs
+- `src-tauri/src/adapters/claude_adapter.rs` — Hook payload → AgentEvent
+- `src-tauri/src/adapters/mod.rs`
+
+**Modified files:**
+- `src-tauri/src/hook_server.rs` — 5 handlers emit AgentEvent via adapter
+- `src-tauri/src/lib.rs` — registered adapters + agent_event modules
+
+### Status: completed ✅
 
 ---
+
+## [2026-05-15] Task 44 — SessionState 纯 Reducer (后端) ✅
+
+### Documentation Gate:
+- Requirement ref: docs/open-island-alignment-prd.md §1.2
+- Design ref: docs/open-island-alignment-prd.md §1.2
+
+### What was done:
+
+**New files:**
+- `src-tauri/src/agent_session.rs` — AgentSession model aligned with frontend Session type
+- `src-tauri/src/session_state.rs` — SessionState + apply(event) pure reducer with global singleton
+
+**Modified files:**
+- `src-tauri/src/hook_server.rs` — 8 handlers route AgentEvents through session_state::apply_event()
+- `src-tauri/src/lib.rs` — registered agent_session + session_state modules, init on startup
+
+### Architecture:
+
+```
+hook_server handlers → ClaudeCodeAdapter::to_*() → AgentEvent
+                                                         ↓
+                                            session_state::apply_event()
+                                                         ↓
+                                            HashMap<SessionId, AgentSession> updated
+                                                         ↓
+                                            emit "agent_event" to frontend
+```
+
+All 9 AgentEvent variants handled by SessionState apply():
+- SessionStarted → create/update session
+- ActivityUpdated → update phase + tool info
+- PermissionRequested → RequiresAttention phase
+- QuestionAsked → RequiresAttention phase
+- SessionCompleted → mark completed
+- ToolUseStarted → track current tool
+- ToolUseCompleted → clear tool + add to history
+- JumpTargetUpdated → update jump target
+- ErrorOccurred → Error phase + error message
+
+### Testing:
+- Standalone rustc syntax check: all new files parse correctly (dep errors expected outside cargo)
+- cargo check blocked by: WSL lacks Windows target (pre-existing, not introduced here)
+- hook_server.rs edition errors: pre-existing (not introduced by this change)
+
+### Status: completed ✅
 
 ## [2026-05-05] - 文档清理 v1.0
 

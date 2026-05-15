@@ -15,6 +15,7 @@
 use crate::adapters::claude_adapter::ClaudeCodeAdapter;
 use crate::approval_types::approval_types;
 use crate::config::get_config;
+use crate::session_state;
 use axum::{
     extract::State,
     http::StatusCode,
@@ -330,13 +331,11 @@ async fn handle_session_start(
         }),
     );
 
-    // Emit unified AgentEvent
-    let _ = state.app_handle.emit(
-        "agent_event",
-        &ClaudeCodeAdapter::to_session_started(
-            &serde_json::to_value(&payload).unwrap_or_default()
-        ),
+    // Emit unified AgentEvent through SessionState
+    let session_started_event = ClaudeCodeAdapter::to_session_started(
+        &serde_json::to_value(&payload).unwrap_or_default()
     );
+    session_state::apply_event(&session_started_event);
 
     // Also emit initial state
     let _ = state.app_handle.emit(
@@ -388,13 +387,15 @@ async fn handle_pre_tool_use(
         }),
     );
 
-    // Emit unified AgentEvent
-    let _ = state.app_handle.emit(
-        "agent_event",
-        &ClaudeCodeAdapter::to_thinking_updated(
-            &serde_json::to_value(&payload).unwrap_or_default()
-        ),
+    // Emit unified AgentEvents through SessionState
+    let thinking_event = ClaudeCodeAdapter::to_thinking_updated(
+        &serde_json::to_value(&payload).unwrap_or_default()
     );
+    session_state::apply_event(&thinking_event);
+    let tool_started_event = ClaudeCodeAdapter::to_tool_use_started(
+        &serde_json::to_value(&payload).unwrap_or_default()
+    );
+    session_state::apply_event(&tool_started_event);
 
     // Extract file path if present
     let file_path = payload.tool_input.as_ref().and_then(|input| {
@@ -435,6 +436,12 @@ async fn handle_post_tool_use(
 
     let session_id = get_session_id(&payload);
 
+    // Emit unified AgentEvent through SessionState
+    let completed_event = ClaudeCodeAdapter::to_tool_use_completed(
+        &serde_json::to_value(&payload).unwrap_or_default()
+    );
+    session_state::apply_event(&completed_event);
+
     // Emit tool_complete event with duration
     let _ = state.app_handle.emit(
         "tool_complete",
@@ -473,6 +480,12 @@ async fn handle_post_tool_use_failure(
     );
 
     let session_id = get_session_id(&payload);
+
+    // Emit unified AgentEvents through SessionState
+    let failure_event = ClaudeCodeAdapter::to_tool_use_completed(
+        &serde_json::to_value(&payload).unwrap_or_default()
+    );
+    session_state::apply_event(&failure_event);
 
     // Emit tool_error event
     let _ = state.app_handle.emit(
@@ -521,6 +534,12 @@ async fn handle_notification(
     );
 
     let session_id = get_session_id(&payload);
+
+    // Emit unified AgentEvent through SessionState
+    let notification_event = ClaudeCodeAdapter::to_notification_updated(
+        &serde_json::to_value(&payload).unwrap_or_default()
+    );
+    session_state::apply_event(&notification_event);
 
     // Handle different notification types
     match payload.notification_type.as_deref() {
@@ -587,13 +606,11 @@ async fn handle_stop(
         }),
     );
 
-    // Emit unified AgentEvent
-    let _ = state.app_handle.emit(
-        "agent_event",
-        &ClaudeCodeAdapter::to_session_completed(
-            &serde_json::to_value(&payload).unwrap_or_default()
-        ),
+    // Emit unified AgentEvent through SessionState
+    let completed_event = ClaudeCodeAdapter::to_session_completed(
+        &serde_json::to_value(&payload).unwrap_or_default()
     );
+    session_state::apply_event(&completed_event);
 
     Ok(StatusCode::OK)
 }
@@ -611,6 +628,12 @@ async fn handle_user_prompt_submit(
     );
 
     let session_id = get_session_id(&payload);
+
+    // Emit unified AgentEvent through SessionState
+    let prompt_event = ClaudeCodeAdapter::to_user_prompt_submit(
+        &serde_json::to_value(&payload).unwrap_or_default()
+    );
+    session_state::apply_event(&prompt_event);
 
     // Emit state_change to running
     let _ = state.app_handle.emit(
@@ -710,6 +733,12 @@ async fn handle_permission_request(
             );
         }
     }
+
+    // Emit unified AgentEvent through SessionState
+    let permission_event = ClaudeCodeAdapter::to_permission_requested(
+        &serde_json::to_value(&payload).unwrap_or_default()
+    );
+    session_state::apply_event(&permission_event);
 
     // Emit permission_request event to frontend with approval_type and questions
     let _ = state.app_handle.emit(
