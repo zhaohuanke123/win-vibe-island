@@ -772,3 +772,10 @@ pub fn get_session_store_path() -> String {
 pub fn analyze_command(command: String) -> crate::command_analyzer::CommandAnalysis {
     crate::command_analyzer::analyze_command(&command)
 }
+
+#[tauri::command]
+pub fn flash_taskbar(app: AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.request_user_attention(Some(tauri::UserAttentionType::Informational));
+    }
+}

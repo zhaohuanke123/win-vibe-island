@@ -6,6 +6,59 @@ and any relevant notes.
 
 ---
 
+## [2026-05-15] - Sprint 1: UX Optimization (Tasks 40-42)
+
+### Documentation Gate:
+- Requirement ref: docs/ux-optimization-prd.md
+- PRD reviewed and approved; tasks added to task.json
+
+### What was done:
+
+**Task 40 — Session Bar: Tool Context + Running Duration:**
+- Created `frontend/src/hooks/useElapsedTime.ts` — auto-updating elapsed time hook
+- Created `frontend/src/shared/tool-description.ts` — tool name → human-readable summary
+- Updated `SessionList.tsx`: tool description instead of raw tool name, elapsed time instead of "Xm ago"
+- Updated `Overlay.tsx`: compact capsule shows tool context below label
+- CSS: `.overlay__tool-context`, `.session-list__session-elapsed`
+
+**Task 41 — Tool Category: Color + Icon Mapping:**
+- Created `frontend/src/shared/tool-category.ts` — classifyTool() + CategoryVisual map
+- 10 categories: search🔍 file_read📖 file_write✏️ bash💻 test🧪 git📦 plan📋 lint✅ approval⏳
+- `SessionList.tsx`: category emoji icon before session label when tool is active
+- CSS: `.session-list__category-icon`
+
+**Task 42 — Approval Notification: Windows Toast + Taskbar Flash:**
+- Rust: `flash_taskbar` command added to commands.rs + registered in lib.rs
+- Cargo.toml: added tauri-plugin-notification = "2" (for future use)
+- Frontend: Notification + taskbar flash on approval when window not focused
+- SettingsPanel: desktop notifications toggle (localStorage persisted)
+- Config store: notificationsEnabled state + setNotificationsEnabled action
+
+### Testing:
+- `npm run build` passed (3 pre-existing TS warnings, none from these changes)
+- cargo check blocked by pre-existing hook_server.rs Rust edition issue (not introduced here)
+
+### Files created:
+- frontend/src/hooks/useElapsedTime.ts
+- frontend/src/shared/tool-description.ts
+- frontend/src/shared/tool-category.ts
+
+### Files modified:
+- frontend/src/components/SessionList.tsx (tool description + elapsed + category icon)
+- frontend/src/components/Overlay.tsx (tool context + notification effects)
+- frontend/src/components/Overlay.css (.overlay__tool-context)
+- frontend/src/components/SessionList.css (.session-list__session-elapsed, .session-list__category-icon)
+- frontend/src/components/SettingsPanel.tsx (notification toggle)
+- frontend/src/store/config.ts (notificationsEnabled state)
+- src-tauri/src/commands.rs (flash_taskbar)
+- src-tauri/src/lib.rs (flash_taskbar registration)
+- src-tauri/Cargo.toml (tauri-plugin-notification, future-proofing)
+- task.json (3 tasks marked complete)
+- docs/ux-optimization-prd.md (new)
+- docs/README.md (index update)
+
+---
+
 ## [2026-05-05] - Overlay Height Config Safety Regression
 
 ### Documentation Gate:
@@ -31,7 +84,7 @@ and any relevant notes.
 
 - **Started:** 2026-04-25
 - **Current Phase:** Phase 2 - Real Integration
-- **Completed Tasks:** 40 / 41 (plus 1 removed)
+- **Completed Tasks:** 42 / 42 (plus 1 removed)
 - **Active Task:** None
 
 ---

@@ -9,6 +9,7 @@ import { SettingsPanel } from "./SettingsPanel";
 import { SessionDetail } from "./SessionDetail";
 import { SessionList } from "./SessionList";
 import { ActivityTimeline } from "./ActivityTimeline";
+import { getToolDescription } from "../shared/tool-description";
 import { useSessionsStore } from "../store/sessions";
 import { normalizeOverlayLayoutConfig, useConfigStore } from "../store/config";
 import { logger } from "../client/logger";
@@ -153,6 +154,37 @@ export function Overlay() {
       setExpanded(false);
     }
   }, [approvalFocusKey, currentApproval]);
+
+  // Notification + taskbar flash when approval arrives and window not focused
+  const notificationsEnabled = useConfigStore((s) => s.notificationsEnabled ?? true);
+  useEffect(() => {
+    if (!currentApproval || !approvalFocusKey) return;
+    if (!notificationsEnabled) return;
+
+    // Taskbar flash
+    void invoke("flash_taskbar").catch(() => {});
+
+    // Web Notification API (works in Tauri WebView2)
+    if (!document.hasFocus() && "Notification" in window && Notification.permission === "granted") {
+      const tool = currentApproval.toolName || "approval";
+      try {
+        new Notification("Claude Code needs approval", {
+          body: `${currentApproval.sessionLabel} — ${tool}`,
+          icon: undefined,
+          tag: `vibe-approval-${currentApproval.toolUseId}`,
+        });
+      } catch {
+        // Notification blocked or not supported
+      }
+    }
+  }, [currentApproval, approvalFocusKey, notificationsEnabled]);
+
+  // Request notification permission on first mount
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
 
   // Keep the capsule clickable in compact mode. The smaller compact footprint
   // replaces the old click-through behavior.
@@ -341,6 +373,11 @@ export function Overlay() {
                 </span>
                 {active.title && (
                   <span className="overlay__sublabel">{active.label}</span>
+                )}
+                {active.currentTool && (
+                  <span className="overlay__tool-context" data-testid="tool-context">
+                    {getToolDescription(active.currentTool.name, active.currentTool.input)}
+                  </span>
                 )}
               </div>
               <span className="overlay__state" data-testid="session-state">{active.state}</span>

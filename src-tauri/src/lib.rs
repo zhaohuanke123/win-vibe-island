@@ -39,6 +39,7 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             // Initialize Rust-side JSONL logger
             if let Err(e) = logger::init(app.handle()) {
@@ -311,6 +312,7 @@ pub fn run() {
             commands::load_sessions,
             commands::get_session_store_path,
             commands::analyze_command,
+            commands::flash_taskbar,
             logger::log_entry,
         ])
         .run(tauri::generate_context!())

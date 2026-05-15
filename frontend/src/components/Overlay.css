@@ -107,6 +107,17 @@
   white-space: nowrap;
 }
 
+.overlay__tool-context {
+  display: block;
+  font-size: 11px;
+  color: #60a5fa;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: monospace;
+  opacity: 0.9;
+}
+
 .overlay__label--empty {
   color: #6b7280;
 }

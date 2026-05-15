@@ -2,6 +2,9 @@ import { useState, useMemo, useRef, useEffect, memo } from "react";
 import { motion } from "framer-motion";
 import { StatusDot } from "./StatusDot";
 import { SessionContextMenu } from "./SessionContextMenu";
+import { useElapsedTime } from "../hooks/useElapsedTime";
+import { getToolDescription } from "../shared/tool-description";
+import { classifyTool, getCategoryVisual } from "../shared/tool-category";
 import type { Session, AgentState } from "../store/sessions";
 import "./SessionList.css";
 
@@ -27,12 +30,11 @@ interface GroupData {
   sessions: Session[];
 }
 
-function formatTime(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
-  if (diff < 60000) return "just now";
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  return `${Math.floor(diff / 3600000)}h ago`;
+/** Auto-updating elapsed time since createdAt, only for active sessions */
+function SessionElapsed({ session }: { session: Session }) {
+  const elapsed = useElapsedTime(session.createdAt, session.state !== "done" && session.state !== "idle");
+  if (!elapsed) return null;
+  return <span className="session-list__session-elapsed">{elapsed}</span>;
 }
 
 const STATE_FILTERS: { label: string; value: StateFilter }[] = [
@@ -108,7 +110,6 @@ export const SessionList = memo(function SessionList({
       map.get(tag)!.push(s);
     }
 
-    // Order: store's groups first (in order), then "Ungrouped" at the end
     const result: GroupData[] = [];
     for (const g of groups) {
       const sessions = map.get(g);
@@ -117,13 +118,11 @@ export const SessionList = memo(function SessionList({
         map.delete(g);
       }
     }
-    // Remaining ungrouped
     const ungrouped = map.get("");
     if (ungrouped) {
       result.push({ tag: "", label: "Ungrouped", sessions: ungrouped });
       map.delete("");
     }
-    // Any other tags not in the groups array
     for (const [tag, sessions] of map) {
       result.push({ tag, label: tag, sessions });
     }
@@ -194,6 +193,11 @@ export const SessionList = memo(function SessionList({
       >
         <div className="session-list__session-row">
           <StatusDot state={s.state} data-testid="status-dot" />
+          {s.currentTool && (
+            <span className="session-list__category-icon" title={getCategoryVisual(classifyTool(s.currentTool.name)).label}>
+              {getCategoryVisual(classifyTool(s.currentTool.name)).icon}
+            </span>
+          )}
           <div className="session-list__session-text">
             {isRenaming ? (
               <input
@@ -221,16 +225,15 @@ export const SessionList = memo(function SessionList({
         </div>
         {s.currentTool && !isRenaming && (
           <div className="session-list__session-info">
-            <span className="session-list__session-tool">{s.currentTool.name}</span>
-            {(s.currentTool.input?.file_path as string) && (
-              <span className="session-list__session-file">
-                {(s.currentTool.input.file_path as string).split("/").pop()}
-              </span>
-            )}
+            <span className="session-list__session-tool">
+              {getToolDescription(s.currentTool.name, s.currentTool.input)}
+            </span>
           </div>
         )}
-        {s.lastActivity && !isRenaming && (
-          <div className="session-list__session-time">{formatTime(s.lastActivity)}</div>
+        {!isRenaming && (
+          <div className="session-list__session-time">
+            <SessionElapsed session={s} />
+          </div>
         )}
       </motion.div>
     );

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { logger } from "../client/logger";
+import { useConfigStore } from "../store/config";
 import "./SettingsPanel.css";
 
 type NotificationSound =
@@ -26,6 +27,8 @@ export function SettingsPanel() {
   const [sounds, setSounds] = useState<SoundOption[]>([]);
   const [selectedSound, setSelectedSound] = useState<NotificationSound>("hero");
   const [isLoading, setIsLoading] = useState(false);
+  const notificationsEnabled = useConfigStore((s) => s.notificationsEnabled);
+  const setNotificationsEnabled = useConfigStore((s) => s.setNotificationsEnabled);
 
   useEffect(() => {
     // Load available sounds
@@ -88,6 +91,19 @@ export function SettingsPanel() {
               </button>
             ))}
           </div>
+        </div>
+        <div className="settings-panel__section">
+          <label className="settings-panel__label">
+            Desktop Notifications
+          </label>
+          <label className="settings-panel__toggle">
+            <input
+              type="checkbox"
+              checked={notificationsEnabled}
+              onChange={(e) => setNotificationsEnabled(e.target.checked)}
+            />
+            <span>{notificationsEnabled ? "Enabled" : "Disabled"}</span>
+          </label>
         </div>
       </div>
     </div>

@@ -966,6 +966,87 @@
         "frontend/src/__tests__/components/DiffViewer.test.tsx",
         "tests/e2e/specs/diff-viewer.spec.ts"
       ]
+    },
+    {
+      "id": 40,
+      "title": "Session Bar: Tool Context + Running Duration",
+      "description": "Sprint 1.1+1.2: Session list 已显示 tool name，补充运行时长（elapsed time，非相对时间）和 tool operation 简述。",
+      "steps": [
+        "SessionList renderSession: 将 formatTime(lastActivity) 替换为 elapsed duration（startTime → now）",
+        "SessionList renderSession: currentTool 旁显示简短描述（toolName + 关键参数摘要）",
+        "Compact overlay capsule: 在 active session bar 上叠加 tool 简述（单行截断）",
+        "npm run build 验证无编译错误"
+      ],
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [],
+      "requirement_ref": "docs/ux-optimization-prd.md#11-tool-context-on-session-bar",
+      "design_ref": "docs/ux-optimization-prd.md#11-tool-context-on-session-bar",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "frontend/src/components/SessionList.tsx",
+        "frontend/src/components/Overlay.tsx"
+      ]
+    },
+    {
+      "id": 41,
+      "title": "Tool Category: Color + Icon Mapping",
+      "description": "Sprint 1.3: 根据 toolName 映射 tool category（search/write/bash/test/approval），Session bar 用不同颜色/图标区分。",
+      "steps": [
+        "创建 shared/tool-category.ts: 定义 ToolCategory 类型 + toolName→category 映射",
+        "SessionList renderSession: 在 StatusDot 旁或 tool name 前添加 category icon（emoji）",
+        "StatusDot: 增加可选的 category prop，覆盖默认 state 颜色",
+        "npm run build 验证编译"
+      ],
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [40],
+      "requirement_ref": "docs/ux-optimization-prd.md#13-多-session-视觉区分",
+      "design_ref": "docs/ux-optimization-prd.md#13-多-session-视觉区分",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "frontend/src/shared/tool-category.ts",
+        "frontend/src/components/SessionList.tsx",
+        "frontend/src/components/StatusDot.tsx"
+      ]
+    },
+    {
+      "id": 42,
+      "title": "Approval Notification: Windows Toast + Taskbar Flash",
+      "description": "Sprint 2.1+2.2: Approval 到达且窗口非焦点时，发 Windows 系统通知 + 任务栏闪烁。",
+      "steps": [
+        "Tauri: 添加 tauri-plugin-notification 依赖到 Cargo.toml",
+        "Tauri: lib.rs 注册 notification plugin",
+        "Tauri: lib.rs 添加 request_user_attention 到 Window",
+        "前端: Overlay.tsx 监听 approval 事件，检测 document.hasFocus()",
+        "前端: 非焦点时 invoke Tauri notification（标题=session label，正文=tool+action）",
+        "前端: 有 pending approval 时 invoke request_user_attention（闪烁任务栏）",
+        "npm run build + cargo check 验证编译",
+        "SettingsPanel: 添加 notification 开关 toggle"
+      ],
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [40],
+      "requirement_ref": "docs/ux-optimization-prd.md#phase-2审批通知增强-优先级-p0",
+      "design_ref": "docs/ux-optimization-prd.md#21-windows-系统通知",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "src-tauri/Cargo.toml",
+        "src-tauri/src/lib.rs",
+        "src-tauri/tauri.conf.json",
+        "frontend/src/components/Overlay.tsx",
+        "frontend/src/components/SettingsPanel.tsx",
+        "frontend/src/store/config.ts"
+      ]
     }
   ]
 }

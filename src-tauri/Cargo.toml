@@ -30,6 +30,7 @@ tower = "0.4"
 tower-http = { version = "0.5", features = ["cors"] }
 dirs = "5.0"
 rodio = { version = "0.19", default-features = false, features = ["wav"] }
+tauri-plugin-notification = "2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.58", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_System_Threading", "Win32_System_Diagnostics_ToolHelp", "Win32_UI_HiDpi", "Win32_Graphics_Dwm", "Win32_Media"] }

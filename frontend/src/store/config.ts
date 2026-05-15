@@ -234,16 +234,18 @@ interface ConfigStore {
   config: AppConfig;
   isLoading: boolean;
   error: string | null;
+  notificationsEnabled: boolean;
 
   // Actions
   loadConfig: () => Promise<void>;
   updateConfig: (updates: Partial<AppConfig>) => Promise<void>;
   resetConfig: (section?: string) => Promise<void>;
+  setNotificationsEnabled: (enabled: boolean) => void;
 
   // Getters (convenience methods)
   getHookServerPort: () => number;
   getStateColor: (state: string) => string;
-  getAnimationDuration: (state: string) => number;
+  getAnimationDuration: (state: string) => string;
   getSpringConfig: (type: "expand" | "collapse" | "transition" | "micro") => SpringParams;
 }
 
@@ -251,6 +253,9 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
   config: DEFAULT_CONFIG,
   isLoading: false,
   error: null,
+  notificationsEnabled: typeof localStorage !== "undefined"
+    ? localStorage.getItem("vibe-notifications") !== "false"
+    : true,
 
   loadConfig: async () => {
     set({ isLoading: true, error: null });
@@ -310,6 +315,11 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
   },
 
   getSpringConfig: (type) => get().config.ui.animation.spring[type],
+
+  setNotificationsEnabled: (enabled) => {
+    set({ notificationsEnabled: enabled });
+    try { localStorage.setItem("vibe-notifications", String(enabled)); } catch {}
+  },
 }));
 
 // ============================================================================
