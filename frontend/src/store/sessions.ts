@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { useConfigStore } from "./config";
 import { safeTransition } from "../shared/state-machine";
+import { sessionReducer, type AgentEvent } from "../shared/session-reducer";
 
 export type AgentState = "idle" | "thinking" | "running" | "streaming" | "approval" | "error" | "done";
 
@@ -138,6 +139,8 @@ interface SessionsStore {
   // Deprecated: use addPendingApproval instead
   setApprovalRequest: (request: ApprovalRequest | null) => void;
   clearApprovalRequest: () => void;
+  /** Apply a unified AgentEvent through the reducer (new unified path). */
+  dispatchAgentEvent: (event: AgentEvent) => void;
   setHookServerStatus: (status: Partial<HookServerStatus>) => void;
   addErrorLog: (error: string) => void;
   clearErrorLogs: () => void;
@@ -277,6 +280,12 @@ export const useSessionsStore = create<SessionsStore>((set, _get) => ({
     }),
 
   clearApprovalRequest: () => set({ pendingApprovals: [], currentApprovalIndex: 0 }),
+
+  dispatchAgentEvent: (event) =>
+    set((s) => {
+      const { sessions } = sessionReducer({ sessions: s.sessions }, event);
+      return { sessions };
+    }),
 
   setHookServerStatus: (status) =>
     set((s) => ({

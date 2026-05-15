@@ -1124,7 +1124,7 @@
         "保持现有组件 API 不变（SessionList, Overlay, ApprovalPanel 继续工作）",
         "npm run build 验证编译"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "critical",
       "dependencies": [
         44
@@ -1133,8 +1133,11 @@
       "design_ref": "docs/open-island-alignment-prd.md#12-sessionstate-纯-reducer",
       "files": [
         "frontend/src/shared/session-reducer.ts",
-        "frontend/src/store/sessions.ts"
-      ]
+        "frontend/src/store/sessions.ts",
+        "frontend/src/hooks/useAgentEvents.ts"
+      ],
+      "passes": true,
+      "implementation_done": true
     },
     {
       "id": 46,

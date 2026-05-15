@@ -6,6 +6,7 @@ import { logger } from "../client/logger";
 import { useSessionsStore } from "../store/sessions";
 import type { AgentState } from "../store/sessions";
 import { APPROVAL_TYPES } from "../store/sessions";
+import type { AgentEvent } from "../shared/session-reducer";
 
 interface SessionStartEvent {
   session_id: string;
@@ -112,6 +113,7 @@ interface ProcessTerminatedEvent {
 
 export function useAgentEvents() {
   const { addSession, removeSession, updateSessionState, updateSessionInfo, addPendingApproval, removeApprovalByToolUseId, removeApprovalsBySessionId } = useSessionsStore();
+  const dispatchAgentEvent = useSessionsStore((s) => s.dispatchAgentEvent);
 
   useEffect(() => {
     const unlisteners: UnlistenFn[] = [];
@@ -402,6 +404,12 @@ export function useAgentEvents() {
         });
       });
       unlisteners.push(unlistenTestReset);
+
+      // Listen for unified agent_event (new SessionState path)
+      const unlistenAgentEvent = await listen<AgentEvent>("agent_event", (event) => {
+        dispatchAgentEvent(event.payload);
+      });
+      unlisteners.push(unlistenAgentEvent);
     };
 
     setupListeners();
@@ -409,7 +417,7 @@ export function useAgentEvents() {
     return () => {
       unlisteners.forEach((unlisten) => unlisten());
     };
-  }, [addSession, removeSession, updateSessionState, updateSessionInfo, addPendingApproval, removeApprovalByToolUseId, removeApprovalsBySessionId]);
+  }, [addSession, removeSession, updateSessionState, updateSessionInfo, addPendingApproval, removeApprovalByToolUseId, removeApprovalsBySessionId, dispatchAgentEvent]);
 }
 
 // Helper to extract project name from cwd path
