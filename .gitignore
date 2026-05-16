@@ -29,3 +29,5 @@ Thumbs.db
 skills-lock.json
 *.log.firecrawl/
 .firecrawl/
+
+tests/e2e/test-results/

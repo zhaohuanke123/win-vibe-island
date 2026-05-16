@@ -279,7 +279,7 @@ export function Overlay() {
   // question, and plan focus mode stays fixed at 600x720 in Tauri to avoid
   // WebView/native resize mismatches that can hide action buttons.
   useEffect(() => {
-    if (!isOverlayExpanded || isApprovalFocusMode || !panelRef.current) return;
+    if (!isOverlayExpanded || isApprovalFocusMode || showSettings || showActivity || !panelRef.current) return;
 
     const panel = panelRef.current;
     let raf = 0;
@@ -289,7 +289,13 @@ export function Overlay() {
       raf = requestAnimationFrame(() => {
         if (!panelRef.current) return;
         const p = panelRef.current;
+        // Temporarily remove height constraint to measure natural content height
+        // and avoid circular measurement where scrollHeight reflects the
+        // stretched CSS height instead of actual content.
+        const saved = p.style.height;
+        p.style.height = 'auto';
         const contentH = p.scrollHeight;
+        p.style.height = saved;
         const next = clampOverlayHeight(BAR_HEIGHT + contentH, EXPANDED_MIN, EXPANDED_MAX);
         setMeasuredHeight((h) => (Math.abs(h - next) < 1 ? h : next));
       });
