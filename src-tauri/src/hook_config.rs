@@ -57,9 +57,82 @@ const REQUIRED_HOOKS: &[&str] = &[
     "PermissionRequest",
 ];
 
-/// Get the hook server URL from configuration
+/// Get the hook server URL from configuration (legacy HTTP mode)
 fn get_hook_server_url() -> String {
     format!("http://localhost:{}", get_config().hook_server.port)
+}
+
+/// Get the path where the hooks CLI binary should be deployed
+pub fn get_hooks_bin_path() -> PathBuf {
+    if let Some(data_dir) = dirs::data_dir() {
+        data_dir.join("vibe-island").join("bin").join("vibe-island-hooks.exe")
+    } else if let Some(home) = dirs::home_dir() {
+        home.join("AppData").join("Roaming").join("vibe-island").join("bin").join("vibe-island-hooks.exe")
+    } else {
+        PathBuf::from("vibe-island-hooks.exe")
+    }
+}
+
+/// Deploy the hooks CLI binary to a stable location.
+/// Copies from the current exe directory to %APPDATA%\vibe-island\bin\.
+/// Returns the deployed path on success.
+pub fn deploy_hooks_binary() -> Result<PathBuf, String> {
+    let target = get_hooks_bin_path();
+
+    // Ensure target directory exists
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create hooks bin directory: {}", e))?;
+    }
+
+    // Try to locate the source binary
+    let source = find_hooks_source()?;
+
+    // Check if target already exists and matches
+    if target.exists() {
+        // Compare file sizes as a quick version check
+        let target_meta = fs::metadata(&target).ok();
+        let source_meta = fs::metadata(&source).ok();
+        if target_meta.zip(source_meta).map_or(false, |(t, s)| t.len() == s.len()) {
+            log::info!("Hooks binary already up-to-date at {}", target.display());
+            return Ok(target);
+        }
+        log::info!("Updating hooks binary at {}", target.display());
+    }
+
+    fs::copy(&source, &target)
+        .map_err(|e| format!("Failed to deploy hooks binary to {}: {}", target.display(), e))?;
+
+    log::info!("Hooks binary deployed to {}", target.display());
+    Ok(target)
+}
+
+/// Locate the source hooks binary.
+/// Looks next to the current executable, then in the cargo target directory.
+fn find_hooks_source() -> Result<PathBuf, String> {
+    // 1. Check next to current executable (production deployment)
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let candidate = exe_dir.join("vibe-island-hooks.exe");
+            if candidate.exists() {
+                return Ok(candidate);
+            }
+        }
+    }
+
+    // 2. Check cargo target directory (dev mode)
+    let cargo_target = PathBuf::from("target").join("debug").join("vibe-island-hooks.exe");
+    if cargo_target.exists() {
+        return Ok(cargo_target);
+    }
+
+    // 3. Check release target
+    let release_target = PathBuf::from("target").join("release").join("vibe-island-hooks.exe");
+    if release_target.exists() {
+        return Ok(release_target);
+    }
+
+    Err("vibe-island-hooks.exe not found. Build the binary first.".to_string())
 }
 
 /// Backup file extension
@@ -160,6 +233,40 @@ fn read_configured_hooks(path: &PathBuf) -> Vec<String> {
     Vec::new()
 }
 
+/// Check if a single hook entry (innermost object) points to Vibe Island.
+/// Detects both command hooks (type: "command") and HTTP hooks (type: "http").
+fn is_vibe_island_single_hook(hook: &serde_json::Value) -> bool {
+    let hook_type = hook.get("type").and_then(|v| v.as_str()).unwrap_or("");
+
+    // Command hook: check if command path contains vibe-island-hooks
+    if hook_type == "command" {
+        if let Some(cmd) = hook.get("command").and_then(|v| v.as_str()) {
+            return cmd.contains("vibe-island-hooks");
+        }
+        return false;
+    }
+
+    // HTTP hook: check if URL points to our port (legacy detection)
+    if hook_type == "http" {
+        let port = get_config().hook_server.port;
+        if let Some(url) = hook.get("url").and_then(|u| u.as_str()) {
+            return url.contains(&format!("localhost:{}", port))
+                || url.contains(&format!("127.0.0.1:{}", port));
+        }
+        return false;
+    }
+
+    false
+}
+
+/// Check if a hook group (the wrapper with "hooks" array) contains any Vibe Island hooks
+fn group_contains_vibe_hook(group: &serde_json::Value) -> bool {
+    if let Some(hooks_arr) = group.get("hooks").and_then(|h| h.as_array()) {
+        return hooks_arr.iter().any(|h| is_vibe_island_single_hook(h));
+    }
+    false
+}
+
 /// Check if a hook configuration points to Vibe Island
 ///
 /// The hook config can be:
@@ -167,22 +274,14 @@ fn read_configured_hooks(path: &PathBuf) -> Vec<String> {
 /// 2. A hook wrapper with nested hooks: { "hooks": [...] }
 /// 3. An array of hooks: [{ "hooks": [...] }, ...]
 fn is_vibe_island_hook(hook_config: &serde_json::Value) -> bool {
-    let port = get_config().hook_server.port;
-    let port_str = port.to_string();
-
     // Case 1: Direct hook object with URL
-    if let Some(url) = hook_config.get("url").and_then(|u| u.as_str()) {
-        return url.contains(&format!("localhost:{}", port_str))
-            || url.contains(&format!("127.0.0.1:{}", port_str));
+    if is_vibe_island_single_hook(hook_config) {
+        return true;
     }
 
     // Case 2: Hook wrapper with nested hooks array
-    if let Some(hooks_arr) = hook_config.get("hooks").and_then(|h| h.as_array()) {
-        for h in hooks_arr {
-            if is_vibe_island_hook(h) {
-                return true;
-            }
-        }
+    if group_contains_vibe_hook(hook_config) {
+        return true;
     }
 
     // Case 3: It might be an array of hook configurations
@@ -197,11 +296,10 @@ fn is_vibe_island_hook(hook_config: &serde_json::Value) -> bool {
     false
 }
 
-/// Generate the Vibe Island hook configuration
+/// Generate the Vibe Island hook configuration (command hook mode).
 fn generate_hook_config() -> serde_json::Value {
-    let base_url = get_hook_server_url();
-    let pre_tool_timeout = get_config().hook_server.pre_tool_timeout_secs;
-    let permission_timeout = get_config().hook_server.permission_timeout_secs;
+    let hooks_bin = get_hooks_bin_path();
+    let hooks_bin_str = hooks_bin.to_string_lossy().to_string();
 
     serde_json::json!({
         "hooks": {
@@ -209,8 +307,8 @@ fn generate_hook_config() -> serde_json::Value {
                 {
                     "hooks": [
                         {
-                            "type": "http",
-                            "url": format!("{}/hooks/session-start", base_url)
+                            "type": "command",
+                            "command": hooks_bin_str
                         }
                     ]
                 }
@@ -220,9 +318,8 @@ fn generate_hook_config() -> serde_json::Value {
                     "matcher": "*",
                     "hooks": [
                         {
-                            "type": "http",
-                            "url": format!("{}/hooks/pre-tool-use", base_url),
-                            "timeout": pre_tool_timeout
+                            "type": "command",
+                            "command": hooks_bin_str
                         }
                     ]
                 }
@@ -232,8 +329,8 @@ fn generate_hook_config() -> serde_json::Value {
                     "matcher": "*",
                     "hooks": [
                         {
-                            "type": "http",
-                            "url": format!("{}/hooks/post-tool-use", base_url)
+                            "type": "command",
+                            "command": hooks_bin_str
                         }
                     ]
                 }
@@ -242,8 +339,8 @@ fn generate_hook_config() -> serde_json::Value {
                 {
                     "hooks": [
                         {
-                            "type": "http",
-                            "url": format!("{}/hooks/notification", base_url)
+                            "type": "command",
+                            "command": hooks_bin_str
                         }
                     ]
                 }
@@ -252,8 +349,8 @@ fn generate_hook_config() -> serde_json::Value {
                 {
                     "hooks": [
                         {
-                            "type": "http",
-                            "url": format!("{}/hooks/stop", base_url)
+                            "type": "command",
+                            "command": hooks_bin_str
                         }
                     ]
                 }
@@ -262,8 +359,8 @@ fn generate_hook_config() -> serde_json::Value {
                 {
                     "hooks": [
                         {
-                            "type": "http",
-                            "url": format!("{}/hooks/user-prompt-submit", base_url)
+                            "type": "command",
+                            "command": hooks_bin_str
                         }
                     ]
                 }
@@ -273,9 +370,8 @@ fn generate_hook_config() -> serde_json::Value {
                     "matcher": "*",
                     "hooks": [
                         {
-                            "type": "http",
-                            "url": format!("{}/hooks/permission-request", base_url),
-                            "timeout": permission_timeout
+                            "type": "command",
+                            "command": hooks_bin_str
                         }
                     ]
                 }
@@ -284,9 +380,18 @@ fn generate_hook_config() -> serde_json::Value {
     })
 }
 
-/// Install hooks to settings.json
-/// Returns the path where hooks were installed
+/// Install hooks to settings.json.
+/// Deploys the CLI binary to a stable location, then writes command hook config.
+/// Returns the path where hooks were installed.
 pub fn install_hooks() -> Result<String, String> {
+    // Step 1: Deploy the hooks CLI binary to a stable location
+    match deploy_hooks_binary() {
+        Ok(bin_path) => log::info!("Hooks binary deployed to {}", bin_path.display()),
+        // If deployment fails (e.g. in test mode, binary not built yet), continue anyway.
+        // The hook config will still be written; it just won't work until binary is available.
+        Err(e) => log::warn!("Could not deploy hooks binary (hooks may not work yet): {}", e),
+    }
+
     let settings_path = get_active_settings_path().unwrap_or_else(get_default_settings_path);
 
     // Ensure .claude directory exists
@@ -339,43 +444,49 @@ pub fn install_hooks() -> Result<String, String> {
 
 /// Merge Vibe Island hooks into existing settings
 ///
-/// IMPORTANT: This function is designed to be non-destructive:
-/// - If a hook doesn't exist, add it
-/// - If a hook already exists and points to Vibe Island, update it
-/// - If a hook already exists and points elsewhere, SKIP it (don't overwrite user's config)
+/// Works at the hook **group** level within each event:
+/// - Removes any existing Vibe Island hook groups (to update them)
+/// - Preserves all user hook groups
+/// - Appends the new Vibe Island hook group
 fn merge_hooks(existing: &mut serde_json::Value, vibe_hooks: &serde_json::Value) {
-    if let Some(existing_hooks) = existing.get_mut("hooks") {
-        if let Some(existing_map) = existing_hooks.as_object_mut() {
-            if let Some(vibe_map) = vibe_hooks.get("hooks").and_then(|h| h.as_object()) {
-                for (hook_name, hook_config) in vibe_map {
+    if let Some(vibe_map) = vibe_hooks.get("hooks").and_then(|h| h.as_object()) {
+        if let Some(existing_hooks) = existing.get_mut("hooks") {
+            if let Some(existing_map) = existing_hooks.as_object_mut() {
+                for (hook_name, vibe_groups) in vibe_map {
+                    let empty_arr = vec![];
+                    let vibe_groups_arr = vibe_groups.as_array().unwrap_or(&empty_arr);
+
                     if !existing_map.contains_key(hook_name) {
-                        // Hook doesn't exist, add it
-                        existing_map.insert(hook_name.clone(), hook_config.clone());
-                        log::info!("Added missing hook: {}", hook_name);
-                    } else {
-                        // Hook exists - check if it's ours
-                        let existing_config = existing_map.get(hook_name).unwrap();
-                        if is_vibe_island_hook(existing_config) {
-                            // It's our hook, update it
-                            existing_map.insert(hook_name.clone(), hook_config.clone());
-                            log::info!("Updated existing Vibe Island hook: {}", hook_name);
-                        } else {
-                            // It's user's own hook, DON'T overwrite
-                            log::warn!(
-                                "Skipping hook '{}' - user has their own configuration",
-                                hook_name
-                            );
-                        }
+                        existing_map.insert(hook_name.clone(), vibe_groups.clone());
+                        log::info!("Added missing hook event: {}", hook_name);
+                        continue;
                     }
+
+                    // Event exists — keep user groups, replace only vibe groups
+                    let existing_groups = existing_map.get(hook_name).unwrap();
+                    let filtered: Vec<serde_json::Value> = existing_groups
+                        .as_array()
+                        .unwrap_or(&vec![])
+                        .iter()
+                        .filter(|g| !group_contains_vibe_hook(g))
+                        .cloned()
+                        .collect();
+
+                    let merged: Vec<serde_json::Value> = filtered
+                        .into_iter()
+                        .chain(vibe_groups_arr.iter().cloned())
+                        .collect();
+
+                    existing_map.insert(hook_name.clone(), serde_json::Value::Array(merged));
+                    log::info!("Merged hook event: {}", hook_name);
                 }
             }
+        } else {
+            existing["hooks"] = vibe_hooks
+                .get("hooks")
+                .cloned()
+                .unwrap_or(serde_json::json!({}));
         }
-    } else {
-        // No hooks section exists, add entire vibe_hooks
-        existing["hooks"] = vibe_hooks
-            .get("hooks")
-            .cloned()
-            .unwrap_or(serde_json::json!({}));
     }
 }
 
@@ -431,22 +542,33 @@ pub fn uninstall_hooks() -> Result<(), String> {
     Ok(())
 }
 
-/// Remove Vibe Island hooks from settings
+/// Remove Vibe Island hooks from settings, preserving user-defined hooks.
+///
+/// Works at the hook **group** level within each event:
+/// - For each event, removes only the hook groups that contain Vibe Island hooks
+/// - Preserves all user hook groups
+/// - Removes empty event entries and the "hooks" key if fully empty
 fn remove_vibe_hooks(settings: &mut serde_json::Value) {
     if let Some(hooks) = settings.get_mut("hooks") {
         if let Some(hooks_map) = hooks.as_object_mut() {
-            // Remove hooks that point to Vibe Island
-            let keys_to_remove: Vec<String> = hooks_map
-                .iter()
-                .filter(|(_, config)| is_vibe_island_hook(config))
-                .map(|(name, _)| name.clone())
-                .collect();
+            let keys_to_update: Vec<String> = hooks_map.keys().cloned().collect();
 
-            for key in keys_to_remove {
-                hooks_map.remove(&key);
+            for key in keys_to_update {
+                if let Some(groups) = hooks_map.get(&key).and_then(|v| v.as_array()).cloned() {
+                    // Keep only groups that do NOT contain vibe hooks
+                    let preserved: Vec<serde_json::Value> = groups
+                        .into_iter()
+                        .filter(|g| !group_contains_vibe_hook(g))
+                        .collect();
+
+                    if preserved.is_empty() {
+                        hooks_map.remove(&key);
+                    } else {
+                        hooks_map.insert(key, serde_json::Value::Array(preserved));
+                    }
+                }
             }
 
-            // If hooks section is empty, remove it entirely
             if hooks_map.is_empty() {
                 settings.as_object_mut().unwrap().remove("hooks");
             }
@@ -594,7 +716,25 @@ mod tests {
     }
 
     #[test]
-    fn test_is_vibe_island_hook_detects_vibe_url() {
+    fn test_is_vibe_island_hook_detects_command_hook() {
+        // Command hook with vibe-island-hooks in path
+        let hook = serde_json::json!({
+            "type": "command",
+            "command": "C:\\Users\\test\\AppData\\Roaming\\vibe-island\\bin\\vibe-island-hooks.exe"
+        });
+        assert!(is_vibe_island_hook(&hook));
+
+        // Command hook without vibe-island-hooks
+        let hook = serde_json::json!({
+            "type": "command",
+            "command": "C:\\some\\other\\tool.exe"
+        });
+        assert!(!is_vibe_island_hook(&hook));
+    }
+
+    #[test]
+    fn test_is_vibe_island_hook_detects_http_url_legacy() {
+        // HTTP hooks still detected (legacy mode)
         let hook = serde_json::json!({
             "type": "http",
             "url": "http://localhost:7878/hooks/session-start"
@@ -619,8 +759,8 @@ mod tests {
         let hook = serde_json::json!({
             "hooks": [
                 {
-                    "type": "http",
-                    "url": "http://localhost:7878/hooks/test"
+                    "type": "command",
+                    "command": "C:\\Users\\test\\AppData\\Roaming\\vibe-island\\bin\\vibe-island-hooks.exe"
                 }
             ]
         });
@@ -659,8 +799,10 @@ mod tests {
             "hooks": {
                 "SessionStart": [
                     {
-                        "type": "http",
-                        "url": "http://localhost:7878/hooks/old-endpoint"
+                        "hooks": [{
+                            "type": "http",
+                            "url": "http://localhost:7878/hooks/old-endpoint"
+                        }]
                     }
                 ]
             }
@@ -671,6 +813,8 @@ mod tests {
 
         let hooks = existing.get("hooks").unwrap().as_object().unwrap();
         let session_hooks = hooks.get("SessionStart").unwrap().as_array().unwrap();
+        // Old vibe group removed, new vibe group added => 1 group
+        assert_eq!(session_hooks.len(), 1);
         let first_hook = &session_hooks[0].get("hooks").unwrap().as_array().unwrap()[0];
         let url = first_hook.get("url").unwrap().as_str().unwrap();
 
@@ -710,8 +854,12 @@ mod tests {
             "hooks": {
                 "SessionStart": [
                     {
-                        "type": "http",
-                        "url": "http://user-server:8080/hooks/session-start"
+                        "hooks": [
+                            {
+                                "type": "http",
+                                "url": "http://user-server:8080/hooks/session-start"
+                            }
+                        ]
                     }
                 ]
             }
@@ -721,35 +869,92 @@ mod tests {
         merge_hooks(&mut existing, &vibe_hooks);
 
         let hooks = existing.get("hooks").unwrap().as_object().unwrap();
+        let session_groups = hooks.get("SessionStart").unwrap().as_array().unwrap();
 
-        // SessionStart should still point to user's server (NOT overwritten)
-        let session_hooks = hooks.get("SessionStart").unwrap().as_array().unwrap();
-        let url = session_hooks[0].get("url").unwrap().as_str().unwrap();
-        assert_eq!(url, "http://user-server:8080/hooks/session-start");
+        // Should have 2 groups: user's + vibe's
+        assert_eq!(session_groups.len(), 2);
 
-        // But other Vibe Island hooks should be added
+        // First group is user's hook
+        let user_hooks = session_groups[0].get("hooks").unwrap().as_array().unwrap();
+        assert_eq!(
+            user_hooks[0].get("url").unwrap().as_str().unwrap(),
+            "http://user-server:8080/hooks/session-start"
+        );
+
+        // Second group is vibe's hook
+        let vibe_hooks_in_group = session_groups[1].get("hooks").unwrap().as_array().unwrap();
+        assert!(vibe_hooks_in_group[0].get("url").unwrap().as_str().unwrap().contains("localhost"));
+
+        // Other Vibe Island hooks should be added
         assert!(hooks.contains_key("PreToolUse"));
         assert!(hooks.contains_key("PostToolUse"));
     }
 
     #[test]
-    fn test_remove_vibe_hooks_removes_only_vibe_hooks() {
+    fn test_merge_hooks_replaces_stale_vibe_groups_keeps_user_groups() {
+        // Mixed: user group + old vibe group under the same event
+        let mut existing = serde_json::json!({
+            "hooks": {
+                "SessionStart": [
+                    {
+                        "hooks": [{
+                            "type": "http",
+                            "url": "http://user-server:8080/hooks/session-start"
+                        }]
+                    },
+                    {
+                        "hooks": [{
+                            "type": "http",
+                            "url": "http://localhost:7878/hooks/old-endpoint"
+                        }]
+                    }
+                ]
+            }
+        });
+
+        let vibe_hooks = generate_hook_config();
+        merge_hooks(&mut existing, &vibe_hooks);
+
+        let hooks = existing.get("hooks").unwrap().as_object().unwrap();
+        let session_groups = hooks.get("SessionStart").unwrap().as_array().unwrap();
+
+        // User group preserved + new vibe group added (old vibe group removed)
+        assert_eq!(session_groups.len(), 2);
+
+        // First is user's
+        let first = &session_groups[0];
+        assert_eq!(
+            first.get("hooks").unwrap().as_array().unwrap()[0]
+                .get("url").unwrap().as_str().unwrap(),
+            "http://user-server:8080/hooks/session-start"
+        );
+
+        // Second is vibe's (updated)
+        let second = &session_groups[1];
+        assert!(second
+            .get("hooks").unwrap().as_array().unwrap()[0]
+            .get("url").unwrap().as_str().unwrap()
+            .contains("/hooks/session-start"));
+    }
+
+    #[test]
+    fn test_remove_vibe_hooks_removes_only_vibe_groups() {
         let mut settings = serde_json::json!({
             "hooks": {
                 "SessionStart": [
                     {
-                        "hooks": [
-                            {
-                                "type": "http",
-                                "url": "http://localhost:7878/hooks/session-start"
-                            }
-                        ]
+                        "hooks": [{
+                            "type": "http",
+                            "url": "http://localhost:7878/hooks/session-start"
+                        }]
                     }
                 ],
                 "CustomHook": [
                     {
-                        "type": "http",
-                        "url": "http://my-server:3000/hooks/custom"
+                        "hooks": [{
+                            "type": "http",
+                            "url": "http://my-server:3000/hooks/custom"
+                        }]
                     }
                 ]
             }
@@ -764,6 +969,43 @@ mod tests {
 
         // Custom hook preserved
         assert!(hooks.contains_key("CustomHook"));
+    }
+
+    #[test]
+    fn test_remove_vibe_hooks_preserves_user_groups_within_same_event() {
+        // SessionStart has both user and vibe groups
+        let mut settings = serde_json::json!({
+            "hooks": {
+                "SessionStart": [
+                    {
+                        "hooks": [{
+                            "type": "http",
+                            "url": "http://user-server:8080/hooks/start"
+                        }]
+                    },
+                    {
+                        "hooks": [{
+                            "type": "http",
+                            "url": "http://localhost:7878/hooks/session-start"
+                        }]
+                    }
+                ]
+            }
+        });
+
+        remove_vibe_hooks(&mut settings);
+
+        let hooks = settings.get("hooks").unwrap().as_object().unwrap();
+
+        // SessionStart preserved but only user group remains
+        assert!(hooks.contains_key("SessionStart"));
+        let groups = hooks.get("SessionStart").unwrap().as_array().unwrap();
+        assert_eq!(groups.len(), 1);
+        assert_eq!(
+            groups[0].get("hooks").unwrap().as_array().unwrap()[0]
+                .get("url").unwrap().as_str().unwrap(),
+            "http://user-server:8080/hooks/start"
+        );
     }
 
     #[test]
