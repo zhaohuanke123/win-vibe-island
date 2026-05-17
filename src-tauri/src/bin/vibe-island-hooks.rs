@@ -59,6 +59,7 @@ fn main() {
         "type": "hook_event",
         "request_id": request_id,
         "hook_event_name": event_name,
+        "pid": std::process::id(),
         "payload": payload,
     });
 

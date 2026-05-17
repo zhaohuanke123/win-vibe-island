@@ -466,14 +466,18 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
 
     match event_name {
         "SessionStart" => {
+            // Extract client PID from hooks binary envelope
+            let hooks_pid = envelope.get("pid").and_then(|v| v.as_u64()).map(|v| v as u32);
             let _ = app.emit(
                 "session_start",
                 &serde_json::json!({
                     "session_id": session_id,
                     "label": label,
-                    "cwd": payload.get("cwd"),
+                    "cwd": cwd,
                     "source": payload.get("source"),
                     "model": payload.get("model"),
+                    "agent_type": payload.get("agent_type"),
+                    "pid": hooks_pid,
                 }),
             );
             let event = ClaudeCodeAdapter::to_session_started(&payload);
