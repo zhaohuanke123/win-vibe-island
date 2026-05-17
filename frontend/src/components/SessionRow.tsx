@@ -90,10 +90,18 @@ export const SessionRow = memo(function SessionRow({
   const age = fmtAge(new Date(session.lastActivity));
   const terminalType = session.jumpTarget?.terminalType;
 
+  const displayLabel = session.title || projectName;
+  const hasTitle = !!session.title;
+
   const contentParts: string[] = [];
   const hideProject = groupBy === "project";
-  if (projectName && !hideProject) contentParts.push(projectName);
-  if (branch && !hideProject) contentParts.push(branch);
+  if (hasTitle) {
+    contentParts.push(displayLabel);
+    if (projectName && !hideProject) contentParts.push(projectName);
+  } else {
+    if (projectName && !hideProject) contentParts.push(projectName);
+    if (branch && !hideProject) contentParts.push(branch);
+  }
   const promptPreview = session.lastPrompt
     ? session.lastPrompt.length > 50 ? session.lastPrompt.slice(0, 50) + "…" : session.lastPrompt
     : "";
@@ -103,7 +111,7 @@ export const SessionRow = memo(function SessionRow({
       ? "error"
       : "";
   if (msg) contentParts.push(msg);
-  else if (promptPreview && hideProject) contentParts.push(promptPreview);
+  else if (promptPreview && !hasTitle) contentParts.push(promptPreview);
 
   const isCompact = density === "compact";
 
@@ -162,7 +170,7 @@ export const SessionRow = memo(function SessionRow({
                   : undefined
               }
             >
-              {projectName}
+              {displayLabel}
             </span>
             {branch && !isCompact && (
               <>
@@ -177,7 +185,7 @@ export const SessionRow = memo(function SessionRow({
               </>
             )}
           </span>
-          {!isCompact && session.lastPrompt && (
+          {!isCompact && session.lastPrompt && !hasTitle && (
             <span className="session-row__you">
               <span className="session-row__you-label">You:</span> {session.lastPrompt}
             </span>

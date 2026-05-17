@@ -193,13 +193,12 @@ fn parse_transcript(path: &Path) -> Option<DiscoveredSession> {
 }
 
 /// Scan the last N lines of a transcript JSONL for a session title.
-/// Looks for: custom-title, ai-title, agent-name, or falls back to last user prompt.
-/// Returns (title, source) where source is "customTitle" | "aiTitle" | "agentName" | "prompt".
+/// Priority: customTitle > aiTitle > agentName > assistantSummary > lastUserPrompt
+/// Returns (title, source).
 pub fn extract_title_from_transcript(path: &str, max_lines: usize) -> Option<(String, String)> {
     let file = File::open(path).ok()?;
     let reader = BufReader::new(file);
 
-    // Read lines into buffer, keep only last N
     let mut lines: Vec<String> = Vec::new();
     for line_result in reader.lines() {
         let line = match line_result {
@@ -215,6 +214,7 @@ pub fn extract_title_from_transcript(path: &str, max_lines: usize) -> Option<(St
     let mut custom_title: Option<String> = None;
     let mut ai_title: Option<String> = None;
     let mut agent_name: Option<String> = None;
+    let mut assistant_summary: Option<String> = None;
     let mut last_prompt: Option<String> = None;
 
     for line in &lines {
@@ -225,7 +225,6 @@ pub fn extract_title_from_transcript(path: &str, max_lines: usize) -> Option<(St
             Err(_) => continue,
         };
 
-        // Check for summary/title fields on any line
         if custom_title.is_none() {
             if let Some(t) = value.get("customTitle").and_then(|v| v.as_str()) {
                 if !t.is_empty() { custom_title = Some(t.to_string()); }
@@ -242,7 +241,6 @@ pub fn extract_title_from_transcript(path: &str, max_lines: usize) -> Option<(St
             }
         }
 
-        // Also check nested under "summary" type
         if value.get("type").and_then(|v| v.as_str()) == Some("summary") {
             if let Some(t) = value.get("summary").and_then(|v| v.as_str()) {
                 if !t.is_empty() && custom_title.is_none() {
@@ -256,7 +254,25 @@ pub fn extract_title_from_transcript(path: &str, max_lines: usize) -> Option<(St
             }
         }
 
-        // Last user prompt as fallback
+        // Last assistant text as summary (take first sentence)
+        if value.get("type").and_then(|v| v.as_str()) == Some("assistant") {
+            if let Some(content) = value.get("message").and_then(|m| m.get("content")) {
+                if let Some(arr) = content.as_array() {
+                    for item in arr {
+                        if item.get("type").and_then(|v| v.as_str()) == Some("text") {
+                            if let Some(text) = item.get("text").and_then(|v| v.as_str()) {
+                                let text = text.trim();
+                                if !text.is_empty() {
+                                    assistant_summary = Some(first_sentence(text, 80));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Last user prompt
         if value.get("type").and_then(|v| v.as_str()) == Some("user") {
             if let Some(content) = value.get("message").and_then(|m| m.get("content")) {
                 if let Some(arr) = content.as_array() {
@@ -278,8 +294,35 @@ pub fn extract_title_from_transcript(path: &str, max_lines: usize) -> Option<(St
     if let Some(t) = custom_title { return Some((t, "customTitle".into())); }
     if let Some(t) = ai_title { return Some((t, "aiTitle".into())); }
     if let Some(t) = agent_name { return Some((t, "agentName".into())); }
+    if let Some(t) = assistant_summary { return Some((t, "assistantSummary".into())); }
     if let Some(t) = last_prompt { return Some((t, "prompt".into())); }
     None
+}
+
+/// Extract the first sentence from text, truncated to max_len chars.
+fn first_sentence(text: &str, max_len: usize) -> String {
+    let text = text.trim();
+    if text.is_empty() { return String::new(); }
+
+    // Find first sentence boundary: period, Chinese period, newline, or max_len
+    let mut end = text.len().min(max_len);
+    for (i, ch) in text.char_indices() {
+        if ch == '。' || ch == '.' || ch == '\n' || ch == '！' || ch == '？' || ch == '!' || ch == '?' {
+            end = i + ch.len_utf8();
+            break;
+        }
+        if i >= max_len {
+            end = i;
+            break;
+        }
+    }
+
+    let s = text[..end].trim_end_matches(|c: char| c == '。' || c == '.' || c == ' ' || c == '，' || c == ',').to_string();
+    if end < text.len() && s.len() < text.len() {
+        format!("{}…", s)
+    } else {
+        s
+    }
 }
 
 /// Scan for recent Claude Code transcript files and return discovered sessions.
