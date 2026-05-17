@@ -10,13 +10,16 @@ import { SessionDetail } from "./SessionDetail";
 import { SessionList } from "./SessionList";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { JumpToast, useJumpToast } from "./JumpToast";
+import { PanelHead } from "./PanelHead";
 import { getToolDescription } from "../shared/tool-description";
+import { isAttentionPhase } from "../shared/phase-colors";
 import { useSessionsStore } from "../store/sessions";
 import { normalizeOverlayLayoutConfig, useConfigStore } from "../store/config";
 import { logger } from "../client/logger";
 import type { ApprovalRequest, Session } from "../store/sessions";
 import "./Overlay.css";
 import "./ApprovalQueue.css";
+import "./PanelHead.css";
 
 type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored" | "CommandFailed";
 
@@ -445,44 +448,42 @@ export function Overlay() {
                 <ActivityTimeline data-testid="activity-timeline" />
               ) : (
                 <>
-                  {currentApproval && (
-                    <ApprovalPanel key={currentApproval.toolUseId} request={currentApproval} onApprovalHandled={handleApprovalHandled} />
-                  )}
-                  {viewingSession ? (
-                    <SessionDetail session={viewingSession} onBack={() => setViewingSessionId(null)} data-testid="session-detail" />
-                  ) : (
-                    <SessionList
-                      sessions={sessions}
-                      activeSessionId={activeSessionId}
-                      viewingSessionId={viewingSessionId}
-                      onSessionClick={handleSessionClick}
-                      onRenameSession={(id, label) => useSessionsStore.getState().renameSession(id, label)}
-                      onDeleteSession={(id) => useSessionsStore.getState().removeSession(id)}
-                      onSetSessionTag={(id, tag) => useSessionsStore.getState().setSessionTag(id, tag)}
-                      onCreateGroup={(name) => useSessionsStore.getState().createGroup(name)}
-                      groups={groups}
-                      data-testid="sessions-list"
-                    />
-                  )}
+                  <PanelHead
+                    sessions={sessions}
+                    onSettingsClick={() => { setShowSettings(true); setShowActivity(false); setViewingSessionId(null); }}
+                    data-testid="panel-head"
+                  />
+                  <div className="panel-list" data-testid="panel-list">
+                    {currentApproval && (
+                      <ApprovalPanel key={currentApproval.toolUseId} request={currentApproval} onApprovalHandled={handleApprovalHandled} />
+                    )}
+                    {viewingSession ? (
+                      <SessionDetail session={viewingSession} onBack={() => setViewingSessionId(null)} data-testid="session-detail" />
+                    ) : (
+                      <SessionList
+                        sessions={sessions}
+                        activeSessionId={activeSessionId}
+                        viewingSessionId={viewingSessionId}
+                        onSessionClick={handleSessionClick}
+                        onRenameSession={(id, label) => useSessionsStore.getState().renameSession(id, label)}
+                        onDeleteSession={(id) => useSessionsStore.getState().removeSession(id)}
+                        onSetSessionTag={(id, tag) => useSessionsStore.getState().setSessionTag(id, tag)}
+                        onCreateGroup={(name) => useSessionsStore.getState().createGroup(name)}
+                        groups={groups}
+                        data-testid="sessions-list"
+                      />
+                    )}
+                  </div>
+                  <div className="panel-foot" data-testid="panel-foot">
+                    <span className="panel-foot__summary">
+                      {sessions.length} session{sessions.length === 1 ? "" : "s"}{(() => {
+                        const wc = sessions.filter(s => isAttentionPhase(s.state)).length;
+                        return wc > 0 ? ` · ${wc} waiting` : "";
+                      })()}
+                    </span>
+                    <span className="panel-foot__shortcut">Ctrl+Alt+Space</span>
+                  </div>
                 </>
-              )}
-              {!isApprovalFocusMode && (
-                <div className="overlay__panel-footer">
-                  <button
-                    className="overlay__settings-btn"
-                    data-testid="settings-btn"
-                    onClick={() => { setShowSettings(!showSettings); setShowActivity(false); setViewingSessionId(null); }}
-                  >
-                    {showSettings ? "← Back" : "⚙ Settings"}
-                  </button>
-                  <button
-                    className="overlay__settings-btn"
-                    data-testid="activity-btn"
-                    onClick={() => { setShowActivity(!showActivity); setShowSettings(false); setViewingSessionId(null); }}
-                  >
-                    {showActivity ? "← Back" : "📊 Activity"}
-                  </button>
-                </div>
               )}
             </motion.div>
           )}

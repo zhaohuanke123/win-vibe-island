@@ -42,7 +42,7 @@
   gap: 2px;
 }
 
-/* Priority group header (state groups) */
+/* Priority group header (state groups) — v8 section header style */
 .oi-prio-head {
   display: flex;
   align-items: center;
@@ -62,7 +62,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(241, 234, 217, 0.3);
+  color: var(--ink-mute);
   transition: transform 0.15s ease;
   flex-shrink: 0;
 }
@@ -82,8 +82,8 @@
   font-size: 10.5px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--ink-soft, rgba(241, 234, 217, 0.55));
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -94,7 +94,7 @@
 .oi-prio-head__count {
   font-size: 10px;
   font-variant-numeric: tabular-nums;
-  color: var(--ink-mute, rgba(241, 234, 217, 0.3));
+  color: var(--ink-mute);
   background: rgba(255, 255, 255, 0.06);
   padding: 1px 5px;
   border-radius: 8px;
@@ -121,7 +121,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(241, 234, 217, 0.3);
+  color: var(--ink-mute);
   transition: transform 0.15s ease;
   flex-shrink: 0;
 }
@@ -138,9 +138,11 @@
 }
 
 .oi-grp-head__label {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--paper, #f1ead9);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--paper);
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -151,7 +153,7 @@
 .oi-grp-head__count {
   font-size: 10px;
   font-variant-numeric: tabular-nums;
-  color: var(--ink-mute, rgba(241, 234, 217, 0.3));
+  color: var(--ink-mute);
   background: rgba(255, 255, 255, 0.06);
   padding: 1px 5px;
   border-radius: 8px;

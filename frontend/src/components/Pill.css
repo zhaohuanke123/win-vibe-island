@@ -4,9 +4,9 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  background: #0d0d0f;
-  color: #f1ead9;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-ui);
   font-size: 13px;
   user-select: none;
   overflow: hidden;
@@ -102,7 +102,7 @@
   white-space: nowrap;
   font-size: 12px;
   font-weight: 500;
-  color: #f1ead9;
+  color: var(--paper);
 }
 
 .notch-row__spacer {
@@ -115,8 +115,8 @@
   align-items: center;
   gap: 4px;
   font-size: 10.5px;
-  color: rgba(241, 234, 217, 0.45);
-  font-family: 'JetBrains Mono', monospace;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
 }
 
 .notch-row__right .notch-row__chip {
@@ -137,8 +137,8 @@
   border-radius: 8px;
   font-size: 10px;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.1);
-  color: #f1ead9;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--paper);
 }
 
 /* ── Jump Toast ── */
@@ -157,10 +157,10 @@
   gap: 6px;
   padding: 6px 10px;
   border-radius: 8px;
-  background: #0d0d0f;
-  color: #f1ead9;
+  background: var(--ink);
+  color: var(--paper);
   font-size: 11px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   white-space: nowrap;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   animation: oi-toast-fade 1.5s ease-in-out forwards;

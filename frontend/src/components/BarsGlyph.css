@@ -6,7 +6,7 @@
 }
 
 .bars-glyph .bar {
-  fill: #f1ead9;
+  fill: var(--paper);
   transition: transform 0.3s ease, opacity 0.3s ease;
   transform-box: fill-box;
   transform-origin: center;

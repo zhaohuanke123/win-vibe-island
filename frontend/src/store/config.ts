@@ -211,8 +211,8 @@ const DEFAULT_CONFIG: AppConfig = {
       waitingForApprovalDurationMs: 600,
       waitingForAnswerDurationMs: 600,
       spring: {
-        expand: { stiffness: 300, damping: 22, mass: 0.9 },
-        collapse: { stiffness: 380, damping: 26, mass: 0.85 },
+        expand: { stiffness: 200, damping: 22, mass: 0.8 },
+        collapse: { stiffness: 280, damping: 26, mass: 0.7 },
         transition: { stiffness: 400, damping: 30, mass: 1.0 },
         micro: { stiffness: 500, damping: 35, mass: 0.8 },
       },

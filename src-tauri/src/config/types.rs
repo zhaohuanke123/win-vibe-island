@@ -411,8 +411,8 @@ pub struct SpringConfig {
 impl Default for SpringConfig {
     fn default() -> Self {
         Self {
-            expand: SpringParams { stiffness: 300, damping: 22, mass: 0.9 },
-            collapse: SpringParams { stiffness: 380, damping: 26, mass: 0.85 },
+            expand: SpringParams { stiffness: 200, damping: 22, mass: 0.8 },
+            collapse: SpringParams { stiffness: 280, damping: 26, mass: 0.7 },
             transition: SpringParams { stiffness: 400, damping: 30, mass: 1.0 },
             micro: SpringParams { stiffness: 500, damping: 35, mass: 0.8 },
         }

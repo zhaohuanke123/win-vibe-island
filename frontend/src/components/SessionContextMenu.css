@@ -1,8 +1,8 @@
 .session-context-menu {
   position: fixed;
   z-index: 1000;
-  background: rgba(30, 30, 30, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--ink);
+  border: 1px solid var(--border-hover);
   border-radius: 6px;
   padding: 4px 0;
   min-width: 150px;
@@ -15,27 +15,27 @@
   gap: 8px;
   padding: 6px 12px;
   font-size: 11px;
-  color: #d1d5db;
+  color: var(--paper);
   cursor: pointer;
   transition: background 0.1s ease;
   white-space: nowrap;
 }
 
 .session-context-menu__item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .session-context-menu__item--danger {
-  color: #f87171;
+  color: var(--phase-approval);
 }
 
 .session-context-menu__item--danger:hover {
-  background: rgba(248, 113, 113, 0.12);
+  background: rgba(244, 164, 164, 0.1);
 }
 
 .session-context-menu__check {
   font-size: 10px;
-  color: #60a5fa;
+  color: var(--phase-running);
   width: 14px;
   flex-shrink: 0;
 }
@@ -47,7 +47,7 @@
 
 .session-context-menu__divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--border);
   margin: 4px 0;
 }
 
@@ -55,9 +55,10 @@
   width: 100%;
   padding: 5px 12px;
   font-size: 11px;
-  color: #d1d5db;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(59, 130, 246, 0.5);
+  font-family: var(--font-ui);
+  color: var(--paper);
+  background: var(--bg-soft);
+  border: 1px solid rgba(110, 167, 255, 0.4);
   border-radius: 3px;
   outline: none;
   margin: 2px 0;
@@ -65,5 +66,5 @@
 }
 
 .session-context-menu__new-group-input::placeholder {
-  color: #6b7280;
+  color: var(--ink-mute);
 }

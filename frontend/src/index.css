@@ -1,3 +1,31 @@
+/* ── v8 Design System Tokens ── */
+
+:root {
+  /* Ink & Paper */
+  --ink: #0d0d0f;
+  --paper: #f1ead9;
+  --ink-soft: rgba(241, 234, 217, 0.55);
+  --ink-mute: rgba(241, 234, 217, 0.3);
+  --line: rgba(255, 255, 255, 0.08);
+  --bg-soft: rgba(255, 255, 255, 0.025);
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --border-focus: rgba(255, 255, 255, 0.16);
+
+  /* Phase Colors */
+  --phase-approval: #f4a4a4;
+  --phase-answer: #ffd58a;
+  --phase-running: #6ea7ff;
+  --phase-completed: #6fb982;
+  --phase-idle: #9a958a;
+
+  /* Typography */
+  --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -5,7 +33,7 @@
 }
 
 html, body {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   background: transparent;
   overflow: hidden;
   width: 100%;

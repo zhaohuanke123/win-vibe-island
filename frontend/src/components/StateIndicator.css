@@ -26,7 +26,7 @@
   bottom: 0;
   width: 3px;
   border-radius: 1.5px;
-  background-color: var(--phase-color, #9a958a);
+  background-color: var(--phase-color, var(--phase-idle));
 }
 
 .ind-bar__label {
@@ -64,7 +64,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #9a958a;
+  background-color: var(--phase-idle);
   opacity: 0.6;
 }
 

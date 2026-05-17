@@ -3,7 +3,7 @@
   border-radius: 6px;
   margin: 8px 0;
   overflow: hidden;
-  font-family: "Consolas", "Monaco", "Courier New", monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   max-width: 100%;
   min-width: 0;
@@ -17,7 +17,7 @@
   gap: 6px;
   padding: 6px 10px;
   background: rgba(0, 0, 0, 0.2);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--border);
 }
 
 .diff-viewer__file-icon {
@@ -29,7 +29,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--paper);
   font-weight: 500;
 }
 
@@ -49,11 +49,11 @@
 }
 
 .diff-viewer__line--remove {
-  background: rgba(255, 80, 80, 0.15);
+  background: rgba(244, 164, 164, 0.1);
 }
 
 .diff-viewer__line--add {
-  background: rgba(80, 255, 120, 0.15);
+  background: rgba(111, 185, 130, 0.1);
 }
 
 .diff-viewer__line--context {
@@ -65,7 +65,7 @@
   min-width: 28px;
   padding: 0 4px;
   text-align: right;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--ink-mute);
   background: rgba(0, 0, 0, 0.1);
   user-select: none;
   flex: 0 0 auto;
@@ -74,7 +74,7 @@
 .diff-viewer__line-num--new {
   width: 28px;
   min-width: 28px;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 1px solid var(--border);
   flex: 0 0 auto;
 }
 
@@ -87,26 +87,26 @@
 }
 
 .diff-viewer__line--remove .diff-viewer__line-prefix {
-  color: #ff6b6b;
+  color: var(--phase-approval);
 }
 
 .diff-viewer__line--add .diff-viewer__line-prefix {
-  color: #69db7c;
+  color: var(--phase-completed);
 }
 
 .diff-viewer__line-content {
   flex: 0 0 auto;
   padding: 0 8px;
   white-space: pre;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--ink-soft);
 }
 
 .diff-viewer__line--remove .diff-viewer__line-content {
-  color: rgba(255, 180, 180, 0.9);
+  color: rgba(244, 164, 164, 0.85);
 }
 
 .diff-viewer__line--add .diff-viewer__line-content {
-  color: rgba(180, 255, 200, 0.9);
+  color: rgba(111, 185, 130, 0.85);
 }
 
 /* Scrollbar styling */
@@ -119,10 +119,10 @@
 }
 
 .diff-viewer::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 3px;
 }
 
 .diff-viewer::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.25);
 }

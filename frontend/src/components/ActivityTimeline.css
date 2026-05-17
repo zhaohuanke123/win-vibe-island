@@ -20,9 +20,9 @@
 .activity-timeline__range-select {
   padding: 4px 4px;
   font-size: 10px;
-  color: #9ca3af;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--ink-soft);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
   border-radius: 4px;
   outline: none;
   cursor: pointer;
@@ -30,17 +30,17 @@
 }
 
 .activity-timeline__range-select:focus {
-  border-color: rgba(59, 130, 246, 0.5);
+  border-color: rgba(110, 167, 255, 0.4);
 }
 
 .activity-timeline__range-select option {
-  background: #1f2937;
-  color: #d1d5db;
+  background: var(--ink);
+  color: var(--paper);
 }
 
 .activity-timeline__count {
   font-size: 10px;
-  color: #6b7280;
+  color: var(--ink-mute);
   flex: 1 1 auto;
   text-align: right;
 }
@@ -55,34 +55,34 @@
 .activity-timeline__export-format {
   padding: 4px 2px;
   font-size: 10px;
-  color: #9ca3af;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--ink-soft);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
   border-radius: 4px;
   outline: none;
   cursor: pointer;
 }
 
 .activity-timeline__export-format option {
-  background: #1f2937;
-  color: #d1d5db;
+  background: var(--ink);
+  color: var(--paper);
 }
 
 .activity-timeline__export-btn {
   padding: 4px 8px;
   font-size: 10px;
   font-weight: 500;
-  color: #9ca3af;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--ink-soft);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .activity-timeline__export-btn:hover:not(:disabled) {
-  color: #e5e7eb;
-  background: rgba(255, 255, 255, 0.12);
+  color: var(--paper);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .activity-timeline__export-btn:disabled {
@@ -98,9 +98,9 @@
   padding: 6px 8px;
   margin-bottom: 6px;
   font-size: 11px;
-  color: #d1d5db;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  color: var(--paper);
+  background: rgba(110, 167, 255, 0.08);
+  border: 1px solid rgba(110, 167, 255, 0.15);
   border-radius: 4px;
 }
 
@@ -122,24 +122,24 @@
 }
 
 .activity-timeline__btn--confirm {
-  color: #fff;
-  background: rgba(59, 130, 246, 0.5);
-  border-color: rgba(59, 130, 246, 0.5);
+  color: var(--paper);
+  background: rgba(110, 167, 255, 0.5);
+  border-color: rgba(110, 167, 255, 0.5);
 }
 
 .activity-timeline__btn--confirm:hover {
-  background: rgba(59, 130, 246, 0.7);
+  background: rgba(110, 167, 255, 0.7);
 }
 
 .activity-timeline__btn--cancel {
-  color: #9ca3af;
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--ink-soft);
+  background: var(--bg-soft);
+  border-color: var(--border);
 }
 
 .activity-timeline__btn--cancel:hover {
-  color: #e5e7eb;
-  background: rgba(255, 255, 255, 0.12);
+  color: var(--paper);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* List */
@@ -185,13 +185,13 @@
 
 .activity-timeline__entry-time {
   font-size: 10px;
-  color: #6b7280;
-  font-family: monospace;
+  color: var(--ink-mute);
+  font-family: var(--font-mono);
 }
 
 .activity-timeline__entry-session {
   font-size: 10px;
-  color: #4b5563;
+  color: var(--ink-mute);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -202,6 +202,6 @@
 .activity-timeline__empty {
   padding: 16px 8px;
   text-align: center;
-  color: #6b7280;
+  color: var(--ink-mute);
   font-size: 12px;
 }

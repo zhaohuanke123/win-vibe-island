@@ -8,7 +8,7 @@
   width: 100%;
   margin-top: 10px;
   padding: 14px;
-  background: rgba(17, 17, 17, 0.95);
+  background: var(--ink);
   border-radius: 8px;
   border: 1px solid rgba(245, 158, 11, 0.3);
   animation: slideIn 300ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -32,19 +32,19 @@
 }
 
 .approval-panel--approved {
-  border-color: rgba(34, 197, 94, 0.5);
+  border-color: rgba(111, 185, 130, 0.4);
   animation: approvedPulse 500ms ease-out forwards;
   animation-delay: 0.2s;
 }
 
 @keyframes approvedPulse {
   0% {
-    background: rgba(17, 17, 17, 0.95);
-    border-color: rgba(34, 197, 94, 0.5);
+    background: var(--ink);
+    border-color: rgba(111, 185, 130, 0.4);
   }
   30% {
-    background: rgba(34, 197, 94, 0.15);
-    border-color: rgba(34, 197, 94, 0.7);
+    background: rgba(111, 185, 130, 0.12);
+    border-color: rgba(111, 185, 130, 0.6);
   }
   100% {
     opacity: 0;
@@ -53,19 +53,19 @@
 }
 
 .approval-panel--rejected {
-  border-color: rgba(239, 68, 68, 0.5);
+  border-color: rgba(244, 164, 164, 0.4);
   animation: rejectedPulse 500ms ease-out forwards;
   animation-delay: 0.2s;
 }
 
 @keyframes rejectedPulse {
   0% {
-    background: rgba(17, 17, 17, 0.95);
-    border-color: rgba(239, 68, 68, 0.5);
+    background: var(--ink);
+    border-color: rgba(244, 164, 164, 0.4);
   }
   30% {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: rgba(239, 68, 68, 0.7);
+    background: rgba(244, 164, 164, 0.12);
+    border-color: rgba(244, 164, 164, 0.6);
   }
   100% {
     opacity: 0;
@@ -87,16 +87,16 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  background: rgba(245, 158, 11, 0.2);
+  background: rgba(255, 213, 138, 0.15);
   border-radius: 50%;
-  color: #f59e0b;
+  color: var(--phase-answer);
   font-weight: bold;
   font-size: 12px;
 }
 
 .approval-panel__title {
   font-weight: 600;
-  color: #f59e0b;
+  color: var(--phase-answer);
   font-size: 13px;
 }
 
@@ -111,7 +111,7 @@
   overscroll-behavior: contain;
   padding-right: 4px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
 }
 
 .approval-panel__body::-webkit-scrollbar {
@@ -123,12 +123,12 @@
 }
 
 .approval-panel__body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 2px;
 }
 
 .approval-panel__body::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .approval-panel__body > * {
@@ -146,23 +146,23 @@
 }
 
 .approval-panel__label {
-  color: #9ca3af;
-  font-size: 11px;
+  color: var(--ink-soft);
+  font-size: 10.5px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.12em;
 }
 
 .approval-panel__tool-name {
-  color: #6b7280;
+  color: var(--ink-mute);
   font-size: 10px;
   margin-left: 6px;
-  background: rgba(107, 114, 128, 0.2);
+  background: rgba(255, 255, 255, 0.06);
   padding: 1px 4px;
   border-radius: 2px;
 }
 
 .approval-panel__action {
-  color: #e5e7eb;
+  color: var(--paper);
   font-size: 13px;
   line-height: 1.4;
   margin-bottom: 14px;
@@ -180,7 +180,7 @@
   margin-bottom: 14px;
   padding: 10px;
   background: rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: 4px;
   min-width: 0;
   max-width: 100%;
@@ -188,11 +188,11 @@
 
 .approval-panel__section-label {
   margin-bottom: 4px;
-  color: #9ca3af;
-  font-size: 10px;
+  color: var(--ink-soft);
+  font-size: 10.5px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.12em;
 }
 
 .approval-panel__footer {
@@ -206,7 +206,7 @@
   flex-wrap: wrap;
   margin-top: 12px;
   padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--border);
 }
 
 .approval-panel__risk {
@@ -218,18 +218,18 @@
 }
 
 .approval-panel__risk--low {
-  background: rgba(34, 197, 94, 0.2);
-  color: #22c55e;
+  background: rgba(111, 185, 130, 0.15);
+  color: var(--phase-completed);
 }
 
 .approval-panel__risk--medium {
-  background: rgba(245, 158, 11, 0.2);
-  color: #f59e0b;
+  background: rgba(255, 213, 138, 0.15);
+  color: var(--phase-answer);
 }
 
 .approval-panel__risk--high {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
+  background: rgba(244, 164, 164, 0.15);
+  color: var(--phase-approval);
 }
 
 .approval-panel__buttons {
@@ -261,45 +261,46 @@
 }
 
 .approval-panel__btn--approve {
-  background: rgba(34, 197, 94, 0.9);
-  color: white;
+  background: rgba(111, 185, 130, 0.85);
+  color: var(--ink);
 }
 
 .approval-panel__btn--approve:hover:not(:disabled) {
-  background: rgba(34, 197, 94, 1);
+  background: rgba(111, 185, 130, 1);
 }
 
 .approval-panel__btn--reject {
-  background: rgba(107, 114, 128, 0.8);
-  color: white;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink-soft);
 }
 
 .approval-panel__btn--reject:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.9);
+  background: rgba(244, 164, 164, 0.85);
+  color: var(--ink);
 }
 
 .approval-panel__shortcuts {
   flex: 0 0 auto;
   margin-top: 8px;
   font-size: 10px;
-  color: #6b7280;
+  color: var(--ink-mute);
   text-align: center;
 }
 
 .approval-panel__shortcuts span {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
   padding: 1px 4px;
   border-radius: 2px;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 .approval-panel__spinner {
   display: inline-block;
   width: 12px;
   height: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.12);
   border-radius: 50%;
-  border-top-color: white;
+  border-top-color: var(--paper);
   animation: spin 0.8s linear infinite;
 }
 
@@ -309,13 +310,13 @@
   }
 }
 
-/* DiffViewer 容器约束 */
+/* DiffViewer container */
 .approval-panel .diff-viewer {
   max-width: 100%;
   min-width: 0;
 }
 
-/* 代码块换行处理 */
+/* Code block wrapping */
 .approval-panel pre,
 .approval-panel code {
   max-width: 100%;
@@ -329,16 +330,16 @@
    ============================================ */
 
 .approval-panel--question {
-  border-color: rgba(59, 130, 246, 0.3);
+  border-color: rgba(110, 167, 255, 0.25);
 }
 
 .approval-panel--question .approval-panel__icon {
-  background: rgba(59, 130, 246, 0.2);
-  color: #3b82f6;
+  background: rgba(110, 167, 255, 0.15);
+  color: var(--phase-running);
 }
 
 .approval-panel--question .approval-panel__title {
-  color: #3b82f6;
+  color: var(--phase-running);
 }
 
 .approval-panel__questions {
@@ -365,17 +366,17 @@
   display: inline-block;
   font-size: 10px;
   font-weight: 600;
-  color: #3b82f6;
+  color: var(--phase-running);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  background: rgba(59, 130, 246, 0.15);
+  letter-spacing: 0.12em;
+  background: rgba(110, 167, 255, 0.12);
   padding: 2px 6px;
   border-radius: 3px;
   width: fit-content;
 }
 
 .approval-panel__question-text {
-  color: #e5e7eb;
+  color: var(--paper);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -391,8 +392,8 @@
   flex-direction: column;
   align-items: flex-start;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -400,13 +401,13 @@
 }
 
 .approval-panel__option:hover:not(:disabled) {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.3);
+  background: rgba(110, 167, 255, 0.08);
+  border-color: rgba(110, 167, 255, 0.2);
 }
 
 .approval-panel__option--selected {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(110, 167, 255, 0.12);
+  border-color: rgba(110, 167, 255, 0.35);
 }
 
 .approval-panel__option:disabled {
@@ -415,13 +416,13 @@
 }
 
 .approval-panel__option-label {
-  color: #e5e7eb;
+  color: var(--paper);
   font-weight: 500;
   font-size: 13px;
 }
 
 .approval-panel__option-desc {
-  color: #9ca3af;
+  color: var(--ink-soft);
   font-size: 11px;
   margin-top: 4px;
   line-height: 1.4;
@@ -435,21 +436,22 @@
   width: 100%;
   padding: 8px 10px;
   background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: #e5e7eb;
+  color: var(--paper);
   font-size: 12px;
+  font-family: var(--font-mono);
   outline: none;
   transition: border-color 0.15s ease;
   box-sizing: border-box;
 }
 
 .approval-panel__text-input:focus {
-  border-color: rgba(59, 130, 246, 0.5);
+  border-color: rgba(110, 167, 255, 0.4);
 }
 
 .approval-panel__text-input::placeholder {
-  color: #6b7280;
+  color: var(--ink-mute);
 }
 
 .approval-panel__text-input:disabled {
@@ -458,25 +460,25 @@
 }
 
 .approval-panel__btn--submit {
-  background: rgba(59, 130, 246, 0.9);
-  color: white;
+  background: rgba(110, 167, 255, 0.85);
+  color: var(--ink);
 }
 
 .approval-panel__btn--submit:hover:not(:disabled) {
-  background: rgba(59, 130, 246, 1);
+  background: rgba(110, 167, 255, 1);
 }
 
 .approval-panel__btn--submit:disabled {
-  background: rgba(59, 130, 246, 0.4);
+  background: rgba(110, 167, 255, 0.4);
 }
 
 .approval-panel__btn--skip {
-  background: rgba(107, 114, 128, 0.8);
-  color: white;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink-soft);
 }
 
 .approval-panel__btn--skip:hover:not(:disabled) {
-  background: rgba(107, 114, 128, 1);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* ============================================
@@ -484,16 +486,16 @@
    ============================================ */
 
 .approval-panel--plan {
-  border-color: rgba(168, 85, 247, 0.3);
+  border-color: rgba(192, 132, 252, 0.25);
 }
 
 .approval-panel--plan .approval-panel__icon {
-  background: rgba(168, 85, 247, 0.2);
-  color: #a78bfa;
+  background: rgba(192, 132, 252, 0.15);
+  color: #c084fc;
 }
 
 .approval-panel--plan .approval-panel__title {
-  color: #a78bfa;
+  color: #c084fc;
 }
 
 .approval-panel__plan-steps {
@@ -509,9 +511,9 @@
   align-items: flex-start;
   gap: 10px;
   padding: 10px 12px;
-  background: rgba(168, 85, 247, 0.08);
+  background: rgba(192, 132, 252, 0.06);
   border-radius: 6px;
-  border: 1px solid rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(192, 132, 252, 0.1);
 }
 
 .approval-panel__plan-step-number {
@@ -520,38 +522,38 @@
   justify-content: center;
   width: 22px;
   height: 22px;
-  background: rgba(168, 85, 247, 0.2);
+  background: rgba(192, 132, 252, 0.15);
   border-radius: 50%;
-  color: #a78bfa;
+  color: #c084fc;
   font-weight: 600;
   font-size: 12px;
   flex-shrink: 0;
 }
 
 .approval-panel__plan-step-content {
-  color: #e5e7eb;
+  color: var(--paper);
   font-size: 13px;
   line-height: 1.5;
   flex: 1;
 }
 
 .approval-panel__btn--proceed {
-  background: rgba(34, 197, 94, 0.9);
-  color: white;
+  background: rgba(111, 185, 130, 0.85);
+  color: var(--ink);
 }
 
 .approval-panel__btn--proceed:hover:not(:disabled) {
-  background: rgba(34, 197, 94, 1);
+  background: rgba(111, 185, 130, 1);
 }
 
 /* Plan content markdown styles */
 .approval-panel__plan-content {
   overflow: visible;
   padding: 12px;
-  background: rgba(168, 85, 247, 0.05);
+  background: rgba(192, 132, 252, 0.04);
   border-radius: 6px;
   margin-bottom: 12px;
-  color: #e5e7eb;
+  color: var(--paper);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -560,7 +562,7 @@
 .approval-panel__plan-content h2,
 .approval-panel__plan-content h3,
 .approval-panel__plan-content h4 {
-  color: #a78bfa;
+  color: #c084fc;
   margin-top: 16px;
   margin-bottom: 8px;
   font-weight: 600;
@@ -590,7 +592,7 @@
   background: rgba(0, 0, 0, 0.3);
   padding: 2px 6px;
   border-radius: 4px;
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 
@@ -608,10 +610,10 @@
 }
 
 .approval-panel__plan-content blockquote {
-  border-left: 3px solid rgba(168, 85, 247, 0.5);
+  border-left: 3px solid rgba(192, 132, 252, 0.4);
   margin: 8px 0;
   padding-left: 12px;
-  color: #9ca3af;
+  color: var(--ink-soft);
 }
 
 .approval-panel__plan-content p {
@@ -627,21 +629,21 @@
 }
 
 .approval-panel__plan-content strong {
-  color: #f5f5f5;
+  color: var(--paper);
   font-weight: 600;
 }
 
 .approval-panel__plan-content em {
-  color: #d1d5db;
+  color: var(--ink-soft);
 }
 
 .approval-panel__btn--modify {
-  background: rgba(59, 130, 246, 0.9);
-  color: white;
+  background: rgba(110, 167, 255, 0.85);
+  color: var(--ink);
 }
 
 .approval-panel__btn--modify:hover:not(:disabled) {
-  background: rgba(59, 130, 246, 1);
+  background: rgba(110, 167, 255, 1);
 }
 
 /* ============================================
@@ -659,7 +661,7 @@
   position: relative;
   width: 40px;
   height: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -671,15 +673,15 @@
 }
 
 .approval-panel__timeout-bar-fill--safe {
-  background: #22c55e;
+  background: var(--phase-completed);
 }
 
 .approval-panel__timeout-bar-fill--warning {
-  background: #f59e0b;
+  background: var(--phase-answer);
 }
 
 .approval-panel__timeout-bar-fill--urgent {
-  background: #ef4444;
+  background: var(--phase-approval);
   animation: urgentPulse 1s ease-in-out infinite;
 }
 
@@ -691,22 +693,22 @@
 .approval-panel__timeout-text {
   font-size: 11px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--ink-mute);
   font-variant-numeric: tabular-nums;
   min-width: 20px;
   text-align: right;
 }
 
 .approval-panel__timeout-text--safe {
-  color: #22c55e;
+  color: var(--phase-completed);
 }
 
 .approval-panel__timeout-text--warning {
-  color: #f59e0b;
+  color: var(--phase-answer);
 }
 
 .approval-panel__timeout-text--urgent {
-  color: #ef4444;
+  color: var(--phase-approval);
   animation: urgentTextPulse 1s ease-in-out infinite;
 }
 
@@ -716,7 +718,7 @@
 }
 
 .approval-panel__timeout-text--expired {
-  color: #6b7280;
+  color: var(--ink-mute);
 }
 
 /* Stretch approval panel to fill 720px in overlay approval-focus mode */

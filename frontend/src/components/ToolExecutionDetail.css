@@ -5,18 +5,18 @@
 }
 
 .tool-exec-detail--success {
-  border-left: 3px solid rgba(74, 222, 128, 0.4);
+  border-left: 3px solid rgba(111, 185, 130, 0.35);
   background: rgba(255, 255, 255, 0.02);
 }
 
 .tool-exec-detail--failed {
-  border-left: 3px solid rgba(248, 113, 113, 0.4);
-  background: rgba(239, 68, 68, 0.04);
+  border-left: 3px solid rgba(244, 164, 164, 0.35);
+  background: rgba(244, 164, 164, 0.03);
 }
 
 .tool-exec-detail--running,
 .tool-exec-detail--pending {
-  border-left: 3px solid rgba(96, 165, 250, 0.3);
+  border-left: 3px solid rgba(110, 167, 255, 0.3);
   background: rgba(255, 255, 255, 0.02);
 }
 
@@ -37,7 +37,7 @@
 
 .tool-exec-detail__arrow {
   font-size: 10px;
-  color: #6b7280;
+  color: var(--ink-mute);
   transition: transform 0.15s ease;
   flex-shrink: 0;
   line-height: 1;
@@ -50,8 +50,8 @@
 .tool-exec-detail__tool {
   font-size: 11px;
   font-weight: 600;
-  color: #d1d5db;
-  font-family: monospace;
+  color: var(--paper);
+  font-family: var(--font-mono);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -68,28 +68,28 @@
 }
 
 .tool-exec-detail__status[data-status="success"] {
-  color: #4ade80;
-  background: rgba(74, 222, 128, 0.15);
+  color: var(--phase-completed);
+  background: rgba(111, 185, 130, 0.12);
 }
 
 .tool-exec-detail__status[data-status="failed"] {
-  color: #f87171;
-  background: rgba(248, 113, 113, 0.15);
+  color: var(--phase-approval);
+  background: rgba(244, 164, 164, 0.12);
 }
 
 .tool-exec-detail__status[data-status="running"] {
-  color: #60a5fa;
-  background: rgba(96, 165, 250, 0.15);
+  color: var(--phase-running);
+  background: rgba(110, 167, 255, 0.12);
 }
 
 .tool-exec-detail__status[data-status="pending"] {
-  color: #9ca3af;
-  background: rgba(156, 163, 175, 0.15);
+  color: var(--phase-idle);
+  background: rgba(154, 149, 138, 0.12);
 }
 
 .tool-exec-detail__duration {
   font-size: 10px;
-  color: #6b7280;
+  color: var(--ink-mute);
   margin-left: auto;
   flex-shrink: 0;
 }
@@ -104,11 +104,11 @@
 }
 
 .tool-exec-detail__label {
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--ink-mute);
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.12em;
   margin-bottom: 3px;
 }
 
@@ -116,10 +116,10 @@
   margin: 0;
   padding: 6px 8px;
   font-size: 10px;
-  font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
-  color: #9ca3af;
+  font-family: var(--font-mono);
+  color: var(--ink-soft);
   background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: 4px;
   overflow-x: auto;
   overflow-y: hidden;
@@ -127,7 +127,7 @@
   word-break: break-all;
   max-height: 200px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
 }
 
 .tool-exec-detail__code::-webkit-scrollbar {
@@ -140,16 +140,16 @@
 }
 
 .tool-exec-detail__code::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 2px;
 }
 
 .tool-exec-detail__error-block {
   padding: 6px 8px;
   font-size: 11px;
-  color: #f87171;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: var(--phase-approval);
+  background: rgba(244, 164, 164, 0.08);
+  border: 1px solid rgba(244, 164, 164, 0.15);
   border-radius: 4px;
   white-space: pre-wrap;
   word-break: break-word;
@@ -159,6 +159,6 @@
 
 .tool-exec-detail__meta {
   font-size: 9px;
-  color: #4b5563;
+  color: var(--ink-mute);
   margin-top: 4px;
 }

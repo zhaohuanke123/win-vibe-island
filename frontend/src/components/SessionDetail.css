@@ -19,18 +19,18 @@
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 500;
-  color: #9ca3af;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--ink-soft);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: 5px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .session-detail__back-btn:hover {
-  color: #e5e7eb;
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--paper);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--border-hover);
 }
 
 .session-detail__body {
@@ -84,7 +84,7 @@
 .session-detail__label {
   font-size: 14px;
   font-weight: 600;
-  color: #e5e7eb;
+  color: var(--paper);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -92,7 +92,7 @@
 
 .session-detail__sublabel {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--ink-mute);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -118,24 +118,24 @@
 }
 
 .session-detail__info-key {
-  font-size: 10px;
-  color: #6b7280;
+  font-size: 10.5px;
+  color: var(--ink-mute);
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.12em;
 }
 
 .session-detail__info-value {
   font-size: 12px;
-  color: #d1d5db;
+  color: var(--paper);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .session-detail__cwd {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--ink-soft);
 }
 
 .session-detail__state {
@@ -154,10 +154,10 @@
 }
 
 .session-detail__section-title {
-  font-size: 10px;
-  color: #6b7280;
+  font-size: 10.5px;
+  color: var(--ink-mute);
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.12em;
   margin-bottom: 6px;
 }
 
@@ -167,21 +167,21 @@
   flex-direction: column;
   gap: 4px;
   padding: 8px 10px;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(110, 167, 255, 0.08);
+  border: 1px solid rgba(110, 167, 255, 0.15);
   border-radius: 6px;
 }
 
 .session-detail__tool-name {
   font-size: 12px;
   font-weight: 600;
-  color: #60a5fa;
-  font-family: monospace;
+  color: var(--phase-running);
+  font-family: var(--font-mono);
 }
 
 .session-detail__tool-input {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--ink-soft);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -189,16 +189,16 @@
 
 .session-detail__tool-time {
   font-size: 10px;
-  color: #6b7280;
+  color: var(--ink-mute);
 }
 
 /* Error */
 .session-detail__error {
   padding: 6px 8px;
   font-size: 11px;
-  color: #f87171;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: var(--phase-approval);
+  background: rgba(244, 164, 164, 0.08);
+  border: 1px solid rgba(244, 164, 164, 0.15);
   border-radius: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -215,21 +215,21 @@
 .session-detail__history-item {
   padding: 6px 8px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.02);
   border-left: 3px solid transparent;
 }
 
 .session-detail__history-item--success {
-  border-left-color: rgba(74, 222, 128, 0.5);
+  border-left-color: rgba(111, 185, 130, 0.45);
 }
 
 .session-detail__history-item--failed {
-  border-left-color: rgba(248, 113, 113, 0.5);
+  border-left-color: rgba(244, 164, 164, 0.45);
 }
 
 .session-detail__history-item--running,
 .session-detail__history-item--pending {
-  border-left-color: rgba(96, 165, 250, 0.4);
+  border-left-color: rgba(110, 167, 255, 0.35);
 }
 
 .session-detail__history-row {
@@ -242,8 +242,8 @@
 .session-detail__history-tool {
   font-size: 11px;
   font-weight: 600;
-  color: #d1d5db;
-  font-family: monospace;
+  color: var(--paper);
+  font-family: var(--font-mono);
   flex: 0 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -260,35 +260,35 @@
 }
 
 .session-detail__history-status[data-status="success"] {
-  color: #4ade80;
-  background: rgba(74, 222, 128, 0.15);
+  color: var(--phase-completed);
+  background: rgba(111, 185, 130, 0.12);
 }
 
 .session-detail__history-status[data-status="failed"] {
-  color: #f87171;
-  background: rgba(248, 113, 113, 0.15);
+  color: var(--phase-approval);
+  background: rgba(244, 164, 164, 0.12);
 }
 
 .session-detail__history-status[data-status="running"] {
-  color: #60a5fa;
-  background: rgba(96, 165, 250, 0.15);
+  color: var(--phase-running);
+  background: rgba(110, 167, 255, 0.12);
 }
 
 .session-detail__history-status[data-status="pending"] {
-  color: #9ca3af;
-  background: rgba(156, 163, 175, 0.15);
+  color: var(--phase-idle);
+  background: rgba(154, 149, 138, 0.12);
 }
 
 .session-detail__history-duration {
   font-size: 10px;
-  color: #6b7280;
+  color: var(--ink-mute);
   margin-left: auto;
   flex-shrink: 0;
 }
 
 .session-detail__history-input {
   font-size: 10px;
-  color: #6b7280;
+  color: var(--ink-mute);
   margin-top: 3px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -297,7 +297,7 @@
 
 .session-detail__history-error {
   font-size: 10px;
-  color: #f87171;
+  color: var(--phase-approval);
   margin-top: 3px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -306,7 +306,7 @@
 
 .session-detail__empty {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--ink-mute);
   text-align: center;
   padding: 10px 0;
 }

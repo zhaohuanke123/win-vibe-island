@@ -1,6 +1,8 @@
 import { normalizeOverlayLayoutConfig, useConfigStore } from "../store/config";
 
 // Spring animation parameters from config
+// Framer Motion springs are only used for window resize sync (Win32 requirement).
+// Row-level animations use CSS transitions (see CSS_TRANSITION below).
 export const SPRING_CONFIG = {
   get expand() {
     return useConfigStore.getState().getSpringConfig("expand");
@@ -42,11 +44,22 @@ export const OVERLAY_DIMENSIONS = {
   },
 } as const;
 
+// CSS transition durations aligned with v8 reference design.
+// Use these for row hover, state changes, chevron rotation, etc.
+export const CSS_TRANSITION = {
+  /** Row hover / active background — 120ms ease */
+  HOVER: "120ms ease",
+  /** Chevron rotation / small transform — 160ms ease */
+  CHEVRON: "160ms ease",
+  /** Panel expand / collapse — 300ms ease */
+  EXPAND: "300ms ease",
+} as const;
+
 export const DURATION = {
   micro: 150,
   transition: 250,
-  expand: 400,
-  collapse: 300,
+  expand: 300,
+  collapse: 250,
 } as const;
 
 export const EASING = {

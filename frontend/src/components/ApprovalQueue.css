@@ -24,7 +24,7 @@
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: #9ca3af;
+  color: var(--ink-soft);
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
@@ -33,8 +33,8 @@
 }
 
 .approval-queue-nav__btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  color: #e5e7eb;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--paper);
 }
 
 .approval-queue-nav__btn:disabled {
@@ -45,7 +45,7 @@
 .approval-queue-nav__counter {
   font-size: 12px;
   font-weight: 500;
-  color: #d1d5db;
+  color: var(--paper);
   min-width: 32px;
   text-align: center;
   font-variant-numeric: tabular-nums;

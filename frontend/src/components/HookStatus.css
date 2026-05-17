@@ -5,7 +5,7 @@
   padding: 4px 6px;
   border-radius: 4px;
   font-size: 11px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-soft);
   flex: 0 0 auto;
   min-width: 0;
   max-width: 48px;
@@ -22,32 +22,32 @@
 }
 
 .hook-status--connected .hook-status__dot {
-  background: #22c55e;
-  box-shadow: 0 0 6px #22c55e;
+  background: var(--phase-completed);
+  box-shadow: 0 0 6px var(--phase-completed);
 }
 
 .hook-status--disconnected .hook-status__dot {
-  background: #6b7280;
+  background: var(--phase-idle);
   animation: none;
 }
 
 .hook-status--error .hook-status__dot {
-  background: #ef4444;
-  box-shadow: 0 0 6px #ef4444;
+  background: var(--phase-approval);
+  box-shadow: 0 0 6px var(--phase-approval);
 }
 
 .hook-status--unknown .hook-status__dot {
-  background: #f59e0b;
+  background: var(--phase-answer);
   animation: blink 1s ease-in-out infinite;
 }
 
 .hook-status__text {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--ink-soft);
 }
 
 .hook-status__error {
   flex: 0 0 auto;
-  color: #f59e0b;
+  color: var(--phase-answer);
   cursor: help;
   line-height: 1;
 }
@@ -58,8 +58,8 @@
   gap: 8px;
   margin-left: 8px;
   padding-left: 8px;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.5);
+  border-left: 1px solid var(--border);
+  color: var(--ink-mute);
   font-size: 10px;
   min-width: 0;
   overflow: hidden;
@@ -83,7 +83,7 @@
   50% { opacity: 0.3; }
 }
 
-/* 紧凑模式下隐藏统计信息 */
+/* Compact mode: hide stats */
 .overlay--compact .hook-status__stats {
   display: none;
 }

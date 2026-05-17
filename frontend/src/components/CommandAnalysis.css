@@ -7,7 +7,7 @@
   align-items: center;
   gap: 8px;
   padding: 4px 0;
-  color: #d1d5db;
+  color: var(--paper);
 }
 
 .cmd-analysis__badge {
@@ -20,30 +20,30 @@
 }
 
 .cmd-analysis__badge--low {
-  color: #4ade80;
-  background: rgba(74, 222, 128, 0.15);
+  color: var(--phase-completed);
+  background: rgba(111, 185, 130, 0.12);
 }
 
 .cmd-analysis__badge--medium {
-  color: #f59e0b;
-  background: rgba(245, 158, 11, 0.15);
+  color: var(--phase-answer);
+  background: rgba(255, 213, 138, 0.12);
 }
 
 .cmd-analysis__badge--high {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.15);
+  color: var(--phase-approval);
+  background: rgba(244, 164, 164, 0.12);
 }
 
 .cmd-analysis__badge--safe {
-  color: #9ca3af;
-  background: rgba(156, 163, 175, 0.1);
+  color: var(--phase-idle);
+  background: rgba(154, 149, 138, 0.1);
 }
 
 .cmd-analysis__tree {
   margin: 4px 0;
   padding: 6px 8px;
   background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: 4px;
 }
 
@@ -56,15 +56,15 @@
 }
 
 .cmd-analysis__cmd-name {
-  font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  color: #e5e7eb;
+  color: var(--paper);
 }
 
 .cmd-analysis__args {
   padding-left: 12px;
-  border-left: 2px solid rgba(255, 255, 255, 0.08);
+  border-left: 2px solid var(--border);
   margin-left: 4px;
   margin-top: 2px;
 }
@@ -77,15 +77,15 @@
 }
 
 .cmd-analysis__arg-text {
-  font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
-  color: #9ca3af;
+  color: var(--ink-soft);
   flex-shrink: 0;
 }
 
 .cmd-analysis__arg-meaning {
   font-size: 10px;
-  color: #6b7280;
+  color: var(--ink-mute);
   flex: 1;
   min-width: 0;
 }
@@ -99,13 +99,13 @@
 }
 
 .cmd-analysis__arg-badge--medium {
-  color: #f59e0b;
-  background: rgba(245, 158, 11, 0.12);
+  color: var(--phase-answer);
+  background: rgba(255, 213, 138, 0.1);
 }
 
 .cmd-analysis__arg-badge--high {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.12);
+  color: var(--phase-approval);
+  background: rgba(244, 164, 164, 0.1);
 }
 
 .cmd-analysis__risks {
@@ -125,24 +125,24 @@
 }
 
 .cmd-analysis__risk--low {
-  border-left-color: #4ade80;
+  border-left-color: var(--phase-completed);
 }
 
 .cmd-analysis__risk--medium {
-  border-left-color: #f59e0b;
+  border-left-color: var(--phase-answer);
 }
 
 .cmd-analysis__risk--high {
-  border-left-color: #ef4444;
+  border-left-color: var(--phase-approval);
 }
 
 .cmd-analysis__risk-msg {
   font-size: 10px;
-  color: #d1d5db;
+  color: var(--paper);
 }
 
 .cmd-analysis__risk-suggestion {
   font-size: 9px;
-  color: #6b7280;
+  color: var(--ink-mute);
   margin-top: 1px;
 }
