@@ -37,6 +37,7 @@ interface StateChangeEvent {
   tool_input?: Record<string, unknown>;
   message?: string;
   prompt?: string;
+  title?: string;
   reason?: string;
 }
 
@@ -212,7 +213,7 @@ export function useAgentEvents() {
 
       // Listen for state_change events
       const unlistenState = await listen<StateChangeEvent>("state_change", (event) => {
-        const { session_id, state, tool_name, tool_input, message, prompt } = event.payload;
+        const { session_id, state, tool_name, tool_input, message, prompt, title } = event.payload;
         const validState = mapState(state);
 
         // Create session if it doesn't exist
@@ -236,9 +237,16 @@ export function useAgentEvents() {
           if (wasWaiting && !isStillWaiting) {
             removeApprovalsBySessionId(session_id);
           }
-          // Set title from first prompt if not already set
-          if (validState === "running" && prompt && !existingSession.title) {
-            updateSessionInfo(session_id, { title: truncatePrompt(prompt) });
+          // Set lastPrompt from prompt field
+          if (prompt) {
+            updateSessionInfo(session_id, {
+              lastPrompt: truncatePrompt(prompt, 200),
+              ...(!existingSession.title ? { title: truncatePrompt(prompt) } : {}),
+            });
+          }
+          // Set title from transcript scan (try_refresh_title)
+          if (title && !existingSession.title) {
+            updateSessionInfo(session_id, { title });
           }
         }
 

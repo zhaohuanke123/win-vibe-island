@@ -357,8 +357,12 @@ fn try_refresh_title(
         session_state::apply_event(&event);
 
         let _ = app_handle.emit(
-            "agent_event",
-            &serde_json::json!({ "type": "activityUpdated", "activityUpdated": { "sessionId": session_id, "title": title } }),
+            "state_change",
+            &serde_json::json!({
+                "session_id": session_id,
+                "state": "running",
+                "title": title,
+            }),
         );
     }
 }
