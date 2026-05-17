@@ -34,6 +34,7 @@ interface SessionRowProps {
   isActive?: boolean;
   indicatorKind?: StateIndicatorKind;
   density?: "comfortable" | "compact";
+  groupBy?: "none" | "state" | "agent" | "project";
   onJump?: (session: Session) => void;
   onDetail?: (session: Session) => void;
   onContextMenu?: (session: Session, position: { x: number; y: number }) => void;
@@ -45,6 +46,7 @@ export const SessionRow = memo(function SessionRow({
   isActive = false,
   indicatorKind = "dot",
   density = "comfortable",
+  groupBy = "none",
   onJump,
   onDetail,
   onContextMenu,
@@ -89,14 +91,19 @@ export const SessionRow = memo(function SessionRow({
   const terminalType = session.jumpTarget?.terminalType;
 
   const contentParts: string[] = [];
-  if (projectName) contentParts.push(projectName);
-  if (branch) contentParts.push(branch);
+  const hideProject = groupBy === "project";
+  if (projectName && !hideProject) contentParts.push(projectName);
+  if (branch && !hideProject) contentParts.push(branch);
+  const promptPreview = session.lastPrompt
+    ? session.lastPrompt.length > 50 ? session.lastPrompt.slice(0, 50) + "…" : session.lastPrompt
+    : "";
   const msg = session.currentTool?.name
     ? `${session.currentTool.name}(...)`
     : session.lastError
       ? "error"
       : "";
   if (msg) contentParts.push(msg);
+  else if (promptPreview && hideProject) contentParts.push(promptPreview);
 
   const isCompact = density === "compact";
 

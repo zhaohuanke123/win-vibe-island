@@ -377,9 +377,12 @@ export function Overlay() {
   // ── Notch row data ──
   const notchPhase = active?.state ?? "idle";
   const notchAgent = active?.agent ?? "claude";
-  const notchLabel = active?.title ?? active?.label ?? sessions.length > 0
+  const notchPromptPreview = active?.lastPrompt
+    ? (active.lastPrompt.length > 30 ? active.lastPrompt.slice(0, 30) + "…" : active.lastPrompt)
+    : null;
+  const notchLabel = active?.title ?? notchPromptPreview ?? active?.label ?? (sessions.length > 0
     ? `${sessions.length} session${sessions.length === 1 ? "" : "s"}`
-    : "No active sessions";
+    : "No active sessions");
 
   // ── Filter sessions for expanded mode ──
   // Don't show idle/completed sessions that are stale in the "active" section

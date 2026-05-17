@@ -201,7 +201,7 @@ export const GroupedRows = memo(function GroupedRows({
     return (
       <div className="grouped-rows grouped-rows--flat" data-testid="grouped-rows-flat">
         {sorted.map((s) => (
-          <SessionRow key={s.id} session={s} onJump={onJump} onDetail={onDetail} onContextMenu={onContextMenu} density={density} data-testid="flat-row" />
+          <SessionRow key={s.id} session={s} onJump={onJump} onDetail={onDetail} onContextMenu={onContextMenu} density={density} groupBy={groupBy} data-testid="flat-row" />
         ))}
       </div>
     );
@@ -240,7 +240,7 @@ export const GroupedRows = memo(function GroupedRows({
             {!isCol && (
               <div className="grouped-rows__items" data-testid="group-items">
                 {group.sessions.map((s) => (
-                  <SessionRow key={s.id} session={s} onJump={onJump} onDetail={onDetail} onContextMenu={onContextMenu} density={density} />
+                  <SessionRow key={s.id} session={s} onJump={onJump} onDetail={onDetail} onContextMenu={onContextMenu} density={density} groupBy={groupBy} />
                 ))}
               </div>
             )}

@@ -78,6 +78,8 @@ export interface ActivityUpdatedPayload {
   phase: SessionPhase;
   toolName?: string;
   toolInput?: Record<string, unknown>;
+  prompt?: string;
+  title?: string;
   timestamp: number;
 }
 
@@ -263,6 +265,8 @@ function applyActivityUpdated(
             state: PHASE_TO_STATE[p.phase] ?? s.state,
             lastActivity: p.timestamp,
             toolName: p.toolName ?? s.toolName,
+            ...(p.prompt ? { lastPrompt: p.prompt } : {}),
+            ...(p.title ? { title: p.title } : {}),
             ...(p.toolInput ? { filePath: p.toolInput.file_path as string | undefined } : {}),
           }
         : s

@@ -101,6 +101,8 @@ impl ClaudeCodeAdapter {
             phase: SessionPhase::Running,
             tool_name,
             tool_input: payload.get("tool_input").cloned(),
+            prompt: None,
+            title: None,
             timestamp: Self::now_ms(),
         })
     }
@@ -189,6 +191,8 @@ impl ClaudeCodeAdapter {
             phase: SessionPhase::Running,
             tool_name: None,
             tool_input: None,
+            prompt: Self::get_str(payload, "prompt"),
+            title: None,
             timestamp: Self::now_ms(),
         })
     }
@@ -210,6 +214,8 @@ impl ClaudeCodeAdapter {
             phase,
             tool_name: None,
             tool_input: None,
+            prompt: None,
+            title: None,
             timestamp: Self::now_ms(),
         })
     }

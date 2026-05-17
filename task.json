@@ -1748,6 +1748,35 @@
         "src-tauri/tauri.conf.json",
         "src-tauri/src/lib.rs"
       ]
+    },
+    {
+      "id": 67,
+      "title": "Session 标题策略：三段式标题读取与显示",
+      "description": "实现 Session 标题的多阶段读取策略：UserPromptSubmit 用 prompt 做临时标题，PostToolUse/Stop 扫描 transcript JSONL 提取 custom-title/ai-title 作为最终标题。SessionRow 主标题改为 lastPrompt，按 groupBy 决定是否显示项目名（避免与项目分组组头重复）。NotchRow 胶囊标题同步更新。",
+      "steps": [
+        "后端 agent_event.rs：ActivityUpdatedPayload 加 prompt + title 字段",
+        "后端 claude_adapter.rs：UserPromptSubmit 设置 prompt 字段",
+        "前端 session-reducer.ts：applyActivityUpdated 存 lastPrompt 和 title",
+        "前端 SessionRow.tsx：主标题改为 lastPrompt/lastTitle，按 groupBy 条件显示项目名",
+        "前端 GroupedRows.tsx：透传 groupBy 给 SessionRow",
+        "前端 Overlay.tsx：NotchRow 标题优先 title > lastPrompt > label",
+        "后端 hook_server.rs：PostToolUse 节流扫描 transcript 提取标题",
+        "后端 hook_server.rs：Stop 延迟 200ms 扫描 transcript 提取最终标题",
+        "npm run build + cargo check"
+      ],
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [],
+      "files": [
+        "src-tauri/src/agent_event.rs",
+        "src-tauri/src/adapters/claude_adapter.rs",
+        "src-tauri/src/hook_server.rs",
+        "src-tauri/src/transcript_discovery.rs",
+        "frontend/src/shared/session-reducer.ts",
+        "frontend/src/components/SessionRow.tsx",
+        "frontend/src/components/GroupedRows.tsx",
+        "frontend/src/components/Overlay.tsx"
+      ]
     }
   ]
 }

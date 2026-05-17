@@ -117,6 +117,8 @@ struct HookServerState {
     error_logs: Mutex<VecDeque<HookErrorLog>>,
     /// Last heartbeat timestamp
     last_heartbeat: Mutex<Option<i64>>,
+    /// Title refresh throttle: session_id → last scan timestamp (ms)
+    title_scan_timestamps: Mutex<std::collections::HashMap<String, u64>>,
 }
 
 /// Generic hook payload - captures all fields from Claude Code hooks
@@ -187,6 +189,7 @@ pub fn start_hook_server(app: AppHandle) -> Result<(), String> {
         error_count: Mutex::new(0),
         error_logs: Mutex::new(VecDeque::new()),
         last_heartbeat: Mutex::new(None),
+        title_scan_timestamps: Mutex::new(std::collections::HashMap::new()),
     });
     *state_guard = Some(state.clone());
     drop(state_guard);
@@ -300,6 +303,64 @@ fn get_session_label(payload: &HookPayload) -> String {
         return cwd.clone();
     }
     "Claude Code".to_string()
+}
+
+/// Try to refresh session title from transcript JSONL.
+/// Emits ActivityUpdated event with title field if found.
+fn try_refresh_title(
+    app_handle: &AppHandle,
+    session_id: &str,
+    transcript_path: &Option<String>,
+    title_scan_timestamps: &Mutex<std::collections::HashMap<String, u64>>,
+    min_interval_ms: u64,
+) {
+    let path = match transcript_path {
+        Some(p) if !p.is_empty() => p.clone(),
+        _ => return,
+    };
+
+    // Throttle check
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    {
+        let timestamps = title_scan_timestamps.lock();
+        if let Some(&last) = timestamps.get(session_id) {
+            if now - last < min_interval_ms {
+                return;
+            }
+        }
+    }
+
+    // Update throttle timestamp
+    {
+        let mut timestamps = title_scan_timestamps.lock();
+        timestamps.insert(session_id.to_string(), now);
+    }
+
+    // Scan transcript for title
+    if let Some((title, _source)) =
+        crate::transcript_discovery::extract_title_from_transcript(&path, 100)
+    {
+        let event = AgentEvent::ActivityUpdated(ActivityUpdatedPayload {
+            session_id: session_id.to_string(),
+            summary: String::new(),
+            phase: SessionPhase::Running,
+            tool_name: None,
+            tool_input: None,
+            prompt: None,
+            title: Some(title.clone()),
+            timestamp: chrono_timestamp(),
+        });
+        session_state::apply_event(&event);
+
+        let _ = app_handle.emit(
+            "agent_event",
+            &serde_json::json!({ "type": "activityUpdated", "activityUpdated": { "sessionId": session_id, "title": title } }),
+        );
+    }
 }
 
 /// Detect agent type from hook payload (process name, config path, or agent_type field).
@@ -503,6 +564,15 @@ async fn handle_post_tool_use(
         }),
     );
 
+    // Try to refresh title from transcript (throttled 2s)
+    try_refresh_title(
+        &state.app_handle,
+        &session_id,
+        &payload.transcript_path,
+        &state.title_scan_timestamps,
+        2000,
+    );
+
     Ok(StatusCode::OK)
 }
 
@@ -652,6 +722,22 @@ async fn handle_stop(
         &serde_json::to_value(&payload).unwrap_or_default()
     );
     session_state::apply_event(&completed_event);
+
+    // Delayed title refresh: wait 200ms for JSONL to flush, then scan for final title
+    let app_handle = state.app_handle.clone();
+    let session_id_clone = session_id.clone();
+    let transcript_path = payload.transcript_path.clone();
+    let state_clone = Arc::clone(&state);
+    tokio::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        try_refresh_title(
+            &app_handle,
+            &session_id_clone,
+            &transcript_path,
+            &state_clone.title_scan_timestamps,
+            0, // no throttle for Stop — always scan
+        );
+    });
 
     Ok(StatusCode::OK)
 }

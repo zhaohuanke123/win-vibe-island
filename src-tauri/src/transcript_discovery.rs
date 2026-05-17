@@ -192,6 +192,96 @@ fn parse_transcript(path: &Path) -> Option<DiscoveredSession> {
     })
 }
 
+/// Scan the last N lines of a transcript JSONL for a session title.
+/// Looks for: custom-title, ai-title, agent-name, or falls back to last user prompt.
+/// Returns (title, source) where source is "customTitle" | "aiTitle" | "agentName" | "prompt".
+pub fn extract_title_from_transcript(path: &str, max_lines: usize) -> Option<(String, String)> {
+    let file = File::open(path).ok()?;
+    let reader = BufReader::new(file);
+
+    // Read lines into buffer, keep only last N
+    let mut lines: Vec<String> = Vec::new();
+    for line_result in reader.lines() {
+        let line = match line_result {
+            Ok(l) => l,
+            Err(_) => continue,
+        };
+        lines.push(line);
+        if lines.len() > max_lines {
+            lines.remove(0);
+        }
+    }
+
+    let mut custom_title: Option<String> = None;
+    let mut ai_title: Option<String> = None;
+    let mut agent_name: Option<String> = None;
+    let mut last_prompt: Option<String> = None;
+
+    for line in &lines {
+        let trimmed = line.trim();
+        if trimmed.is_empty() { continue; }
+        let value: serde_json::Value = match serde_json::from_str(trimmed) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        // Check for summary/title fields on any line
+        if custom_title.is_none() {
+            if let Some(t) = value.get("customTitle").and_then(|v| v.as_str()) {
+                if !t.is_empty() { custom_title = Some(t.to_string()); }
+            }
+        }
+        if ai_title.is_none() {
+            if let Some(t) = value.get("aiTitle").and_then(|v| v.as_str()) {
+                if !t.is_empty() { ai_title = Some(t.to_string()); }
+            }
+        }
+        if agent_name.is_none() {
+            if let Some(t) = value.get("agentName").and_then(|v| v.as_str()) {
+                if !t.is_empty() { agent_name = Some(t.to_string()); }
+            }
+        }
+
+        // Also check nested under "summary" type
+        if value.get("type").and_then(|v| v.as_str()) == Some("summary") {
+            if let Some(t) = value.get("summary").and_then(|v| v.as_str()) {
+                if !t.is_empty() && custom_title.is_none() {
+                    custom_title = Some(t.to_string());
+                }
+            }
+            if let Some(t) = value.get("title").and_then(|v| v.as_str()) {
+                if !t.is_empty() && custom_title.is_none() {
+                    custom_title = Some(t.to_string());
+                }
+            }
+        }
+
+        // Last user prompt as fallback
+        if value.get("type").and_then(|v| v.as_str()) == Some("user") {
+            if let Some(content) = value.get("message").and_then(|m| m.get("content")) {
+                if let Some(arr) = content.as_array() {
+                    for item in arr {
+                        if item.get("type").and_then(|v| v.as_str()) == Some("text") {
+                            if let Some(text) = item.get("text").and_then(|v| v.as_str()) {
+                                let text = text.trim();
+                                if !text.starts_with("<ide_") && !text.is_empty() {
+                                    last_prompt = Some(text.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(t) = custom_title { return Some((t, "customTitle".into())); }
+    if let Some(t) = ai_title { return Some((t, "aiTitle".into())); }
+    if let Some(t) = agent_name { return Some((t, "agentName".into())); }
+    if let Some(t) = last_prompt { return Some((t, "prompt".into())); }
+    None
+}
+
 /// Scan for recent Claude Code transcript files and return discovered sessions.
 pub fn discover_sessions() -> Vec<DiscoveredSession> {
     let projects_dir = match projects_dir() {

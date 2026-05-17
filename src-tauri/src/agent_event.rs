@@ -51,6 +51,10 @@ pub struct ActivityUpdatedPayload {
     pub phase: SessionPhase,
     pub tool_name: Option<String>,
     pub tool_input: Option<serde_json::Value>,
+    /// User prompt text (set by UserPromptSubmit hook)
+    pub prompt: Option<String>,
+    /// Session title from transcript JSONL (custom-title / ai-title)
+    pub title: Option<String>,
     pub timestamp: i64,
 }
 
