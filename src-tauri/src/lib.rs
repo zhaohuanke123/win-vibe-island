@@ -146,6 +146,17 @@ pub fn run() {
                 }
             }
 
+            // Prevent control-center window from being destroyed on close — hide instead
+            if let Some(cc_window) = app.get_webview_window("control-center") {
+                let w = cc_window.clone();
+                cc_window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = w.hide();
+                    }
+                });
+            }
+
             // Start the named pipe server for receiving agent events
             #[cfg(target_os = "windows")]
             {

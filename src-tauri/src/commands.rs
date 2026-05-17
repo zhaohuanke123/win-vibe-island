@@ -912,20 +912,25 @@ pub fn open_control_center(app: AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
-    // Window is declared in tauri.conf.json with visible=false.
-    // Since it's already registered, just show it.
-    // If it wasn't created (e.g., conf missing), create it dynamically.
     let url = WebviewUrl::App("/?window=control-center".into());
     let window = tauri::WebviewWindow::builder(&app, "control-center", url)
-        .title("Vibe Island — Control Center")
+        .title("Vibe Island")
         .inner_size(560.0, 520.0)
         .min_inner_size(460.0, 400.0)
         .resizable(true)
-        .decorations(true)
+        .decorations(false)
         .shadow(true)
         .center()
         .build()
         .map_err(|e| format!("Failed to create control center window: {}", e))?;
+
+    let w = window.clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = w.hide();
+        }
+    });
 
     let _ = window.show();
     Ok(())
