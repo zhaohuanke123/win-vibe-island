@@ -1,0 +1,259 @@
+import { useState, useCallback, memo } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { StateIndicator } from "./StateIndicator";
+import type { StateIndicatorKind } from "./StateIndicator";
+import { getAgent, hexA } from "../shared/agents";
+import { phaseColor, fmtAge, isAttentionPhase } from "../shared/phase-colors";
+import type { Session } from "../store/sessions";
+import "./SessionRow.css";
+
+type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored" | "CommandFailed";
+
+const STALE_THRESHOLD_SEC = 300; // 5 minutes
+
+function isStale(session: Session): boolean {
+  if (session.state !== "completed") return false;
+  const elapsed = (Date.now() - session.lastActivity) / 1000;
+  return elapsed > STALE_THRESHOLD_SEC;
+}
+
+/** Extract project name from cwd (last path segment). */
+function extractProjectName(cwd: string): string {
+  if (!cwd) return "";
+  // Handle both forward-slash and backslash paths
+  const normalized = cwd.replace(/\\/g, "/");
+  const segments = normalized.split("/").filter(Boolean);
+  return segments[segments.length - 1] || cwd;
+}
+
+/** Extract branch from session metadata or label. */
+function extractBranch(session: Session): string | null {
+  // Try to get branch from title/label patterns like "project (branch)"
+  const match = (session.title || session.label).match(/\(([^)]+)\)/);
+  const branch = match ? match[1] : null;
+  if (!branch || branch === "main" || branch === "master") return null;
+  return branch;
+}
+
+interface SessionRowProps {
+  session: Session;
+  isActive?: boolean;
+  indicatorKind?: StateIndicatorKind;
+  onJump?: (session: Session) => void;
+  "data-testid"?: string;
+}
+
+export const SessionRow = memo(function SessionRow({
+  session,
+  isActive = false,
+  indicatorKind = "dot",
+  onJump,
+  "data-testid": testId,
+}: SessionRowProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [jumping, setJumping] = useState(false);
+  const stale = isStale(session);
+
+  const handleRowClick = useCallback(async () => {
+    if (onJump) {
+      onJump(session);
+      return;
+    }
+    // Default: invoke IPC to focus session window
+    if (session.pid || session.jumpTarget) {
+      setJumping(true);
+      try {
+        await invoke<FocusResult>("focus_session_window", {
+          sessionPid: session.pid ?? null,
+          jumpTarget: session.jumpTarget ?? null,
+        });
+      } catch {
+        // Silently fail — the overlay is non-blocking
+      } finally {
+        setJumping(false);
+      }
+    }
+  }, [session, onJump]);
+
+  const handleChevronClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpanded((prev) => !prev);
+  }, []);
+
+  const projectName = extractProjectName(session.cwd);
+  const branch = extractBranch(session);
+  const agent = getAgent(session.agent ?? "claude");
+  const phaseColorHex = phaseColor(session.state);
+  const age = fmtAge(new Date(session.lastActivity));
+  const terminalType = session.jumpTarget?.terminalType;
+
+  const contentParts: string[] = [];
+  if (projectName) contentParts.push(projectName);
+  if (branch) contentParts.push(branch);
+  const msg = session.currentTool?.name
+    ? `${session.currentTool.name}(...)`
+    : session.lastError
+      ? "error"
+      : "";
+  if (msg) contentParts.push(msg);
+
+  const rowClassName = [
+    "session-row",
+    isActive ? "session-row--active" : "",
+    stale ? "session-row--stale" : "",
+    expanded ? "session-row--expanded" : "",
+    isAttentionPhase(session.state) ? "session-row--attention" : "",
+    jumping ? "session-row--jumping" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div
+      className={rowClassName}
+      data-testid={testId || "session-row"}
+      data-session-id={session.id}
+      data-phase={session.state}
+      style={
+        indicatorKind === "bar"
+          ? ({ "--phase-color": phaseColorHex } as React.CSSProperties)
+          : undefined
+      }
+    >
+      {/* Row body — click to jump */}
+      <div className="session-row__body" onClick={handleRowClick}>
+        <span className="session-row__indicator" data-testid="row-indicator">
+          <StateIndicator
+            kind={indicatorKind}
+            phase={session.state}
+            projectName={
+              indicatorKind === "tint" ? projectName : undefined
+            }
+          />
+        </span>
+
+        <span className="session-row__content" data-testid="row-content">
+          <span className="session-row__main" data-testid="row-main">
+            <span
+              className={
+                indicatorKind === "tint"
+                  ? "session-row__project session-row__project--tinted"
+                  : "session-row__project"
+              }
+              style={
+                indicatorKind === "tint"
+                  ? { color: phaseColorHex }
+                  : undefined
+              }
+            >
+              {projectName}
+            </span>
+            {branch && (
+              <>
+                <span className="session-row__sep">·</span>
+                <span className="session-row__branch">{branch}</span>
+              </>
+            )}
+            {msg && (
+              <>
+                <span className="session-row__sep">·</span>
+                <span className="session-row__msg">{msg}</span>
+              </>
+            )}
+          </span>
+        </span>
+
+        {/* Agent chip */}
+        <span
+          className="session-row__agent-chip"
+          data-testid="agent-chip"
+          style={{ backgroundColor: hexA(agent.color, 0.18), color: agent.color }}
+        >
+          {agent.short}
+        </span>
+
+        {/* Terminal badge */}
+        {terminalType && (
+          <span className="session-row__terminal-badge" data-testid="terminal-badge">
+            {terminalType}
+          </span>
+        )}
+
+        {/* Age */}
+        <span className="session-row__age" data-testid="row-age">
+          {age}
+        </span>
+
+        {/* Chevron — click to expand/collapse */}
+        <button
+          className="session-row__chevron"
+          onClick={handleChevronClick}
+          data-testid="row-chevron"
+          aria-label={expanded ? "Collapse details" : "Expand details"}
+          aria-expanded={expanded}
+        >
+          <svg
+            viewBox="0 0 16 16"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 6 l4 4 l4 -4" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Expanded detail */}
+      {expanded && (
+        <div className="session-row__detail" data-testid="row-detail">
+          {session.state === "running" && session.currentTool && (
+            <div className="session-row__detail-running">
+              <span className="session-row__detail-label">Running</span>
+              <span className="session-row__detail-tool">
+                {session.currentTool.name}
+              </span>
+              {session.filePath && (
+                <span className="session-row__detail-file">
+                  {session.filePath}
+                </span>
+              )}
+            </div>
+          )}
+          {isAttentionPhase(session.state) && (
+            <div className="session-row__detail-waiting">
+              <span className="session-row__detail-label">
+                {session.state === "waitingForApproval"
+                  ? "Awaiting approval"
+                  : "Awaiting answer"}
+              </span>
+              {session.currentTool?.name && (
+                <span className="session-row__detail-tool">
+                  {session.currentTool.name}
+                </span>
+              )}
+            </div>
+          )}
+          {session.state === "completed" && (
+            <div className="session-row__detail-done">
+              <span className="session-row__detail-label">Completed</span>
+              {session.lastError && (
+                <span className="session-row__detail-error">
+                  {session.lastError}
+                </span>
+              )}
+            </div>
+          )}
+          {session.state === "idle" && (
+            <div className="session-row__detail-idle">
+              <span className="session-row__detail-label">Idle</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
