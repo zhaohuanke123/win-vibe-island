@@ -22,7 +22,7 @@ export const SPRING_CONFIG = {
 export const OVERLAY_DIMENSIONS = {
   compact: {
     get width() {
-      return useConfigStore.getState().config.overlay.compactWidth - 84;
+      return useConfigStore.getState().config.overlay.compactWidth;
     },
     get height() {
       return useConfigStore.getState().config.ui.dimensions.barHeight;

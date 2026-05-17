@@ -38,9 +38,9 @@
   flex-direction: column;
 }
 
-/* Reference: flat top, rounded bottom (notch-style pill) — radius = height/2 */
+/* Reference: flat top, rounded bottom (notch-style pill) — radius = height/2 = 16px for 32px bar */
 .overlay--compact .overlay__shell {
-  border-radius: 0 0 22px 22px;
+  border-radius: 0 0 16px 16px;
 }
 
 /* Reference: opened surface — 22pt radius on all corners */
@@ -68,7 +68,7 @@
 }
 
 .overlay--expanded .overlay__bar {
-  border-radius: 22px 22px 0 0;
+  border-radius: 16px 16px 0 0;
 }
 
 .overlay--expanded .overlay__bar:hover {

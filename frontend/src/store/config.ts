@@ -180,15 +180,15 @@ const DEFAULT_CONFIG: AppConfig = {
   overlay: {
     defaultX: 100,
     defaultY: 100,
-    compactWidth: 320,
-    compactHeight: 56,
+    compactWidth: 180,
+    compactHeight: 32,
     expandedWidth: 600,
     expandedMinHeight: 400,
     expandedMaxHeight: 720,
     approvalFocusWidth: 600,
     approvalFocusHeight: 720,
     alpha: 240,
-    compactBorderRadius: 22,
+    compactBorderRadius: 16,
     expandedBorderRadius: 22,
   },
   processWatcher: {
