@@ -1,10 +1,9 @@
 .status-dot {
   display: inline-block;
-  flex: 0 0 10px;
-  width: 10px;
-  height: 10px;
+  flex: 0 0 9px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  /* GPU acceleration for smooth pulse animations */
   will-change: transform, opacity;
   transform: translateZ(0);
   transition: background-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
@@ -12,19 +11,25 @@
 
 .status-dot--idle {
   background-color: var(--phase-idle);
-  box-shadow: 0 0 0 rgba(154, 149, 138, 0);
+  box-shadow: none;
 }
 
 .status-dot--running {
   background-color: var(--phase-running);
-  animation: pulse 1.2s ease-in-out infinite;
-  box-shadow: 0 0 8px rgba(110, 167, 255, 0.5);
+  animation: pulse-running 1s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(110, 167, 255, 0.36);
 }
 
 .status-dot--approval {
+  background-color: var(--phase-approval);
+  animation: pulse-waiting 1s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(244, 164, 164, 0.36);
+}
+
+.status-dot--answer {
   background-color: var(--phase-answer);
-  animation: pulse 0.6s ease-in-out infinite;
-  box-shadow: 0 0 8px rgba(255, 213, 138, 0.6);
+  animation: pulse-waiting 1s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(255, 213, 138, 0.36);
 }
 
 .status-dot--done {
@@ -32,14 +37,23 @@
   box-shadow: 0 0 6px rgba(111, 185, 130, 0.4);
 }
 
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
+/* Reference: pulse scale 1 → 1.18, shadow opacity 0.36 → 0.62 */
+@keyframes pulse-running {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 6px rgba(110, 167, 255, 0.36);
+  }
+  50% {
+    transform: scale(1.18);
+    box-shadow: 0 0 10px rgba(110, 167, 255, 0.62);
+  }
+}
+
+@keyframes pulse-waiting {
+  0%, 100% {
     transform: scale(1);
   }
   50% {
-    opacity: 0.5;
-    transform: scale(0.85);
+    transform: scale(1.18);
   }
 }

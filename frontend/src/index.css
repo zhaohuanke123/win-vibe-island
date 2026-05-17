@@ -14,12 +14,37 @@
   --border-hover: rgba(255, 255, 255, 0.12);
   --border-focus: rgba(255, 255, 255, 0.16);
 
-  /* Phase Colors */
-  --phase-approval: #f4a4a4;
-  --phase-answer: #ffd58a;
-  --phase-running: #6ea7ff;
-  --phase-completed: #6fb982;
-  --phase-idle: #9a958a;
+  /* Phase Colors — 1:1 reference match */
+  --phase-approval: #f4a4a4;      /* waitingForApproval — coral red */
+  --phase-answer: #ffd58a;        /* waitingForAnswer — warm yellow */
+  --phase-running: #6ea7ff;       /* running — blue */
+  --phase-completed: #6fb982;     /* completed — green */
+  --phase-idle: rgba(241, 234, 217, 0.35); /* idle — paper at 35% */
+  --phase-waiting-aggregate: #e7a762; /* aggregate waiting — warm orange */
+
+  /* Reference opacity tokens */
+  --white-02: rgba(255, 255, 255, 0.02);
+  --white-028: rgba(255, 255, 255, 0.028);
+  --white-035: rgba(255, 255, 255, 0.035);
+  --white-045: rgba(255, 255, 255, 0.045);
+  --white-055: rgba(255, 255, 255, 0.055);
+  --white-065: rgba(255, 255, 255, 0.065);
+  --white-07: rgba(255, 255, 255, 0.07);
+  --white-08: rgba(255, 255, 255, 0.08);
+  --white-11: rgba(255, 255, 255, 0.11);
+  --white-13: rgba(255, 255, 255, 0.13);
+
+  --paper-35: rgba(241, 234, 217, 0.35);
+  --paper-38: rgba(241, 234, 217, 0.38);
+  --paper-42: rgba(241, 234, 217, 0.42);
+  --paper-52: rgba(241, 234, 217, 0.52);
+  --paper-55: rgba(241, 234, 217, 0.55);
+  --paper-70: rgba(241, 234, 217, 0.70);
+  --paper-78: rgba(241, 234, 217, 0.78);
+  --paper-85: rgba(241, 234, 217, 0.85);
+  --paper-88: rgba(241, 234, 217, 0.88);
+  --paper-90: rgba(241, 234, 217, 0.90);
+  --paper-92: rgba(241, 234, 217, 0.92);
 
   /* Typography */
   --font-ui: 'Inter', system-ui, -apple-system, sans-serif;

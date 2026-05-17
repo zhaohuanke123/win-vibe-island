@@ -38,12 +38,14 @@
   flex-direction: column;
 }
 
+/* Reference: flat top, rounded bottom (notch-style pill) — radius = height/2 */
 .overlay--compact .overlay__shell {
-  border-radius: 26px;
+  border-radius: 0 0 22px 22px;
 }
 
+/* Reference: opened surface — 22pt radius on all corners */
 .overlay--expanded .overlay__shell {
-  border-radius: 18px;
+  border-radius: 22px;
 }
 
 /* Bar is always visible at normal size */
@@ -59,8 +61,8 @@
   background: transparent;
   border-radius: inherit;
   cursor: pointer;
-  /* CSS transition constants aligned with v8 — HOVER 120ms, EXPAND 300ms */
-  transition: background 120ms ease, border-radius 300ms ease;
+  /* Reference: hover highlight 0.15s easeInOut */
+  transition: background 150ms ease-in-out, border-radius 300ms ease;
   min-width: 0;
   overflow: hidden;
 }
@@ -69,8 +71,9 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
+/* Reference: opened surface — 22pt radius on all corners */
 .overlay--expanded .overlay__bar {
-  border-radius: 18px 18px 0 0;
+  border-radius: 22px 22px 0 0;
 }
 
 .overlay--expanded .overlay__bar:hover {
@@ -127,7 +130,7 @@
   color: var(--ink-soft);
   font-size: 11px;
   text-transform: uppercase;
-  transition: color 120ms ease;
+  transition: color 150ms ease-in-out;
   flex: 0 0 auto;
   min-width: 36px;
   max-width: 72px;
@@ -147,7 +150,7 @@
   min-width: 0;
   padding: 8px;
   background: transparent;
-  border-radius: 0 0 18px 18px;
+  border-radius: 0 0 22px 22px;
   contain: layout paint;
   overflow: hidden;
   transform-origin: top center;
@@ -272,7 +275,7 @@
   /* GPU acceleration for hover/active transitions */
   /* v8 alignment: HOVER 120ms for background, CHEVRON 160ms for transform */
   will-change: background, transform;
-  transition: background 120ms ease, transform 160ms ease;
+  transition: background 150ms ease-in-out, transform 150ms ease-in-out;
 }
 
 .overlay__session:hover {

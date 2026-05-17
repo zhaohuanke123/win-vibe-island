@@ -46,7 +46,8 @@
   background: none;
   border: none;
   cursor: pointer;
-  transition: color 0.15s ease;
+  /* Reference: tab hover 0.15s easeInOut */
+  transition: color 150ms ease-in-out;
 }
 
 .cc__tab:hover {
@@ -215,7 +216,7 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 150ms ease-in-out;
 }
 
 .cc-btn:hover {
@@ -349,7 +350,7 @@
   border: 1px solid var(--border);
   border-radius: 5px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 150ms ease-in-out;
 }
 
 .cc-toggle-btn:hover {
@@ -380,7 +381,7 @@
   border: 1px solid var(--border);
   border-radius: 5px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 150ms ease-in-out;
 }
 
 .cc-sound-btn:hover {
@@ -418,7 +419,7 @@
   background: rgba(255, 255, 255, 0.1);
   border-radius: 9px;
   position: relative;
-  transition: background 0.15s ease;
+  transition: background 150ms ease-in-out;
   flex-shrink: 0;
 }
 
@@ -431,7 +432,7 @@
   height: 14px;
   background: var(--ink-soft);
   border-radius: 50%;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform 150ms ease-in-out, background 150ms ease-in-out;
 }
 
 .cc-switch input:checked + .cc-switch__slider {

@@ -157,7 +157,8 @@ export function AnimatedOverlay({
         height: dimensions.height,
         borderRadius: dimensions.borderRadius,
         clipPath: `inset(0px round ${dimensions.borderRadius}px)`,
-        scale: isExpanded ? [1, 1.015, 1] : [1, 0.985, 1],
+        /* Reference: hover scale 1.028 (2.8% overshoot) */
+        scale: isExpanded ? [1, 1.028, 1] : [1, 0.972, 1],
       }}
       transition={{
         ...transition,

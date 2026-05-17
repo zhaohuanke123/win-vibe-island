@@ -7,9 +7,9 @@ describe('StatusDot', () => {
   const states: { state: UIPhase; expectedClass: string }[] = [
     { state: 'idle', expectedClass: 'status-dot--idle' },
     { state: 'running', expectedClass: 'status-dot--running' },
-    { state: 'waitingForApproval', expectedClass: 'status-dot--waitingForApproval' },
-    { state: 'waitingForAnswer', expectedClass: 'status-dot--waitingForAnswer' },
-    { state: 'completed', expectedClass: 'status-dot--completed' },
+    { state: 'waitingForApproval', expectedClass: 'status-dot--approval' },
+    { state: 'waitingForAnswer', expectedClass: 'status-dot--answer' },
+    { state: 'completed', expectedClass: 'status-dot--done' },
   ]
 
   states.forEach(({ state, expectedClass }) => {

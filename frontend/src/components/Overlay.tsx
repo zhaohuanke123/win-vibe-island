@@ -429,10 +429,11 @@ export function Overlay() {
             <motion.div
               className="overlay__panel"
               ref={panelRef}
+              /* Reference: expand 0.2s easeInOut, opacity + y transition */
               initial={{ opacity: 0, y: -10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.985 }}
-              transition={{ duration: 0.18, ease: "easeOut" }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
             >
               {error && (
                 <div className="overlay__error" onClick={clearError}>

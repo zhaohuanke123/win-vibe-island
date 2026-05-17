@@ -24,6 +24,11 @@ interface BarsGlyphProps {
   "data-testid"?: string;
 }
 
+// Reference geometry: bar width 2.5, positions at 5.25/10.75/16.25, radius 1.25
+// Running: stagger 0/0.15s/0.30s, height cycle [4,12,4] → [6,14,6] → [4,10,4]
+// Idle: bar default height 3/5/3 (middle breathes via CSS)
+// Waiting: outer bars 10pt, middle hidden
+
 export const BarsGlyph = memo(function BarsGlyph({
   mode,
   phase,
@@ -56,6 +61,16 @@ export const BarsGlyph = memo(function BarsGlyph({
   }
 
   const isRunning = glyphMode === "running";
+  const isWaiting = glyphMode === "waiting";
+
+  // Idle default heights: left 3, middle 5, right 3
+  const idleH = [3, 5, 3];
+  // Waiting: outer bars 10, middle 0 (hidden)
+  const waitH = [10, 0, 10];
+
+  const xPositions = [5.25, 10.75, 16.25];
+  const barWidth = 2.5;
+  const barRadius = 1.25;
 
   return (
     <svg
@@ -65,30 +80,60 @@ export const BarsGlyph = memo(function BarsGlyph({
       height="24"
       data-testid={testId}
     >
-      <rect className="bar bar-1" x="4" y="8" width="4" height="8" rx="1">
-        {isRunning && (
-          <>
-            <animate attributeName="y" values="6;14;6" dur="0.9s" begin="0s" repeatCount="indefinite" />
-            <animate attributeName="height" values="12;4;12" dur="0.9s" begin="0s" repeatCount="indefinite" />
-          </>
-        )}
-      </rect>
-      <rect className="bar bar-2" x="10" y="8" width="4" height="8" rx="1">
-        {isRunning && (
-          <>
-            <animate attributeName="y" values="6;14;6" dur="0.9s" begin="0.2s" repeatCount="indefinite" />
-            <animate attributeName="height" values="12;4;12" dur="0.9s" begin="0.2s" repeatCount="indefinite" />
-          </>
-        )}
-      </rect>
-      <rect className="bar bar-3" x="16" y="8" width="4" height="8" rx="1">
-        {isRunning && (
-          <>
-            <animate attributeName="y" values="6;14;6" dur="0.9s" begin="0.4s" repeatCount="indefinite" />
-            <animate attributeName="height" values="12;4;12" dur="0.9s" begin="0.4s" repeatCount="indefinite" />
-          </>
-        )}
-      </rect>
+      {xPositions.map((x, i) => {
+        const h = isWaiting ? waitH[i] : idleH[i];
+        const y = 12 - h / 2;
+
+        // Running: animated with SMIL, reference heights [4,12,4] → [6,14,6] → [4,10,4]
+        if (isRunning) {
+          const heightSets = [
+            ["4;12;4", "6;14;6", "4;10;4"],
+          ][0];
+          const ySets = [
+            ["10;6;10", "8;5;8", "10;7;10"],
+          ][0];
+          return (
+            <rect
+              key={i}
+              className={`bar bar-${i + 1}`}
+              x={x}
+              y={y}
+              width={barWidth}
+              height={h}
+              rx={barRadius}
+              opacity={i === 1 && isWaiting ? 0 : 1}
+            >
+              <animate
+                attributeName="y"
+                values={ySets[i]}
+                dur="0.9s"
+                begin={`${i * 0.15}s`}
+                repeatCount="indefinite"
+              />
+              <animate
+                attributeName="height"
+                values={heightSets[i]}
+                dur="0.9s"
+                begin={`${i * 0.15}s`}
+                repeatCount="indefinite"
+              />
+            </rect>
+          );
+        }
+
+        return (
+          <rect
+            key={i}
+            className={`bar bar-${i + 1}`}
+            x={x}
+            y={y}
+            width={barWidth}
+            height={h}
+            rx={barRadius}
+            opacity={i === 1 && isWaiting ? 0 : 1}
+          />
+        );
+      })}
     </svg>
   );
 });
