@@ -95,6 +95,9 @@ export interface Session {
   // Agent type
   agent?: AgentType;
 
+  // Last user prompt (for "You:" sub-line)
+  lastPrompt?: string;
+
   // Model 信息
   model?: string;
   source?: string;

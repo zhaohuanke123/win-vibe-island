@@ -30,7 +30,7 @@ export const PanelHead = memo(function PanelHead({
   return (
     <div className="panel-head" data-testid={testId || "panel-head"}>
       <span className="panel-head__title" data-testid="panel-head-title">
-        {counts.total} session{counts.total === 1 ? "" : "s"}
+        Sessions
       </span>
       <div className="panel-head__chips" data-testid="panel-head-chips">
         {counts.waiting > 0 && (

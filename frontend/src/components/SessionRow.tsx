@@ -46,7 +46,8 @@ export const SessionRow = memo(function SessionRow({
   onJump,
   "data-testid": testId,
 }: SessionRowProps) {
-  const [expanded, setExpanded] = useState(false);
+  const stale = session.state === "completed" && (Date.now() - session.lastActivity) / 1000 > 300;
+  const [expanded, setExpanded] = useState(!stale);
   const [jumping, setJumping] = useState(false);
   const attachmentState: AttachmentState = getAttachmentState(session);
 
@@ -161,15 +162,20 @@ export const SessionRow = memo(function SessionRow({
               </>
             )}
           </span>
+          {!isCompact && session.lastPrompt && (
+            <span className="session-row__you">
+              <span className="session-row__you-label">You:</span> {session.lastPrompt}
+            </span>
+          )}
         </span>
 
         {/* Agent chip */}
         <span
           className={`session-row__agent-chip${attachmentState === "detached" ? " session-row__agent-chip--dimmed" : ""}`}
           data-testid="agent-chip"
-          style={{ backgroundColor: hexA(agent.color, 0.18), color: agent.color }}
+          style={{ color: agent.color, backgroundColor: hexA(agent.color, 0.13), borderColor: hexA(agent.color, 0.35) }}
         >
-          {agent.short}
+          {agent.cli}
         </span>
 
         {/* Terminal badge — hidden in compact */}

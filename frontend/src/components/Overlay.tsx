@@ -2,16 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { AnimatePresence, motion } from "framer-motion";
 import { AnimatedOverlay } from "./AnimatedOverlay";
-import { StatusDot } from "./StatusDot";
+import { NotchRow } from "./NotchRow";
 import { ApprovalPanel } from "./ApprovalPanel";
-import { HookStatus } from "./HookStatus";
-import { SettingsPanel } from "./SettingsPanel";
-import { SessionDetail } from "./SessionDetail";
-import { SessionList } from "./SessionList";
-import { ActivityTimeline } from "./ActivityTimeline";
 import { JumpToast, useJumpToast } from "./JumpToast";
 import { PanelHead } from "./PanelHead";
-import { getToolDescription } from "../shared/tool-description";
+import { GroupedRows } from "./GroupedRows";
+import type { GroupBy, SortBy } from "./GroupedRows";
 import { isAttentionPhase } from "../shared/phase-colors";
 import { useSessionsStore } from "../store/sessions";
 import { normalizeOverlayLayoutConfig, useConfigStore } from "../store/config";
@@ -20,6 +16,10 @@ import type { ApprovalRequest, Session } from "../store/sessions";
 import "./Overlay.css";
 import "./ApprovalQueue.css";
 import "./PanelHead.css";
+import "./GroupedRows.css";
+import "./SessionRow.css";
+import "./Pill.css";
+import "./NotchRow.css";
 
 type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored" | "CommandFailed";
 
@@ -105,7 +105,6 @@ export function Overlay() {
   const currentApprovalIndex = useSessionsStore((s) => s.currentApprovalIndex);
   const removeCurrentApproval = useSessionsStore((s) => s.removeCurrentApproval);
   const setCurrentApprovalIndex = useSessionsStore((s) => s.setCurrentApprovalIndex);
-  const groups = useSessionsStore((s) => s.groups);
   const config = useConfigStore((s) => s.config);
   const overlayLayout = normalizeOverlayLayoutConfig(config.overlay);
   const BAR_HEIGHT = config.ui.dimensions.barHeight;
@@ -124,28 +123,17 @@ export function Overlay() {
   const approvalFocusKey = currentApproval ? `request:${currentApproval.toolUseId}` : approvalStateFocusKey;
   const [expanded, setExpanded] = useState(false);
   const [collapsedApprovalFocusKey, setCollapsedApprovalFocusKey] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showActivity, setShowActivity] = useState(false);
-  // Note: settings/activity inline panels kept as fallback; gear icon now opens Control Center window
-  void setShowSettings;
-  void setShowActivity;
   const [viewingSessionId, setViewingSessionId] = useState<string | null>(null);
-  const openControlCenter = useCallback(() => {
-    invoke("open_control_center").catch((e) => {
-      reportTauriError("failed to open control center", e);
-    });
-  }, []);
-  const viewingSession = viewingSessionId ? sessions.find((s) => s.id === viewingSessionId) ?? null : null;
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast: jumpToast, showToast: showJumpToast, dismissToast: dismissJumpToast } = useJumpToast();
   const hadApprovalRequestRef = useRef(false);
   const handledApprovalStateFocusKeyRef = useRef<string | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const [measuredHeight, setMeasuredHeight] = useState(EXPANDED_MAX as number);
+  const [measuredHeight, setMeasuredHeight] = useState(EXPANDED_MIN as number);
 
-  // Note: approval_request events are handled by useAgentEvents hook
-  // which adds to pendingApprovals in the store
+  // v8 group sort state
+  const [groupBy, setGroupBy] = useState<GroupBy>("state");
+  const [sortBy, setSortBy] = useState<SortBy>("attention");
 
   // Auto-expand when approval request comes in
   useEffect(() => {
@@ -153,13 +141,11 @@ export function Overlay() {
       if (approvalFocusKey === handledApprovalStateFocusKeyRef.current) {
         return;
       }
-
       hadApprovalRequestRef.current = true;
       setCollapsedApprovalFocusKey(null);
       const frame = window.requestAnimationFrame(() => setExpanded(true));
       return () => window.cancelAnimationFrame(frame);
     }
-
     handledApprovalStateFocusKeyRef.current = null;
     setCollapsedApprovalFocusKey(null);
     if (hadApprovalRequestRef.current) {
@@ -173,11 +159,7 @@ export function Overlay() {
   useEffect(() => {
     if (!currentApproval || !approvalFocusKey) return;
     if (!notificationsEnabled) return;
-
-    // Taskbar flash
     void invoke("flash_taskbar").catch(() => {});
-
-    // Web Notification API (works in Tauri WebView2)
     if (!document.hasFocus() && "Notification" in window && Notification.permission === "granted") {
       const tool = currentApproval.toolName || "approval";
       try {
@@ -186,9 +168,7 @@ export function Overlay() {
           icon: undefined,
           tag: `vibe-approval-${currentApproval.toolUseId}`,
         });
-      } catch {
-        // Notification blocked or not supported
-      }
+      } catch { /* non-blocking */ }
     }
   }, [currentApproval, approvalFocusKey, notificationsEnabled]);
 
@@ -199,8 +179,7 @@ export function Overlay() {
     }
   }, []);
 
-  // Keep the capsule clickable in compact mode. The smaller compact footprint
-  // replaces the old click-through behavior.
+  // Keep the window interactive (clickable) always
   useEffect(() => {
     invoke("set_window_interactive", { interactive: true }).catch((e) => {
       reportTauriError("failed to set window interactive mode", e);
@@ -214,21 +193,15 @@ export function Overlay() {
     }
   }, [sessions, viewingSessionId]);
 
-  const handleSessionClick = useCallback(async (session: Session) => {
+  const handleJump = useCallback(async (session: Session) => {
     setActiveSession(session.id);
     setError(null);
 
-    if (expanded) {
-      setViewingSessionId((prev) => (prev === session.id ? null : session.id));
-    }
-
     if (session.pid || session.jumpTarget) {
-      // Show jump toast with terminal name
       const terminalName = session.jumpTarget?.terminalType || "Terminal";
       const sessionLabel = session.title || session.label;
       showJumpToast(terminalName, sessionLabel);
 
-      setIsLoading(true);
       try {
         await invoke<FocusResult>("focus_session_window", {
           sessionPid: session.pid ?? null,
@@ -236,11 +209,9 @@ export function Overlay() {
         });
       } catch (e) {
         setError(`Failed to focus window: ${e}`);
-      } finally {
-        setIsLoading(false);
       }
     }
-  }, [setActiveSession, expanded, showJumpToast]);
+  }, [setActiveSession, showJumpToast]);
 
   useEffect(() => {
     if (sessions.length > 0 && !activeSessionId) {
@@ -253,16 +224,14 @@ export function Overlay() {
   const isApprovalFocusMode = Boolean(approvalFocusKey);
   const isApprovalManuallyCollapsed = approvalFocusKey !== null && collapsedApprovalFocusKey === approvalFocusKey;
   const isOverlayExpanded = (expanded || isApprovalFocusMode) && !isApprovalManuallyCollapsed;
-  const shouldUseAdaptiveHeight = !isApprovalFocusMode && !showSettings && !showActivity;
+  const shouldUseAdaptiveHeight = !isApprovalFocusMode;
   const overlayExpandedHeight = isApprovalFocusMode
     ? APPROVAL_FOCUS_HEIGHT
     : shouldUseAdaptiveHeight
       ? measuredHeight
       : EXPANDED_MAX;
 
-  // Bring overlay to foreground when it expands for approval focus mode.
-  // This is needed so the overlay window receives WM_MOUSEWHEEL events,
-  // which Windows routes to the foreground/focus window — not the window under the cursor.
+  // Bring overlay to foreground when it expands for approval focus mode
   useEffect(() => {
     if (isOverlayExpanded && isApprovalFocusMode) {
       invoke("set_window_interactive", { interactive: true }).catch((e) => {
@@ -271,6 +240,7 @@ export function Overlay() {
     }
   }, [isOverlayExpanded, isApprovalFocusMode]);
 
+  // Sync approval focus size
   useEffect(() => {
     if (!isOverlayExpanded || !isApprovalFocusMode) return;
 
@@ -296,11 +266,9 @@ export function Overlay() {
     };
   }, [isOverlayExpanded, isApprovalFocusMode, APPROVAL_FOCUS_WIDTH, APPROVAL_FOCUS_HEIGHT, EXPANDED_BORDER_RADIUS]);
 
-  // Non-approval panels use ResizeObserver-based adaptive height. Approval,
-  // question, and plan focus mode stays fixed at 600x720 in Tauri to avoid
-  // WebView/native resize mismatches that can hide action buttons.
+  // Adaptive height measurement for non-approval expanded mode
   useEffect(() => {
-    if (!isOverlayExpanded || isApprovalFocusMode || showSettings || showActivity || !panelRef.current) return;
+    if (!isOverlayExpanded || isApprovalFocusMode || !panelRef.current) return;
 
     const panel = panelRef.current;
     let raf = 0;
@@ -310,9 +278,6 @@ export function Overlay() {
       raf = requestAnimationFrame(() => {
         if (!panelRef.current) return;
         const p = panelRef.current;
-        // Temporarily remove height constraint to measure natural content height
-        // and avoid circular measurement where scrollHeight reflects the
-        // stretched CSS height instead of actual content.
         const saved = p.style.height;
         p.style.height = 'auto';
         const contentH = p.scrollHeight;
@@ -334,10 +299,7 @@ export function Overlay() {
     isOverlayExpanded,
     isApprovalFocusMode,
     currentApproval,
-    showSettings,
-    showActivity,
     sessions.length,
-    viewingSessionId,
     BAR_HEIGHT,
     EXPANDED_MIN,
     EXPANDED_MAX,
@@ -348,7 +310,6 @@ export function Overlay() {
     handledApprovalStateFocusKeyRef.current = resolvedKey;
     setCollapsedApprovalFocusKey(resolvedKey);
     removeCurrentApproval();
-    // Only collapse if no more approvals remain
     if (pendingApprovals.length <= 1) {
       setExpanded(false);
     }
@@ -377,18 +338,28 @@ export function Overlay() {
       }
       return;
     }
-
     setExpanded((value) => !value);
   };
 
+  // ── Notch row data ──
+  const notchPhase = active?.state ?? "idle";
+  const notchAgent = active?.agent ?? "claude";
+  const notchLabel = active?.title ?? active?.label ?? sessions.length > 0
+    ? `${sessions.length} session${sessions.length === 1 ? "" : "s"}`
+    : "No active sessions";
+
+  // ── Filter sessions for expanded mode ──
+  // Don't show idle/completed sessions that are stale in the "active" section
+  const visibleSessions = sessions;
+
   return (
     <AnimatedOverlay
-      className={`overlay ${isOverlayExpanded ? "overlay--expanded" : "overlay--compact"}${isApprovalFocusMode ? " overlay--approval-mode" : ""}`}
+      className={`overlay overlay--v8 ${isOverlayExpanded ? "overlay--expanded" : "overlay--compact"}${isApprovalFocusMode ? " overlay--approval-mode" : ""}`}
       data-testid="overlay"
       isExpanded={isOverlayExpanded}
       expandedHeight={isOverlayExpanded ? overlayExpandedHeight : undefined}
     >
-      <div className="overlay__shell" style={{ position: "relative" }}>
+      <div className="overlay__shell pill" style={{ position: "relative" }}>
         {/* Jump Toast — non-blocking, pointer-events: none */}
         {jumpToast && (
           <JumpToast
@@ -398,38 +369,35 @@ export function Overlay() {
             data-testid="jump-toast"
           />
         )}
-        <div className="overlay__bar" data-testid="status-bar" onClick={handleBarClick}>
-          {isLoading && <span className="overlay__spinner" />}
-          {active ? (
-            <>
-              <StatusDot state={active.state} data-testid="status-dot" />
-              <div className="overlay__label-group">
-                <span className="overlay__label" data-testid="session-label" title={active.title || active.label}>
-                  {active.title || active.label}
-                </span>
-                {active.title && (
-                  <span className="overlay__sublabel">{active.label}</span>
-                )}
-                {active.currentTool && (
-                  <span className="overlay__tool-context" data-testid="tool-context">
-                    {getToolDescription(active.currentTool.name, active.currentTool.input)}
+
+        {/* Notch / Compact bar — using v8 NotchRow */}
+        <div className="overlay__bar pill__bar" data-testid="status-bar" onClick={handleBarClick}>
+          <NotchRow
+            phase={notchPhase}
+            agent={notchAgent}
+            label={notchLabel}
+            rightSlot={
+              <span className="notch-row__right">
+                {pendingApprovals.length > 0 && (
+                  <span className="notch-row__chip" style={{
+                    background: "rgba(244, 164, 164, 0.2)",
+                    color: "#f4a4a4",
+                  }}>
+                    {pendingApprovals.length} pending
                   </span>
                 )}
-              </div>
-              <span className="overlay__state" data-testid="session-state">{active.state}</span>
-            </>
-          ) : (
-            <span className="overlay__label overlay__label--empty" data-testid="empty-state">No active sessions</span>
-          )}
-          <HookStatus data-testid="hook-status" />
+              </span>
+            }
+            data-testid="notch-row"
+          />
         </div>
 
+        {/* Expanded panel */}
         <AnimatePresence initial={false}>
           {isOverlayExpanded && (
             <motion.div
-              className="overlay__panel"
+              className="overlay__panel pill__body"
               ref={panelRef}
-              /* Reference: expand 0.2s easeInOut, opacity + y transition */
               initial={{ opacity: 0, y: -10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.985 }}
@@ -441,6 +409,7 @@ export function Overlay() {
                   <span>{error}</span>
                 </div>
               )}
+
               {isApprovalFocusMode && currentApproval ? (
                 <ApprovalFocusContent
                   approvalRequest={currentApproval}
@@ -451,46 +420,89 @@ export function Overlay() {
                   onNavigatePrev={pendingApprovals.length > 1 && currentApprovalIndex > 0 ? handleNavigatePrev : undefined}
                   onNavigateNext={pendingApprovals.length > 1 && currentApprovalIndex < pendingApprovals.length - 1 ? handleNavigateNext : undefined}
                 />
-              ) : showSettings ? (
-                <SettingsPanel />
-              ) : showActivity ? (
-                <ActivityTimeline data-testid="activity-timeline" />
               ) : (
                 <>
                   <PanelHead
                     sessions={sessions}
-                    onSettingsClick={() => { openControlCenter(); }}
+                    onSettingsClick={() => {
+                      invoke("open_control_center").catch((e) => {
+                        reportTauriError("failed to open control center", e);
+                      });
+                    }}
                     data-testid="panel-head"
                   />
                   <div className="panel-list" data-testid="panel-list">
-                    {currentApproval && (
-                      <ApprovalPanel key={currentApproval.toolUseId} request={currentApproval} onApprovalHandled={handleApprovalHandled} />
-                    )}
-                    {viewingSession ? (
-                      <SessionDetail session={viewingSession} onBack={() => setViewingSessionId(null)} data-testid="session-detail" />
-                    ) : (
-                      <SessionList
-                        sessions={sessions}
-                        activeSessionId={activeSessionId}
-                        viewingSessionId={viewingSessionId}
-                        onSessionClick={handleSessionClick}
-                        onRenameSession={(id, label) => useSessionsStore.getState().renameSession(id, label)}
-                        onDeleteSession={(id) => useSessionsStore.getState().removeSession(id)}
-                        onSetSessionTag={(id, tag) => useSessionsStore.getState().setSessionTag(id, tag)}
-                        onCreateGroup={(name) => useSessionsStore.getState().createGroup(name)}
-                        groups={groups}
-                        data-testid="sessions-list"
-                      />
-                    )}
+                    <div className="oi-list-controls" style={{
+                      display: "flex",
+                      gap: "6px",
+                      padding: "6px 10px",
+                      borderBottom: "1px solid var(--line)",
+                    }}>
+                      <select
+                        className="oi-select"
+                        value={groupBy}
+                        onChange={(e) => setGroupBy(e.target.value as GroupBy)}
+                        style={{
+                          background: "transparent",
+                          color: "var(--paper)",
+                          border: "1px solid var(--line)",
+                          borderRadius: "4px",
+                          padding: "2px 6px",
+                          fontSize: "10.5px",
+                          fontFamily: "var(--font-ui)",
+                        }}
+                      >
+                        <option value="state">Group: State</option>
+                        <option value="agent">Group: Agent</option>
+                        <option value="project">Group: Project</option>
+                        <option value="none">No Group</option>
+                      </select>
+                      <select
+                        className="oi-select"
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as SortBy)}
+                        style={{
+                          background: "transparent",
+                          color: "var(--paper)",
+                          border: "1px solid var(--line)",
+                          borderRadius: "4px",
+                          padding: "2px 6px",
+                          fontSize: "10.5px",
+                          fontFamily: "var(--font-ui)",
+                        }}
+                      >
+                        <option value="attention">By Attention</option>
+                        <option value="updated">By Recent</option>
+                      </select>
+                    </div>
+                    <GroupedRows
+                      sessions={visibleSessions}
+                      groupBy={groupBy}
+                      sortBy={sortBy}
+                      onJump={handleJump}
+                    />
                   </div>
-                  <div className="panel-foot" data-testid="panel-foot">
+                  {/* PanelFooter */}
+                  <div className="panel-foot" data-testid="panel-foot" style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "6px 10px",
+                    borderTop: "1px solid var(--line)",
+                    fontSize: "10.5px",
+                    color: "var(--ink-soft)",
+                    fontFamily: "var(--font-mono)",
+                  }}>
                     <span className="panel-foot__summary">
-                      {sessions.length} session{sessions.length === 1 ? "" : "s"}{(() => {
+                      {sessions.length} session{sessions.length === 1 ? "" : "s"}
+                      {(() => {
                         const wc = sessions.filter(s => isAttentionPhase(s.state)).length;
                         return wc > 0 ? ` · ${wc} waiting` : "";
                       })()}
                     </span>
-                    <span className="panel-foot__shortcut">Ctrl+Alt+Space</span>
+                    <span className="panel-foot__shortcut" style={{ opacity: 0.5 }}>
+                      Ctrl+Alt+Space
+                    </span>
                   </div>
                 </>
               )}

@@ -159,3 +159,34 @@
   border-radius: 8px;
   flex-shrink: 0;
 }
+
+/* Empty state */
+.oi-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.oi-empty__title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.oi-empty__hint {
+  font-size: 11px;
+  color: var(--ink-mute);
+  line-height: 1.5;
+  max-width: 280px;
+}
+
+.oi-empty__hint code {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  background: rgba(255,255,255,0.04);
+  padding: 1px 4px;
+  border-radius: 3px;
+}

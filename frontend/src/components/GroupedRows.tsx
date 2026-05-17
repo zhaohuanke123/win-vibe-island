@@ -38,8 +38,8 @@ const STATE_GROUP_ORDER: UIPhase[] = [
 const STATE_GROUP_LABELS: Record<UIPhase, string> = {
   waitingForApproval: "Awaiting Approval",
   waitingForAnswer: "Awaiting Answer",
-  running: "Running",
-  completed: "Completed",
+  running: "In progress",
+  completed: "Just done",
   idle: "Idle",
 };
 
@@ -176,6 +176,20 @@ export const GroupedRows = memo(function GroupedRows({
     if (collapsed.size === 0) return initialCollapsed;
     return collapsed;
   }, [collapsed, initialCollapsed]);
+
+  if (sessions.length === 0) {
+    return (
+      <div className="grouped-rows grouped-rows--empty" data-testid="grouped-rows-empty">
+        <div className="oi-empty">
+          <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+            <path d="M 6 4 H 38 V 16 A 8 8 0 0 1 30 24 H 14 A 8 8 0 0 1 6 16 Z" fill="none" stroke="rgba(241,234,217,0.2)" strokeWidth="1.5" strokeDasharray="3 3"/>
+          </svg>
+          <div className="oi-empty__title">No active sessions</div>
+          <div className="oi-empty__hint">Start any of <b>10 supported agents</b> in a terminal — <code>claude</code>, <code>codex</code>, <code>cursor</code>, <code>gemini</code>, <code>kimi</code>, <code>opencode</code>, <code>qoder</code>, <code>qwen</code>, <code>droid</code>, <code>codebuddy</code> — sessions auto-appear here.</div>
+        </div>
+      </div>
+    );
+  }
 
   if (groupBy === "none") {
     return (

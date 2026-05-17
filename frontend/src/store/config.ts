@@ -218,7 +218,7 @@ const DEFAULT_CONFIG: AppConfig = {
       },
     },
     dimensions: {
-      barHeight: 52,
+      barHeight: 32,
       padding: 14,
       gap: 8,
       statusDotSize: 9,
@@ -263,7 +263,29 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const config = await invoke<AppConfig>("get_app_config");
-      set({ config, isLoading: false });
+      // Deep merge: Rust 返回的值覆盖，缺失的字段保留前端默认
+      // 防止 Rust 端忘记同步某个字段时静默使用 undefined
+      const merged = {
+        ...DEFAULT_CONFIG,
+        ...config,
+        hookServer: { ...DEFAULT_CONFIG.hookServer, ...config.hookServer },
+        pipeServer: { ...DEFAULT_CONFIG.pipeServer, ...config.pipeServer },
+        overlay: { ...DEFAULT_CONFIG.overlay, ...config.overlay },
+        processWatcher: { ...DEFAULT_CONFIG.processWatcher, ...config.processWatcher },
+        audio: { ...DEFAULT_CONFIG.audio, ...config.audio },
+        ui: {
+          ...DEFAULT_CONFIG.ui,
+          ...config.ui,
+          stateColors: { ...DEFAULT_CONFIG.ui.stateColors, ...config.ui?.stateColors },
+          animation: {
+            ...DEFAULT_CONFIG.ui.animation,
+            ...config.ui?.animation,
+            spring: { ...DEFAULT_CONFIG.ui.animation.spring, ...config.ui?.animation?.spring },
+          },
+          dimensions: { ...DEFAULT_CONFIG.ui.dimensions, ...config.ui?.dimensions },
+        },
+      };
+      set({ config: merged, isLoading: false });
     } catch (e) {
       logger.warn("STORE_OPERATION_ERROR", "Failed to load config", { error: String(e) });
       set({ error: String(e), isLoading: false });

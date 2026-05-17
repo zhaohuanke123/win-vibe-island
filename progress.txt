@@ -1509,3 +1509,57 @@ Complete project doc restructuring to eliminate duplication and ambiguity:
 
 本次操作用户直接通过 Telegram 下达指令，未触发正式编码任务，属于文档维护性质变更。
 
+---
+
+## [2026-05-17] - v8 UI 组件集成：Pill 架构全面替换 Overlay ✅
+
+### Documentation Gate:
+- Requirement ref: docs/v8-migration-plan.md
+- Design ref: docs/v8-migration-plan.md (Phase B-G)
+- User confirmed: "全面替换一下"
+
+### What was done:
+- **Overlay.tsx 重写**: 使用 NotchRow（BarsGlyph + agent dot + label）替代旧 StatusDot + overlay__bar
+- **Pill 架构整合**: overlay__shell 使用 `pill` class，ink 背景 + flat-top/semicircle-bottom 形状
+- **GroupedRows + SessionRow**: 替代旧 SessionList + SessionDetail，支持 groupBy（state/agent/project）和 sort（attention/updated）
+- **PanelHead + PanelFooter**: v8 风格的 header/footer（chips + count + 快捷键提示）
+- **StateIndicator**: bar/dot/glyph/tint 四种状态指示器（默认 dot），替代旧 StatusDot
+- **NotifBody**: 审批通知卡嵌入 SessionRow 展开详情，支持 two/three/jump/done 四种通知类型
+- **BarsGlyph**: 3-bar SVG 动画 glyph（running wave/waiting cross-pulse/done tick/idle breathing）
+- **Ink/Paper 调色板**: 应用 --ink #0d0d0f + --paper #f1ead9 + 段头 10.5px uppercase
+- **保留的旧逻辑**: 审批自动展开、审批队列导航、通知闪烁、跳转 toast、交互模式管理、自适应高度测量
+- **Overlay.css 精简**: bar 高度从 52px → 32px，删除旧 session/state/label 样式，保留 shell/panel/approval-focus/error 结构样式
+- **创建 NotchRow.css**: 组件隔离用 notch-row 样式
+
+### 新组件树:
+```
+AnimatedOverlay (Framer Motion)
+  └─ overlay__shell (pill)
+       ├─ JumpToast (非阻塞)
+       ├─ overlay__bar → NotchRow (BarsGlyph + agent dot + label)
+       └─ overlay__panel (AnimatePresence)
+            ├─ PanelHead (sessions count + waiting/running chips + gear)
+            ├─ .panel-list → groupBy/sort controls
+            │    └─ GroupedRows → SessionRow × N
+            │         ├─ StateIndicator + project·branch·msg + agent chip + age + chevron
+            │         └─ expanded: NotifBody (two/three/jump/done)
+            └─ PanelFooter (count + shortcut)
+```
+
+### 已接入的 v8 组件:
+- ✅ NotchRow — 紧凑列（BarsGlyph + agent dot + label）
+- ✅ BarsGlyph — 三线动画 glyph（4 模式）
+- ✅ StateIndicator — 4 种状态指示器（dot/bar/glyph/tint）
+- ✅ SessionRow — 空间分割（body=jump, chevron=expand）
+- ✅ GroupedRows — 正交 groupBy/sort
+- ✅ PanelHead — 会话计数 + waiting/running chips + gear
+- ✅ PanelFooter — 会话摘要 + 快捷键
+- ✅ NotifBody — 4 种通知卡（two/three/jump/done）
+- ✅ JumpToast — 终端跳转反馈
+
+### Testing:
+- `npm run build` → ✅ 零错误通过
+- TypeScript: 0 errors
+
+### Status: completed ✅
+

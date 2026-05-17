@@ -48,21 +48,17 @@
   border-radius: 22px;
 }
 
-/* Bar is always visible at normal size */
+/* Bar is always visible — v8 NotchRow style: 32px height */
 .overlay__bar {
   display: flex;
   align-items: center;
-  gap: 8px;
   width: 100%;
-  height: 52px;
-  max-width: 100%;
-  flex: 0 0 52px;
-  padding: 0 14px;
+  height: 32px;
+  flex: 0 0 32px;
   background: transparent;
   border-radius: inherit;
   cursor: pointer;
-  /* Reference: hover highlight 0.15s easeInOut */
-  transition: background 150ms ease-in-out, border-radius 300ms ease;
+  transition: background 150ms ease-in-out;
   min-width: 0;
   overflow: hidden;
 }
@@ -71,7 +67,6 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
-/* Reference: opened surface — 22pt radius on all corners */
 .overlay--expanded .overlay__bar {
   border-radius: 22px 22px 0 0;
 }
@@ -80,75 +75,15 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
-.overlay--compact .overlay__state {
-  display: none;
-}
-
-.overlay__label {
-  display: block;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.overlay__label-group {
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.overlay__sublabel {
-  display: block;
-  font-size: 10px;
-  color: var(--ink-mute);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.overlay__tool-context {
-  display: block;
-  font-size: 11px;
-  color: var(--phase-running);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-mono);
-  opacity: 0.9;
-}
-
-.overlay__label--empty {
-  color: var(--ink-mute);
-}
-
-.overlay__state {
-  color: var(--ink-soft);
-  font-size: 11px;
-  text-transform: uppercase;
-  transition: color 150ms ease-in-out;
-  flex: 0 0 auto;
-  min-width: 36px;
-  max-width: 72px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* Panel content enters through Framer Motion; window size is animated by AnimatedOverlay. */
 .overlay__panel {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: calc(100% - 52px);
+  height: calc(100% - 32px);
   min-height: 0;
   max-width: 100%;
   min-width: 0;
-  padding: 8px;
   background: transparent;
   border-radius: 0 0 22px 22px;
   contain: layout paint;
@@ -158,8 +93,7 @@
 }
 
 .overlay--approval-mode .overlay__panel {
-  gap: 10px;
-  padding: 10px;
+  padding: 8px;
 }
 
 .overlay__approval-focus {
@@ -221,149 +155,68 @@
   color: var(--phase-answer);
 }
 
-/* Sessions header — v8 section header style */
-.overlay__sessions-header {
+/* --- v8 panel list area --- */
+.panel-list {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.panel-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.panel-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.panel-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+.panel-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* OI select controls */
+.oi-select {
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.oi-select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+.oi-select option {
+  background: #1a1a1c;
+  color: var(--paper);
+}
+
+/* v8 section header — for future use */
+.oi-section-header {
   font-size: 10.5px;
   font-weight: 600;
   color: var(--ink-soft);
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  padding: 4px 8px;
-  margin-bottom: 4px;
-}
-
-/* Scrollable session list */
-.overlay__sessions-list {
-  flex: 1 1 auto;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-bottom: 4px;
-}
-
-/* Scrollbar styling */
-.overlay__sessions-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.overlay__sessions-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.overlay__sessions-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 2px;
-}
-
-.overlay__sessions-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.overlay__session {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  padding: 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  /* GPU acceleration for hover/active transitions */
-  /* v8 alignment: HOVER 120ms for background, CHEVRON 160ms for transform */
-  will-change: background, transform;
-  transition: background 150ms ease-in-out, transform 150ms ease-in-out;
-}
-
-.overlay__session:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.overlay__session:active {
-  transform: scale(0.98);
-}
-
-.overlay__session--active {
-  background: rgba(110, 167, 255, 0.1);
-}
-
-.overlay__session-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.overlay__session-label {
-  display: block;
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 500;
-}
-
-.overlay__session-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  max-width: 100%;
-  font-size: 11px;
-  color: var(--ink-soft);
-  padding-left: 16px;
-}
-
-.overlay__session-tool {
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  background: rgba(110, 167, 255, 0.15);
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-family: var(--font-mono);
-  color: var(--phase-running);
-}
-
-.overlay__session-file {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 200px;
-}
-
-.overlay__session-time {
-  font-size: 10px;
-  color: var(--ink-mute);
-  padding-left: 16px;
-}
-
-.overlay__empty {
-  padding: 12px 8px;
-  text-align: center;
-  color: var(--ink-mute);
+  padding: 4px 10px;
 }
 
 /* Error state */
 .overlay__error {
-  padding: 12px;
-  margin: 4px;
+  padding: 8px 10px;
+  margin: 4px 8px;
   background: rgba(244, 164, 164, 0.1);
   border: 1px solid rgba(244, 164, 164, 0.2);
   border-radius: 4px;
   color: var(--phase-approval);
-  font-size: 12px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -380,17 +233,7 @@
   font-size: 14px;
 }
 
-/* Loading state */
-.overlay__loading {
-  padding: 12px 8px;
-  text-align: center;
-  color: var(--ink-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
+/* Loading spinner */
 .overlay__spinner {
   display: inline-block;
   flex: 0 0 14px;
@@ -403,34 +246,5 @@
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Panel footer with settings button */
-.overlay__panel-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding: 8px;
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.overlay__settings-btn {
-  padding: 6px 12px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--ink-soft);
-  background: var(--bg-soft);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.overlay__settings-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: var(--border-hover);
-  color: var(--paper);
+  to { transform: rotate(360deg); }
 }

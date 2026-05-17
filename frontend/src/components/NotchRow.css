@@ -1,0 +1,73 @@
+/* NotchRow — compact pill bar
+   Styles also in Pill.css for completeness.
+   Kept as separate file for component isolation. */
+
+.notch-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  width: 100%;
+  flex: 0 0 32px;
+}
+
+.notch-row__glyph {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.notch-row__agent-dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.notch-row__label {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--paper);
+}
+
+.notch-row__spacer {
+  flex: 1 1 0;
+}
+
+.notch-row__right {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+}
+
+.notch-row__right .notch-row__chip {
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.notch-row__right .notch-row__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--paper);
+}

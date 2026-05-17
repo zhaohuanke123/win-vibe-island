@@ -337,7 +337,8 @@ Hook server 固定监听 `127.0.0.1:7878`。
 3. **Overlay 样式**：原生 overlay 创建时必须保留 `WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE`。
 4. **主窗口透明**：Tauri 主窗口保持 `transparent: true`、`decorations: false`、`alwaysOnTop: true`。
 5. **Hook 配置非破坏性**：自动配置不得覆盖用户已有的非 Vibe Island hook。
-6. **审批关联**：审批响应必须通过 `tool_use_id` 匹配 pending approval，不能只按 session 匹配。
+6. **配置治理**：前端 UI 配置（`ui.dimensions.*`、`ui.stateColors`、`ui.animation.*`）在 Rust 和前端都有默认值。Rust 通过 `get_app_config` 返回的配置会 **deep merge** 到前端默认值上，不会覆盖缺数字段。修改 UI 配置时**两边都要改**，改完后通过 `cargo check && npm run build` 验证一致性。
+7. **审批关联**：审批响应必须通过 `tool_use_id` 匹配 pending approval，不能只按 session 匹配。
 
 ### 禁止事项
 

@@ -452,7 +452,7 @@ pub struct UiDimensions {
     pub status_dot_size: u32,
 }
 
-fn default_bar_height() -> u32 { 52 }
+fn default_bar_height() -> u32 { 32 }
 fn default_padding() -> u32 { 14 }
 fn default_gap() -> u32 { 8 }
 fn default_dot_size() -> u32 { 12 }
