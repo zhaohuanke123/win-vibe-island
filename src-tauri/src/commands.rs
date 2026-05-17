@@ -203,26 +203,49 @@ pub fn stop_pipe_server() -> Result<(), String> {
 ///
 /// Accepts a JumpTarget with terminal type, PID, workspace path, and extra info.
 /// Uses the best available strategy for the detected terminal type:
-/// - Windows Terminal: `wt -w 0 focus-tab --target <tab-id>`
-/// - VS Code: `code -r <workspace-path>`
-/// - Cursor: `cursor -r <workspace-path>`
+/// - Windows Terminal: PID focus, fallback to `wt focus-tab`
+/// - VS Code: PID focus, fallback to `code -r <workspace-path>`
+/// - Cursor: PID focus, fallback to `cursor -r <workspace-path>`
 /// - Fallback: PID → SetForegroundWindow + FlashWindowEx
+/// - Last resort: try `code -r` / `cursor -r` with workspace path
 #[tauri::command]
 pub fn focus_session_window(
     session_pid: Option<u32>,
     jump_target: Option<JumpTarget>,
 ) -> FocusResult {
+    log::info!(
+        "[focus_session_window] called with session_pid={:?}, jump_target={:?}",
+        session_pid,
+        jump_target.as_ref().map(|t| (&t.terminal_type, &t.pid, &t.workspace_path))
+    );
+
     if let Some(ref target) = jump_target {
         if target.terminal_type.is_some() {
-            return window_focus::focus_with_jump_target(target);
+            let result = window_focus::focus_with_jump_target(target);
+            log::info!("[focus_session_window] strategy result: {:?}", result);
+            return result;
         }
     }
 
-    // Legacy fallback: PID only
+    // Legacy fallback: try PID-based focus
     if let Some(pid) = session_pid {
-        return window_focus::focus_window_by_pid(pid);
+        let result = window_focus::focus_window_by_pid(pid);
+        log::info!("[focus_session_window] PID fallback result: {:?}", result);
+        if !matches!(result, FocusResult::NotFound) {
+            return result;
+        }
     }
 
+    // Last resort: try to focus by workspace path using known editors
+    if let Some(ref target) = jump_target {
+        if let Some(ref workspace) = target.workspace_path {
+            let result = window_focus::focus_by_workspace(workspace);
+            log::info!("[focus_session_window] workspace fallback result: {:?}", result);
+            return result;
+        }
+    }
+
+    log::warn!("[focus_session_window] no pid and no jump_target — NotFound");
     FocusResult::NotFound
 }
 
@@ -796,6 +819,73 @@ pub fn analyze_command(command: String) -> crate::command_analyzer::CommandAnaly
 pub fn flash_taskbar(app: AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.request_user_attention(Some(tauri::UserAttentionType::Informational));
+    }
+}
+
+/// Diagnostic: test terminal detection for a given PID, or the current process if none.
+#[tauri::command]
+pub fn test_detect_terminal(pid: Option<u32>) -> serde_json::Value {
+    #[cfg(target_os = "windows")]
+    {
+        let target_pid = pid.unwrap_or_else(|| std::process::id());
+        let (terminal_type, extra) = window_focus::detect_terminal_type(target_pid);
+        let found_window = window_focus::find_window_by_pid(target_pid);
+        serde_json::json!({
+            "pid": target_pid,
+            "terminalType": terminal_type,
+            "extra": extra,
+            "foundWindow": found_window.is_some(),
+        })
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = pid;
+        serde_json::json!({"error": "not supported on this platform"})
+    }
+}
+
+/// Diagnostic: get all sessions with their jump target info
+#[tauri::command]
+pub fn debug_sessions() -> serde_json::Value {
+    // This reads from the session_state module — for now just return process info
+    let current_pid = std::process::id();
+    #[cfg(target_os = "windows")]
+    {
+        let parent_pid = {
+            use windows::Win32::System::Diagnostics::ToolHelp::*;
+            unsafe {
+                let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0).ok();
+                snapshot.and_then(|snap| {
+                    let mut entry = PROCESSENTRY32W {
+                        dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+                        ..Default::default()
+                    };
+                    if Process32FirstW(snap, &mut entry).is_ok() {
+                        loop {
+                            if entry.th32ProcessID == current_pid {
+                                return Some(entry.th32ParentProcessID);
+                            }
+                            entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+                            if Process32NextW(snap, &mut entry).is_err() {
+                                break;
+                            }
+                        }
+                    }
+                    None
+                })
+            }
+        };
+        let (terminal_type, extra) = window_focus::detect_terminal_type(current_pid);
+        serde_json::json!({
+            "currentPid": current_pid,
+            "parentPid": parent_pid,
+            "terminalType": terminal_type,
+            "extra": extra,
+        })
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        serde_json::json!({"currentPid": current_pid})
     }
 }
 

@@ -419,6 +419,29 @@ async fn write_pipe_response(
     Ok(())
 }
 
+/// Detect terminal type and build a jump_target JSON value from the hooks envelope PID.
+fn build_jump_target(envelope: &serde_json::Value, cwd: &str) -> Option<serde_json::Value> {
+    let hooks_pid = envelope.get("pid").and_then(|v| v.as_u64()).map(|v| v as u32);
+
+    #[cfg(target_os = "windows")]
+    let (terminal_type, terminal_extra) = hooks_pid
+        .map(|p| crate::window_focus::detect_terminal_type(p))
+        .unwrap_or((None, None));
+    #[cfg(not(target_os = "windows"))]
+    let (terminal_type, terminal_extra) = (None, None);
+
+    if terminal_type.is_some() || hooks_pid.is_some() {
+        Some(serde_json::json!({
+            "terminalType": terminal_type,
+            "pid": hooks_pid,
+            "workspacePath": if cwd.is_empty() { None } else { Some(cwd) },
+            "extra": terminal_extra,
+        }))
+    } else {
+        None
+    }
+}
+
 /// Handle a hook event envelope from the CLI.
 /// Returns HookEventResult indicating whether the connection handler must send a response.
 fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEventResult {
@@ -466,8 +489,14 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
 
     match event_name {
         "SessionStart" => {
-            // Extract client PID from hooks binary envelope
             let hooks_pid = envelope.get("pid").and_then(|v| v.as_u64()).map(|v| v as u32);
+            let jump_target = build_jump_target(envelope, cwd);
+
+            log::info!(
+                "[SessionStart] session_id={}, hooks_pid={:?}, jump_target={:?}",
+                session_id, hooks_pid, jump_target
+            );
+
             let _ = app.emit(
                 "session_start",
                 &serde_json::json!({
@@ -478,6 +507,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
                     "model": payload.get("model"),
                     "agent_type": payload.get("agent_type"),
                     "pid": hooks_pid,
+                    "jump_target": jump_target,
                 }),
             );
             let event = ClaudeCodeAdapter::to_session_started(&payload);
@@ -489,12 +519,23 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
             HookEventResult::FireAndForget
         }
         "PreToolUse" => {
+            let pre_cwd = payload.get("cwd").and_then(|v| v.as_str()).unwrap_or(cwd);
+            let jump_target = build_jump_target(envelope, pre_cwd);
+            let hooks_pid = envelope.get("pid").and_then(|v| v.as_u64()).map(|v| v as u32);
+
+            log::info!(
+                "[PreToolUse] session_id={}, hooks_pid={:?}, jump_target={:?}",
+                session_id, hooks_pid, jump_target
+            );
+
             let _ = app.emit(
                 "session_start",
                 &serde_json::json!({
                     "session_id": session_id,
                     "label": label,
                     "cwd": payload.get("cwd"),
+                    "pid": hooks_pid,
+                    "jump_target": jump_target,
                 }),
             );
             let _ = app.emit(

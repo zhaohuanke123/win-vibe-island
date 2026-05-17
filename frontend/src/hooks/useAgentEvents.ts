@@ -17,6 +17,13 @@ interface SessionStartEvent {
   agent_type?: string;
   detected_agent?: string;
   pid?: number;
+  jump_target?: {
+    terminalType?: string;
+    pid?: number;
+    workspacePath?: string;
+    windowTitle?: string;
+    extra?: Record<string, unknown>;
+  };
 }
 
 interface SessionEndEvent {
@@ -159,13 +166,26 @@ export function useAgentEvents() {
     const setupListeners = async () => {
       // Listen for session_start events (from SessionStart hook)
       const unlistenStart = await listen<SessionStartEvent>("session_start", (event) => {
-        const { session_id, label, cwd, pid, agent_type, detected_agent } = event.payload;
+        const { session_id, label, cwd, pid, agent_type, detected_agent, jump_target } = event.payload;
+
+        const jumpTarget = jump_target ? {
+          terminalType: jump_target.terminalType,
+          pid: jump_target.pid,
+          workspacePath: jump_target.workspacePath,
+          windowTitle: jump_target.windowTitle,
+          extra: jump_target.extra,
+        } : undefined;
 
         // Check if session already exists
         const existingSession = useSessionsStore.getState().sessions.find(s => s.id === session_id);
         if (existingSession) {
-          // Session exists, just update it (preserve existing pid if new one is null)
-          updateSessionInfo(session_id, { label, state: "idle", agent: normalizeAgent(agent_type || detected_agent) as any });
+          // Session exists, update it — overwrite jumpTarget if new one has terminal type
+          updateSessionInfo(session_id, {
+            label,
+            state: "idle",
+            agent: normalizeAgent(agent_type || detected_agent) as any,
+            ...(jump_target?.terminalType ? { jumpTarget } : {}),
+          });
         } else {
           // Create new session
           addSession({
@@ -175,6 +195,7 @@ export function useAgentEvents() {
             state: "idle" as UIPhase,
             pid: pid ?? undefined,
             agent: normalizeAgent(agent_type || detected_agent) as any,
+            jumpTarget,
             toolHistory: [],
             createdAt: Date.now(),
             lastActivity: Date.now(),
@@ -399,9 +420,12 @@ export function useAgentEvents() {
         // Try to match this process to an existing hook-tracked session
         const sessions = useSessionsStore.getState().sessions;
         const agentType = normalizeAgent(process.agent_type);
-        // Find matching sessions WITHOUT a pid that are not process-* auto-detected
+        // Match sessions by agent type that lack a proper jumpTarget (no terminalType),
+        // or that have no PID at all
         const match = sessions.find(s =>
-          s.agent === agentType && !s.pid && !s.id.startsWith("process-")
+          s.agent === agentType
+          && !s.id.startsWith("process-")
+          && (!s.jumpTarget?.terminalType)
         );
 
         if (match) {
@@ -409,6 +433,7 @@ export function useAgentEvents() {
           useSessionsStore.getState().updateSessionInfo(match.id, {
             pid: process.pid,
             jumpTarget: {
+              ...match.jumpTarget,
               pid: process.pid,
             },
           });

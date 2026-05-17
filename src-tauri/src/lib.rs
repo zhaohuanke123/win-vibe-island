@@ -359,6 +359,8 @@ pub fn run() {
             commands::get_session_store_path,
             commands::analyze_command,
             commands::flash_taskbar,
+            commands::test_detect_terminal,
+            commands::debug_sessions,
             commands::get_claude_usage,
             logger::log_entry,
             commands::discover_transcripts,

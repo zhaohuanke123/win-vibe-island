@@ -88,6 +88,7 @@ pub fn get_hooks_bin_path() -> PathBuf {
 
 /// Deploy the hooks CLI binary to a stable location.
 /// Copies from the current exe directory to %APPDATA%\vibe-island\bin\.
+/// Uses modification time comparison to detect if an update is needed.
 /// Returns the deployed path on success.
 pub fn deploy_hooks_binary() -> Result<PathBuf, String> {
     let target = get_hooks_bin_path();
@@ -101,14 +102,20 @@ pub fn deploy_hooks_binary() -> Result<PathBuf, String> {
     // Try to locate the source binary
     let source = find_hooks_source()?;
 
-    // Check if target already exists and matches
+    // Only copy if source is newer than target
     if target.exists() {
-        // Compare file sizes as a quick version check
-        let target_meta = fs::metadata(&target).ok();
-        let source_meta = fs::metadata(&source).ok();
-        if target_meta.zip(source_meta).map_or(false, |(t, s)| t.len() == s.len()) {
-            log::info!("Hooks binary already up-to-date at {}", target.display());
-            return Ok(target);
+        let source_time = fs::metadata(&source)
+            .ok()
+            .and_then(|m| m.modified().ok());
+        let target_time = fs::metadata(&target)
+            .ok()
+            .and_then(|m| m.modified().ok());
+
+        if let (Some(src), Some(tgt)) = (source_time, target_time) {
+            if src <= tgt {
+                log::debug!("Hooks binary already up-to-date at {}", target.display());
+                return Ok(target);
+            }
         }
         log::info!("Updating hooks binary at {}", target.display());
     }
@@ -606,8 +613,16 @@ fn remove_vibe_hooks(settings: &mut serde_json::Value) {
     remove_vibe_hooks_filtered(settings, &all_hooks);
 }
 
-/// Auto-configure hooks on startup if needed
+/// Auto-configure hooks on startup if needed.
+/// Always checks and updates the hooks binary (even if hooks are already configured)
+/// to ensure the deployed binary matches the current app version.
 pub fn auto_configure_hooks() -> Result<bool, String> {
+    // Always try to deploy the latest hooks binary, even if hooks are already configured.
+    // This ensures binary updates are picked up on every app restart.
+    if let Err(e) = deploy_hooks_binary() {
+        log::warn!("Could not update hooks binary: {}", e);
+    }
+
     let status = check_hook_config();
 
     if status.configured {

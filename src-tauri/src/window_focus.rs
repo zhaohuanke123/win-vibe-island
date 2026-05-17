@@ -41,6 +41,14 @@ impl FocusStrategy for WindowsTerminalStrategy {
             return None;
         }
 
+        // Prefer PID-based focus for reliability
+        if let Some(pid) = target.extra.as_ref().and_then(|e| e.get("terminalPid")).and_then(|v| v.as_u64()) {
+            if let Some(hwnd) = find_window_by_pid(pid as u32) {
+                return Some(focus_window(hwnd));
+            }
+        }
+
+        // Fallback: wt focus-tab command
         let tab_id = target.extra.as_ref()
             .and_then(|e| e.get("tabId"))
             .and_then(|v| v.as_str());
@@ -74,19 +82,14 @@ impl FocusStrategy for VsCodeStrategy {
             return None;
         }
 
-        let workspace = match target.workspace_path.as_deref() {
-            Some(p) => p,
-            None => return None,
-        };
-
-        match run_command_with_timeout("code", &format!("-r \"{}\"", workspace), STRATEGY_TIMEOUT) {
-            Ok(true) => Some(FocusResult::Success),
-            Ok(false) => Some(FocusResult::CommandFailed("code exited non-zero".into())),
-            Err(e) => {
-                log::warn!("VS Code strategy failed: {}", e);
-                Some(FocusResult::CommandFailed(e))
-            }
+        // Find any code.exe window whose title contains the workspace folder name.
+        // VS Code spawns multiple processes (main, renderer, extension host);
+        // the PID we detected may be a background process without a window.
+        if let Some(ref workspace) = target.workspace_path {
+            return Some(focus_by_workspace_with_exe(workspace, "code.exe"));
         }
+
+        Some(FocusResult::NotFound)
     }
 }
 
@@ -102,19 +105,11 @@ impl FocusStrategy for CursorStrategy {
             return None;
         }
 
-        let workspace = match target.workspace_path.as_deref() {
-            Some(p) => p,
-            None => return None,
-        };
-
-        match run_command_with_timeout("cursor", &format!("-r \"{}\"", workspace), STRATEGY_TIMEOUT) {
-            Ok(true) => Some(FocusResult::Success),
-            Ok(false) => Some(FocusResult::CommandFailed("cursor exited non-zero".into())),
-            Err(e) => {
-                log::warn!("Cursor strategy failed: {}", e);
-                Some(FocusResult::CommandFailed(e))
-            }
+        if let Some(ref workspace) = target.workspace_path {
+            return Some(focus_by_workspace_with_exe(workspace, "cursor.exe"));
         }
+
+        Some(FocusResult::NotFound)
     }
 }
 
@@ -294,10 +289,107 @@ pub fn focus_window_by_pid(pid: u32) -> FocusResult {
     }
 }
 
+/// Find a window belonging to the specified exe whose title contains the workspace folder name.
+#[cfg(target_os = "windows")]
+fn focus_by_workspace_with_exe(workspace: &str, exe_name: &str) -> FocusResult {
+    use windows::Win32::Foundation::*;
+    use windows::Win32::UI::WindowsAndMessaging::*;
+
+    let folder_name = workspace
+        .rsplit(|c| c == '/' || c == '\\')
+        .find(|s| !s.is_empty())
+        .unwrap_or("");
+
+    if folder_name.is_empty() {
+        return FocusResult::NotFound;
+    }
+
+    let exe_name_lower = exe_name.to_lowercase();
+    let folder_name_lower = folder_name.to_lowercase();
+
+    // Build PID→name map ONCE instead of per-window snapshot
+    let pid_map = build_process_name_map();
+
+    struct EnumData {
+        folder_name_lower: String,
+        exe_name_lower: String,
+        pid_map: std::collections::HashMap<u32, String>,
+        found_hwnd: Option<HWND>,
+    }
+
+    unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let data = &mut *(lparam.0 as *mut EnumData);
+        if data.found_hwnd.is_some() {
+            return BOOL(0);
+        }
+
+        let mut window_pid: u32 = 0;
+        GetWindowThreadProcessId(hwnd, Some(&mut window_pid));
+
+        match data.pid_map.get(&window_pid) {
+            Some(name) if name.to_lowercase() == data.exe_name_lower => {}
+            _ => return BOOL(1),
+        }
+
+        if !IsWindowVisible(hwnd).as_bool() {
+            return BOOL(1);
+        }
+
+        let title_len = GetWindowTextLengthW(hwnd);
+        if title_len == 0 {
+            return BOOL(1);
+        }
+
+        let mut buf = vec![0u16; (title_len + 1) as usize];
+        GetWindowTextW(hwnd, &mut buf);
+        let title = String::from_utf16_lossy(&buf[..title_len as usize]);
+
+        if title.to_lowercase().contains(&data.folder_name_lower) {
+            data.found_hwnd = Some(hwnd);
+            return BOOL(0);
+        }
+
+        BOOL(1)
+    }
+
+    let mut data = EnumData {
+        folder_name_lower,
+        exe_name_lower,
+        pid_map,
+        found_hwnd: None,
+    };
+
+    unsafe {
+        let _ = EnumWindows(Some(enum_callback), LPARAM(&mut data as *mut _ as isize));
+    }
+
+    match data.found_hwnd {
+        Some(hwnd) => focus_window(hwnd),
+        None => FocusResult::NotFound,
+    }
+}
+
+/// Last-resort focus: try all known editors to find a matching window.
+#[cfg(target_os = "windows")]
+pub fn focus_by_workspace(workspace: &str) -> FocusResult {
+    for exe in &["code.exe", "cursor.exe"] {
+        let result = focus_by_workspace_with_exe(workspace, exe);
+        if !matches!(result, FocusResult::NotFound) {
+            return result;
+        }
+    }
+    FocusResult::NotFound
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn focus_by_workspace(_workspace: &str) -> FocusResult {
+    FocusResult::NotFound
+}
+
 // ─── Detect terminal type from process parent chain ──────────────────────────
 
 /// Detect the terminal type by examining the parent process chain.
-/// Returns a terminal type string and optional extra metadata.
+/// Returns a terminal type string and optional extra metadata (including the terminal process PID).
 #[cfg(target_os = "windows")]
 pub fn detect_terminal_type(pid: u32) -> (Option<String>, Option<serde_json::Value>) {
     let parent_pid = get_parent_pid(pid);
@@ -313,13 +405,13 @@ pub fn detect_terminal_type(pid: u32) -> (Option<String>, Option<serde_json::Val
             let name_lower = name.to_lowercase();
 
             if name_lower == "windowsterminal.exe" || name_lower == "wt.exe" {
-                return (Some("windowsTerminal".into()), None);
+                return (Some("windowsTerminal".into()), Some(serde_json::json!({ "terminalPid": current_pid })));
             }
             if name_lower == "code.exe" {
-                return (Some("vscode".into()), None);
+                return (Some("vscode".into()), Some(serde_json::json!({ "terminalPid": current_pid })));
             }
             if name_lower == "cursor.exe" {
-                return (Some("cursor".into()), None);
+                return (Some("cursor".into()), Some(serde_json::json!({ "terminalPid": current_pid })));
             }
         }
 
@@ -392,6 +484,42 @@ fn get_process_name(pid: u32) -> Option<String> {
 
         None
     }
+}
+
+/// Build a PID → process name map in a single snapshot. Avoids creating one
+/// snapshot per window in EnumWindows callbacks.
+#[cfg(target_os = "windows")]
+fn build_process_name_map() -> std::collections::HashMap<u32, String> {
+    use windows::Win32::System::Diagnostics::ToolHelp::*;
+    use std::collections::HashMap;
+
+    let mut map = HashMap::new();
+    unsafe {
+        let snapshot = match CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
+            Ok(s) => s,
+            Err(_) => return map,
+        };
+        let mut entry = PROCESSENTRY32W {
+            dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+            ..Default::default()
+        };
+        if Process32FirstW(snapshot, &mut entry).is_ok() {
+            loop {
+                let name = String::from_utf16_lossy(
+                    &entry.szExeFile.iter()
+                        .take_while(|&&c| c != 0)
+                        .copied()
+                        .collect::<Vec<u16>>()
+                );
+                map.insert(entry.th32ProcessID, name);
+                entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+                if Process32NextW(snapshot, &mut entry).is_err() {
+                    break;
+                }
+            }
+        }
+    }
+    map
 }
 
 // ─── Non-Windows stubs ───────────────────────────────────────────────────────
