@@ -164,6 +164,12 @@ pub fn run() {
                 Err(e) => log::error!("Failed to start hook server: {}", e),
             }
 
+            // Start the process watcher to detect agent processes and link PIDs to sessions
+            match process_watcher::start_process_watcher(app.handle().clone()) {
+                Ok(()) => log::info!("Process watcher started"),
+                Err(e) => log::error!("Failed to start process watcher: {}", e),
+            }
+
             // Auto-configure Claude Code hooks if needed
             match hook_config::auto_configure_hooks() {
                 Ok(true) => log::info!("Claude Code hooks auto-configured"),

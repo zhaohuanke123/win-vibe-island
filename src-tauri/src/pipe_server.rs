@@ -14,9 +14,9 @@ enum HookEventResult {
     /// Fire-and-forget: no response needed (e.g. SessionStart, Notification).
     FireAndForget,
     /// Respond immediately with an empty allow payload (PreToolUse).
-    RespondImmediately(String),
+    RespondImmediately { request_id: String, event_name: String },
     /// Wait for user approval/rejection before responding (PermissionRequest).
-    WaitForApproval(String, oneshot::Receiver<crate::hook_server::PermissionDecision>),
+    WaitForApproval { request_id: String, event_name: String, rx: oneshot::Receiver<crate::hook_server::PermissionDecision> },
 }
 
 /// Get the pipe name from configuration
@@ -264,16 +264,36 @@ async fn handle_connection(
                         if msg_type == "hook_event" {
                             match handle_hook_event(&app, &envelope) {
                                 HookEventResult::FireAndForget => {}
-                                result => {
-                                    // Blocking event — build and send response back through pipe
+                                HookEventResult::RespondImmediately { request_id, event_name } => {
+                                    let (tx, rx) = oneshot::channel::<crate::hook_server::PermissionDecision>();
+                                    let _ = tx.send(crate::hook_server::PermissionDecision {
+                                        behavior: "allow".to_string(),
+                                        message: None,
+                                        updated_input: None,
+                                    });
                                     if let Err(e) = write_pipe_response(
                                         &mut server,
-                                        result,
+                                        request_id,
+                                        &event_name,
+                                        rx,
                                     )
                                     .await
                                     {
                                         log::error!("Failed to write pipe response: {}", e);
-                                        break; // pipe broken, stop handling this connection
+                                        break;
+                                    }
+                                }
+                                HookEventResult::WaitForApproval { request_id, event_name, rx } => {
+                                    if let Err(e) = write_pipe_response(
+                                        &mut server,
+                                        request_id,
+                                        &event_name,
+                                        rx,
+                                    )
+                                    .await
+                                    {
+                                        log::error!("Failed to write pipe response: {}", e);
+                                        break;
                                     }
                                 }
                             }
@@ -318,63 +338,65 @@ async fn handle_connection(
 #[cfg(target_os = "windows")]
 async fn write_pipe_response(
     server: &mut NamedPipeServer,
-    result: HookEventResult,
+    request_id: String,
+    event_name: &str,
+    rx: oneshot::Receiver<crate::hook_server::PermissionDecision>,
 ) -> Result<(), String> {
     use tokio::io::AsyncWriteExt;
 
-    let (request_id, decision) = match result {
-        HookEventResult::FireAndForget => return Ok(()),
-        HookEventResult::RespondImmediately(rid) => {
-            (rid, crate::hook_server::PermissionDecision {
+    let decision = tokio::time::timeout(
+        tokio::time::Duration::from_secs(290),
+        rx,
+    ).await;
+
+    let decision = match decision {
+        Ok(Ok(d)) => d,
+        Ok(Err(_)) => {
+            log::warn!("Approval channel closed; fail-open allow");
+            crate::hook_server::PermissionDecision {
                 behavior: "allow".to_string(),
-                message: None,
+                message: Some("Approval channel closed".to_string()),
                 updated_input: None,
-            })
+            }
         }
-        HookEventResult::WaitForApproval(rid, rx) => {
-            let decision = tokio::time::timeout(
-                tokio::time::Duration::from_secs(290),
-                rx,
-            ).await;
-            match decision {
-                Ok(Ok(d)) => (rid, d),
-                Ok(Err(_)) => {
-                    log::warn!("Approval channel closed; fail-open allow");
-                    (rid, crate::hook_server::PermissionDecision {
-                        behavior: "allow".to_string(),
-                        message: Some("Approval channel closed".to_string()),
-                        updated_input: None,
-                    })
-                }
-                Err(_) => {
-                    log::warn!("Approval timed out after 290s; fail-open allow");
-                    (rid, crate::hook_server::PermissionDecision {
-                        behavior: "allow".to_string(),
-                        message: Some("Approval timed out".to_string()),
-                        updated_input: None,
-                    })
-                }
+        Err(_) => {
+            log::warn!("Approval timed out after 290s; fail-open allow");
+            crate::hook_server::PermissionDecision {
+                behavior: "allow".to_string(),
+                message: Some("Approval timed out".to_string()),
+                updated_input: None,
             }
         }
     };
 
-    let stdout_payload = if let Some(ref updated_input) = decision.updated_input {
+    let stdout_payload = if event_name == "PreToolUse" {
+        // PreToolUse returns a flat permissionDecision string
         serde_json::json!({
             "hookSpecificOutput": {
-                "hookEventName": "PermissionRequest",
-                "decision": {
-                    "behavior": decision.behavior,
-                    "updatedInput": updated_input,
-                }
+                "hookEventName": "PreToolUse",
+                "permissionDecision": decision.behavior,
             }
         })
     } else {
-        serde_json::json!({
-            "hookSpecificOutput": {
-                "hookEventName": "PermissionRequest",
-                "decision": { "behavior": decision.behavior }
-            }
-        })
+        // PermissionRequest returns a decision object
+        if let Some(ref updated_input) = decision.updated_input {
+            serde_json::json!({
+                "hookSpecificOutput": {
+                    "hookEventName": event_name,
+                    "decision": {
+                        "behavior": decision.behavior,
+                        "updatedInput": updated_input,
+                    }
+                }
+            })
+        } else {
+            serde_json::json!({
+                "hookSpecificOutput": {
+                    "hookEventName": event_name,
+                    "decision": { "behavior": decision.behavior }
+                }
+            })
+        }
     };
 
     let envelope = serde_json::json!({
@@ -501,7 +523,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
             }
             // PreToolUse is blocking in the CLI but doesn't need user input —
             // acknowledge immediately so the agent continues without waiting.
-            HookEventResult::RespondImmediately(request_id)
+            HookEventResult::RespondImmediately { request_id, event_name: event_name.to_string() }
         }
         "PostToolUse" => {
             let event = ClaudeCodeAdapter::to_tool_use_completed(&payload);
@@ -662,11 +684,11 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
                 tool_name,
                 tool_input,
             ) {
-                Some(rx) => HookEventResult::WaitForApproval(request_id, rx),
+                Some(rx) => HookEventResult::WaitForApproval { request_id, event_name: event_name.to_string(), rx },
                 None => {
                     // Hook server not running — fail-open: allow the tool.
                     log::warn!("PermissionRequest via pipe but hook_server not running; fail-open allow");
-                    HookEventResult::RespondImmediately(request_id)
+                    HookEventResult::RespondImmediately { request_id, event_name: event_name.to_string() }
                 }
             }
         }
