@@ -348,7 +348,7 @@ fn is_vibe_island_hook(hook_config: &serde_json::Value) -> bool {
 /// Generate the Vibe Island hook configuration (command hook mode).
 fn generate_hook_config() -> serde_json::Value {
     let hooks_bin = get_hooks_bin_path();
-    let hooks_bin_str = hooks_bin.to_string_lossy().to_string();
+    let hooks_bin_str = hooks_bin.to_string_lossy().to_string().replace("\\", "/");
 
     serde_json::json!({
         "hooks": {

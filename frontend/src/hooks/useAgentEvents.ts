@@ -138,13 +138,13 @@ export function useAgentEvents() {
     const setupListeners = async () => {
       // Listen for session_start events (from SessionStart hook)
       const unlistenStart = await listen<SessionStartEvent>("session_start", (event) => {
-        const { session_id, label, cwd, pid } = event.payload;
+        const { session_id, label, cwd, pid, agent_type } = event.payload;
 
         // Check if session already exists
         const existingSession = useSessionsStore.getState().sessions.find(s => s.id === session_id);
         if (existingSession) {
-          // Session exists, just update it
-          updateSessionInfo(session_id, { label, state: "idle" });
+          // Session exists, just update it (preserve existing pid if new one is null)
+          updateSessionInfo(session_id, { label, state: "idle", agent: agent_type as any });
         } else {
           // Create new session
           addSession({
@@ -152,7 +152,8 @@ export function useAgentEvents() {
             label: label || (cwd ? extractProjectName(cwd) : "Claude Code"),
             cwd: cwd || "",
             state: "idle" as UIPhase,
-            pid,
+            pid: pid ?? undefined,
+            agent: agent_type as any,
             toolHistory: [],
             createdAt: Date.now(),
             lastActivity: Date.now(),
@@ -372,14 +373,34 @@ export function useAgentEvents() {
       // Listen for process_detected events from Process Watcher
       const unlistenProcessDetected = await listen<ProcessDetectedEvent>("process_detected", (event) => {
         const { process } = event.payload;
-        if (process.is_agent && process.agent_type) {
-          const sessionId = `process-${process.pid}`;
+        if (!process.is_agent || !process.agent_type) return;
+
+        // Try to match this process to an existing hook-tracked session
+        const sessions = useSessionsStore.getState().sessions;
+        const agentType = process.agent_type;
+        // Find matching sessions WITHOUT a pid that are not process-* auto-detected
+        const match = sessions.find(s =>
+          s.agent === agentType && !s.pid && !s.id.startsWith("process-")
+        );
+
+        if (match) {
+          // Link PID to the existing hook-tracked session
+          useSessionsStore.getState().updateSessionInfo(match.id, {
+            pid: process.pid,
+            jumpTarget: {
+              pid: process.pid,
+            },
+          });
+          logger.info(`Linked PID ${process.pid} to session ${match.id}`);
+        } else {
+          // No matching hook session: create auto-detected session as fallback
           addSession({
-            id: sessionId,
+            id: `process-${process.pid}`,
             label: `${process.agent_type} (PID: ${process.pid})`,
             cwd: "",
             state: "idle" as UIPhase,
             pid: process.pid,
+            agent: agentType as any,
             toolHistory: [],
             createdAt: Date.now(),
             lastActivity: Date.now(),
