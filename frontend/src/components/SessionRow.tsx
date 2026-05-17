@@ -2,6 +2,7 @@ import { useState, useCallback, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { StateIndicator } from "./StateIndicator";
 import type { StateIndicatorKind } from "./StateIndicator";
+import { NotifBody } from "./NotifBody";
 import { getAgent, hexA } from "../shared/agents";
 import { phaseColor, fmtAge, isAttentionPhase } from "../shared/phase-colors";
 import type { Session } from "../store/sessions";
@@ -39,6 +40,7 @@ interface SessionRowProps {
   session: Session;
   isActive?: boolean;
   indicatorKind?: StateIndicatorKind;
+  density?: "comfortable" | "compact";
   onJump?: (session: Session) => void;
   "data-testid"?: string;
 }
@@ -47,6 +49,7 @@ export const SessionRow = memo(function SessionRow({
   session,
   isActive = false,
   indicatorKind = "dot",
+  density = "comfortable",
   onJump,
   "data-testid": testId,
 }: SessionRowProps) {
@@ -97,6 +100,8 @@ export const SessionRow = memo(function SessionRow({
       : "";
   if (msg) contentParts.push(msg);
 
+  const isCompact = density === "compact";
+
   const rowClassName = [
     "session-row",
     isActive ? "session-row--active" : "",
@@ -104,6 +109,7 @@ export const SessionRow = memo(function SessionRow({
     expanded ? "session-row--expanded" : "",
     isAttentionPhase(session.state) ? "session-row--attention" : "",
     jumping ? "session-row--jumping" : "",
+    isCompact ? "session-row--compact" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -148,7 +154,7 @@ export const SessionRow = memo(function SessionRow({
             >
               {projectName}
             </span>
-            {branch && (
+            {branch && !isCompact && (
               <>
                 <span className="session-row__sep">·</span>
                 <span className="session-row__branch">{branch}</span>
@@ -172,8 +178,8 @@ export const SessionRow = memo(function SessionRow({
           {agent.short}
         </span>
 
-        {/* Terminal badge */}
-        {terminalType && (
+        {/* Terminal badge — hidden in compact */}
+        {!isCompact && terminalType && (
           <span className="session-row__terminal-badge" data-testid="terminal-badge">
             {terminalType}
           </span>
@@ -194,8 +200,8 @@ export const SessionRow = memo(function SessionRow({
         >
           <svg
             viewBox="0 0 16 16"
-            width="14"
-            height="14"
+            width={isCompact ? 12 : 14}
+            height={isCompact ? 12 : 14}
             fill="none"
             stroke="currentColor"
             strokeWidth="1.5"
@@ -210,7 +216,23 @@ export const SessionRow = memo(function SessionRow({
       {/* Expanded detail */}
       {expanded && (
         <div className="session-row__detail" data-testid="row-detail">
-          {session.state === "running" && session.currentTool && (
+          {session.notifKind && (
+            <NotifBody
+              kind={session.notifKind}
+              session={session}
+              onSubmit={(response) => {
+                try {
+                  invoke("submit_approval_response", {
+                    toolUseId: session.currentTool?.input?.toolUseId ?? session.id,
+                    approved: response === "approve" || response === "approve-once" || response === "approve-always",
+                    answers: response.startsWith("deny") || response === "dismiss" ? null : { response },
+                  });
+                } catch { /* non-blocking */ }
+              }}
+              onJump={handleRowClick}
+            />
+          )}
+          {!session.notifKind && session.state === "running" && session.currentTool && (
             <div className="session-row__detail-running">
               <span className="session-row__detail-label">Running</span>
               <span className="session-row__detail-tool">
@@ -223,7 +245,7 @@ export const SessionRow = memo(function SessionRow({
               )}
             </div>
           )}
-          {isAttentionPhase(session.state) && (
+          {!session.notifKind && isAttentionPhase(session.state) && (
             <div className="session-row__detail-waiting">
               <span className="session-row__detail-label">
                 {session.state === "waitingForApproval"
@@ -237,7 +259,7 @@ export const SessionRow = memo(function SessionRow({
               )}
             </div>
           )}
-          {session.state === "completed" && (
+          {!session.notifKind && session.state === "completed" && (
             <div className="session-row__detail-done">
               <span className="session-row__detail-label">Completed</span>
               {session.lastError && (

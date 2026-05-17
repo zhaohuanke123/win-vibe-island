@@ -9,6 +9,7 @@ import { SettingsPanel } from "./SettingsPanel";
 import { SessionDetail } from "./SessionDetail";
 import { SessionList } from "./SessionList";
 import { ActivityTimeline } from "./ActivityTimeline";
+import { JumpToast, useJumpToast } from "./JumpToast";
 import { getToolDescription } from "../shared/tool-description";
 import { useSessionsStore } from "../store/sessions";
 import { normalizeOverlayLayoutConfig, useConfigStore } from "../store/config";
@@ -126,6 +127,7 @@ export function Overlay() {
   const viewingSession = viewingSessionId ? sessions.find((s) => s.id === viewingSessionId) ?? null : null;
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast: jumpToast, showToast: showJumpToast, dismissToast: dismissJumpToast } = useJumpToast();
   const hadApprovalRequestRef = useRef(false);
   const handledApprovalStateFocusKeyRef = useRef<string | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -210,6 +212,11 @@ export function Overlay() {
     }
 
     if (session.pid || session.jumpTarget) {
+      // Show jump toast with terminal name
+      const terminalName = session.jumpTarget?.terminalType || "Terminal";
+      const sessionLabel = session.title || session.label;
+      showJumpToast(terminalName, sessionLabel);
+
       setIsLoading(true);
       try {
         await invoke<FocusResult>("focus_session_window", {
@@ -222,7 +229,7 @@ export function Overlay() {
         setIsLoading(false);
       }
     }
-  }, [setActiveSession, expanded]);
+  }, [setActiveSession, expanded, showJumpToast]);
 
   useEffect(() => {
     if (sessions.length > 0 && !activeSessionId) {
@@ -370,7 +377,16 @@ export function Overlay() {
       isExpanded={isOverlayExpanded}
       expandedHeight={isOverlayExpanded ? overlayExpandedHeight : undefined}
     >
-      <div className="overlay__shell">
+      <div className="overlay__shell" style={{ position: "relative" }}>
+        {/* Jump Toast — non-blocking, pointer-events: none */}
+        {jumpToast && (
+          <JumpToast
+            terminalName={jumpToast.terminalName}
+            sessionLabel={jumpToast.sessionLabel}
+            onDismiss={dismissJumpToast}
+            data-testid="jump-toast"
+          />
+        )}
         <div className="overlay__bar" data-testid="status-bar" onClick={handleBarClick}>
           {isLoading && <span className="overlay__spinner" />}
           {active ? (

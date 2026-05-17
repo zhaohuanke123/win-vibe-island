@@ -1,0 +1,272 @@
+/* ── NotifBody — Notification card (4 kinds: two/three/jump/done) ── */
+
+.notif-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  animation: notif-body__fade-in 160ms ease-out;
+}
+
+@keyframes notif-body__fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Standalone mode (notif pill, not embedded) ── */
+
+.notif-body--standalone {
+  padding: 12px 14px;
+}
+
+/* ── Title ── */
+
+.notif-body__title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft, rgba(241, 234, 217, 0.55));
+}
+
+.notif-body--two .notif-body__title,
+.notif-body--three .notif-body__title {
+  color: #f4a4a4;
+}
+
+.notif-body--jump .notif-body__title {
+  color: #ffd58a;
+}
+
+.notif-body--done .notif-body__title {
+  color: #6fb982;
+}
+
+/* ── Code block (two / three) ── */
+
+.notif-body__code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--paper, #f1ead9);
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 4px;
+  padding: 6px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 80px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.notif-body__code-tool {
+  color: #6ea7ff;
+  font-weight: 600;
+}
+
+/* ── Question text (jump) ── */
+
+.notif-body__question {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--paper, #f1ead9);
+}
+
+/* ── Options list (jump) ── */
+
+.notif-body__options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notif-body__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--paper, #f1ead9);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.notif-body__option:hover {
+  background: rgba(255, 213, 138, 0.1);
+  border-color: rgba(255, 213, 138, 0.25);
+}
+
+.notif-body__option--selected {
+  background: rgba(255, 213, 138, 0.15);
+  border-color: rgba(255, 213, 138, 0.4);
+}
+
+.notif-body__option-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-soft, rgba(241, 234, 217, 0.55));
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ── Reply text (done) ── */
+
+.notif-body__reply {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-soft, rgba(241, 234, 217, 0.55));
+  max-height: 60px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* ── Text input ── */
+
+.notif-body__input {
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: "JetBrains Mono", monospace;
+  color: var(--paper, #f1ead9);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 120ms ease;
+}
+
+.notif-body__input:focus {
+  border-color: rgba(255, 213, 138, 0.4);
+}
+
+.notif-body__input::placeholder {
+  color: var(--ink-mute, rgba(241, 234, 217, 0.3));
+}
+
+/* ── Actions row ── */
+
+.notif-body__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.notif-body__actions--end {
+  justify-content: flex-end;
+}
+
+/* ── Buttons ── */
+
+.notif-body__btn {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, opacity 120ms ease;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.notif-body__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Button variants */
+
+.notif-body__btn--primary {
+  background: rgba(110, 167, 255, 0.85);
+  color: #0d0d0f;
+}
+
+.notif-body__btn--primary:hover:not(:disabled) {
+  background: rgba(110, 167, 255, 1);
+}
+
+.notif-body__btn--danger {
+  background: rgba(244, 164, 164, 0.2);
+  color: #f4a4a4;
+}
+
+.notif-body__btn--danger:hover:not(:disabled) {
+  background: rgba(244, 164, 164, 0.35);
+}
+
+.notif-body__btn--default {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink-soft, rgba(241, 234, 217, 0.55));
+}
+
+.notif-body__btn--default:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.notif-body__btn--amber {
+  background: rgba(255, 213, 138, 0.2);
+  color: #ffd58a;
+}
+
+.notif-body__btn--amber:hover:not(:disabled) {
+  background: rgba(255, 213, 138, 0.35);
+}
+
+/* Numbered button variant (three) */
+.notif-body__btn--numbered {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.notif-body__btn-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+/* ── Hint text ── */
+
+.notif-body__hint {
+  font-size: 10px;
+  color: var(--ink-mute, rgba(241, 234, 217, 0.3));
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.notif-body__hint kbd {
+  display: inline-block;
+  padding: 0 3px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  line-height: 1.5;
+}

@@ -12,6 +12,9 @@ export type UIPhase = AgentPhase | "idle";
 /** @deprecated Use AgentPhase or UIPhase instead */
 export type AgentState = UIPhase;
 
+/** Notification card kind — determines which card to show in expanded row */
+export type NotifKind = "two" | "three" | "jump" | "done";
+
 export type HookConnectionState = "connected" | "disconnected" | "error" | "unknown";
 
 // Approval type for different request types
@@ -98,6 +101,9 @@ export interface Session {
 
   // 用户自定义分组标签
   tag?: string;
+
+  // Notification card kind — set by reducer based on event type
+  notifKind?: NotifKind;
 }
 
 export interface DiffData {

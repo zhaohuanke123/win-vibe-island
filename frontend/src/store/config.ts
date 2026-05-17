@@ -78,11 +78,14 @@ export type NotificationSound =
 
 export type StateIndicatorKind = "dot" | "bar" | "glyph" | "tint";
 
+export type DensityMode = "comfortable" | "compact";
+
 export interface UiConfig {
   stateColors: StateColors;
   animation: AnimationConfig;
   dimensions: UiDimensions;
   stateIndicator: StateIndicatorKind;
+  density: DensityMode;
 }
 
 export interface StateColors {
@@ -221,6 +224,7 @@ const DEFAULT_CONFIG: AppConfig = {
       statusDotSize: 12,
     },
     stateIndicator: "dot",
+    density: "comfortable",
   },
 };
 

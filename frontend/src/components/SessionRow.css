@@ -15,6 +15,62 @@
   opacity: 0.7;
 }
 
+/* ── Compact density modifier ── */
+
+.session-row--compact .session-row__body {
+  padding: 3px 6px;
+  gap: 5px;
+}
+
+.session-row--compact .session-row__main {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.session-row--compact .session-row__project {
+  font-size: 11px;
+  max-width: 100px;
+}
+
+.session-row--compact .session-row__msg {
+  font-size: 10px;
+  max-width: 100px;
+}
+
+.session-row--compact .session-row__sep {
+  margin: 0 3px;
+}
+
+.session-row--compact .session-row__agent-chip {
+  font-size: 10px;
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.session-row--compact .session-row__age {
+  font-size: 10.5px;
+}
+
+.session-row--compact .session-row__chevron {
+  width: 20px;
+  height: 20px;
+}
+
+.session-row--compact .session-row__detail {
+  padding: 0 6px 5px 20px;
+  gap: 3px;
+}
+
+.session-row--compact .session-row__detail-label {
+  font-size: 10.5px;
+}
+
+.session-row--compact .session-row__detail-running .session-row__detail-tool,
+.session-row--compact .session-row__detail-waiting .session-row__detail-tool,
+.session-row--compact .session-row__detail-error {
+  font-size: 10.5px;
+}
+
 /* Active session highlight */
 .session-row--active {
   background: rgba(110, 167, 255, 0.1);

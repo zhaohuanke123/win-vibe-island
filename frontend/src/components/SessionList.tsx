@@ -1,11 +1,7 @@
-import { useState, useMemo, useRef, useEffect, memo } from "react";
-import { motion } from "framer-motion";
-import { StatusDot } from "./StatusDot";
-import { SessionContextMenu } from "./SessionContextMenu";
-import { useElapsedTime } from "../hooks/useElapsedTime";
-import { getToolDescription } from "../shared/tool-description";
-import { classifyTool, getCategoryVisual } from "../shared/tool-category";
-import type { Session, UIPhase } from "../store/sessions";
+import { useState, useMemo, memo } from "react";
+import { GroupedRows } from "./GroupedRows";
+import type { GroupBy, SortBy } from "./GroupedRows";
+import type { Session } from "../store/sessions";
 import "./SessionList.css";
 
 interface SessionListProps {
@@ -21,221 +17,35 @@ interface SessionListProps {
   "data-testid"?: string;
 }
 
-type SortBy = "lastActivity" | "createdAt";
-type StateFilter = "all" | UIPhase;
+const GROUP_OPTIONS: { label: string; value: GroupBy }[] = [
+  { label: "Flat", value: "none" },
+  { label: "State", value: "state" },
+  { label: "Agent", value: "agent" },
+  { label: "Project", value: "project" },
+];
 
-interface GroupData {
-  tag: string;
-  label: string;
-  sessions: Session[];
-}
-
-/** Auto-updating elapsed time since createdAt, only for active sessions */
-function SessionElapsed({ session }: { session: Session }) {
-  const elapsed = useElapsedTime(session.createdAt, session.state !== "completed" && session.state !== "idle");
-  if (!elapsed) return null;
-  return <span className="session-list__session-elapsed">{elapsed}</span>;
-}
-
-const STATE_FILTERS: { label: string; value: StateFilter }[] = [
-  { label: "All", value: "all" },
-  { label: "Running", value: "running" },
-  { label: "Waiting (Approval)", value: "waitingForApproval" },
-  { label: "Waiting (Answer)", value: "waitingForAnswer" },
-  { label: "Completed", value: "completed" },
-  { label: "Idle", value: "idle" },
+const SORT_OPTIONS: { label: string; value: SortBy }[] = [
+  { label: "Attention", value: "attention" },
+  { label: "Updated", value: "updated" },
 ];
 
 export const SessionList = memo(function SessionList({
   sessions,
-  activeSessionId,
-  viewingSessionId,
   onSessionClick,
-  onRenameSession,
-  onDeleteSession,
-  onSetSessionTag,
-  onCreateGroup,
-  groups,
   "data-testid": testId,
 }: SessionListProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [stateFilter, setStateFilter] = useState<StateFilter>("all");
-  const [sortBy, setSortBy] = useState<SortBy>("lastActivity");
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  const [groupByTag, setGroupByTag] = useState(true);
-  const [contextMenu, setContextMenu] = useState<{ session: Session; x: number; y: number } | null>(null);
-  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
-  const renameInputRef = useRef<HTMLInputElement>(null);
+  const [groupBy, setGroupBy] = useState<GroupBy>("state");
+  const [sortBy, setSortBy] = useState<SortBy>("attention");
 
-  useEffect(() => {
-    if (renamingSessionId && renameInputRef.current) {
-      renameInputRef.current.focus();
-      renameInputRef.current.select();
-    }
-  }, [renamingSessionId]);
-
-  const processed = useMemo(() => {
-    let filtered = sessions;
-
-    if (stateFilter !== "all") {
-      filtered = filtered.filter((s) => s.state === stateFilter);
-    }
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      filtered = filtered.filter((s) =>
-        s.label.toLowerCase().includes(q) || (s.title && s.title.toLowerCase().includes(q))
-      );
-    }
-
-    const sorted = [...filtered].sort((a, b) => {
-      const va = a[sortBy] ?? 0;
-      const vb = b[sortBy] ?? 0;
-      return vb - va;
-    });
-
-    return sorted;
-  }, [sessions, stateFilter, searchQuery, sortBy]);
-
-  const groupedData = useMemo<GroupData[]>(() => {
-    if (!groupByTag) return [];
-
-    const map = new Map<string, Session[]>();
-    for (const s of processed) {
-      const tag = s.tag || "";
-      if (!map.has(tag)) map.set(tag, []);
-      map.get(tag)!.push(s);
-    }
-
-    const result: GroupData[] = [];
-    for (const g of groups) {
-      const sessions = map.get(g);
-      if (sessions) {
-        result.push({ tag: g, label: g, sessions });
-        map.delete(g);
-      }
-    }
-    const ungrouped = map.get("");
-    if (ungrouped) {
-      result.push({ tag: "", label: "Ungrouped", sessions: ungrouped });
-      map.delete("");
-    }
-    for (const [tag, sessions] of map) {
-      result.push({ tag, label: tag, sessions });
-    }
-
-    return result;
-  }, [processed, groupByTag, groups]);
-
-  const toggleGroup = (tag: string) => {
-    setCollapsedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(tag)) {
-        next.delete(tag);
-      } else {
-        next.add(tag);
-      }
-      return next;
-    });
-  };
-
-  const handleContextMenu = (e: React.MouseEvent, s: Session) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setContextMenu({ session: s, x: e.clientX, y: e.clientY });
-  };
-
-  const handleRenameStart = () => {
-    if (!contextMenu) return;
-    setRenamingSessionId(contextMenu.session.id);
-    setRenameValue(contextMenu.session.label);
-  };
-
-  const handleRenameSubmit = () => {
-    if (renamingSessionId && renameValue.trim()) {
-      onRenameSession(renamingSessionId, renameValue.trim());
-    }
-    setRenamingSessionId(null);
-    setRenameValue("");
-  };
-
-  const handleRenameKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleRenameSubmit();
-    if (e.key === "Escape") {
-      setRenamingSessionId(null);
-      setRenameValue("");
-    }
-  };
-
-  const renderSession = (s: Session) => {
-    const isActive = s.id === activeSessionId;
-    const isViewed = s.id === viewingSessionId;
-    const isRenaming = renamingSessionId === s.id;
-
-    return (
-      <motion.div
-        key={s.id}
-        className={`session-list__session${isActive ? " session-list__session--active" : ""}${isViewed ? " session-list__session--viewed" : ""}`}
-        data-testid="session-item"
-        data-session-id={s.id}
-        onClick={() => {
-          if (!isRenaming) onSessionClick(s);
-        }}
-        onContextMenu={(e) => handleContextMenu(e, s)}
-        variants={{
-          hidden: { opacity: 0, y: 6 },
-          show: { opacity: 1, y: 0 },
-        }}
-        transition={{ duration: 0.16, ease: "easeOut" }}
-      >
-        <div className="session-list__session-row">
-          <StatusDot state={s.state} data-testid="status-dot" />
-          {s.currentTool && (
-            <span className="session-list__category-icon" title={getCategoryVisual(classifyTool(s.currentTool.name)).label}>
-              {getCategoryVisual(classifyTool(s.currentTool.name)).icon}
-            </span>
-          )}
-          <div className="session-list__session-text">
-            {isRenaming ? (
-              <input
-                ref={renameInputRef}
-                className="session-list__rename-input"
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onKeyDown={handleRenameKeyDown}
-                onBlur={handleRenameSubmit}
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : (
-              <>
-                <span className="session-list__session-label" title={s.title || s.label}>
-                  {s.title || s.label}
-                </span>
-                {s.title && (
-                  <span className="session-list__session-sublabel" title={s.label}>
-                    {s.label}
-                  </span>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-        {s.currentTool && !isRenaming && (
-          <div className="session-list__session-info">
-            <span className="session-list__session-tool">
-              {getToolDescription(s.currentTool.name, s.currentTool.input)}
-            </span>
-          </div>
-        )}
-        {!isRenaming && (
-          <div className="session-list__session-time">
-            <SessionElapsed session={s} />
-          </div>
-        )}
-      </motion.div>
+  const filtered = useMemo(() => {
+    if (!searchQuery.trim()) return sessions;
+    const q = searchQuery.toLowerCase();
+    return sessions.filter((s) =>
+      s.label.toLowerCase().includes(q) ||
+      (s.title && s.title.toLowerCase().includes(q))
     );
-  };
+  }, [sessions, searchQuery]);
 
   return (
     <div className="session-list" data-testid={testId || "session-list"}>
@@ -260,98 +70,44 @@ export const SessionList = memo(function SessionList({
           )}
         </div>
         <select
-          className="session-list__filter"
-          value={stateFilter}
-          onChange={(e) => setStateFilter(e.target.value as StateFilter)}
-          data-testid="state-filter"
+          className="session-list__picker"
+          value={groupBy}
+          onChange={(e) => setGroupBy(e.target.value as GroupBy)}
+          data-testid="group-by-picker"
         >
-          {STATE_FILTERS.map((f) => (
-            <option key={f.value} value={f.value}>{f.label}</option>
+          {GROUP_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
-        <button
-          className={`session-list__sort-btn${sortBy === "lastActivity" ? " session-list__sort-btn--active" : ""}`}
-          onClick={() => setSortBy(sortBy === "lastActivity" ? "createdAt" : "lastActivity")}
-          data-testid="sort-toggle"
-          title={sortBy === "lastActivity" ? "Sorted by recent activity" : "Sorted by creation time"}
+        <select
+          className="session-list__picker"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as SortBy)}
+          data-testid="sort-by-picker"
         >
-          {sortBy === "lastActivity" ? "Recent" : "Created"}
-        </button>
-        <button
-          className={`session-list__group-btn${groupByTag ? " session-list__group-btn--active" : ""}`}
-          onClick={() => setGroupByTag(!groupByTag)}
-          data-testid="group-toggle"
-          title={groupByTag ? "Grouped by tags" : "Flat list"}
-        >
-          Group
-        </button>
+          {SORT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
       </div>
 
-      {processed.length === 0 && sessions.length === 0 && (
-        <div className="session-list__empty" data-testid="sessions-empty">Waiting for agent sessions...</div>
+      {filtered.length === 0 && sessions.length === 0 && (
+        <div className="session-list__empty" data-testid="sessions-empty">
+          Waiting for agent sessions...
+        </div>
       )}
-      {processed.length === 0 && sessions.length > 0 && (
-        <div className="session-list__empty" data-testid="sessions-empty">No matching sessions</div>
-      )}
-
-      {groupByTag ? (
-        <motion.div
-          className="session-list__groups"
-          initial="hidden"
-          animate="show"
-          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.04 } } }}
-        >
-          {groupedData.map((group) => {
-            const collapsed = collapsedGroups.has(group.tag);
-            return (
-              <motion.div
-                key={group.tag || "__ungrouped__"}
-                className="session-list__group"
-                variants={{ hidden: { opacity: 0, y: 4 }, show: { opacity: 1, y: 0 } }}
-                transition={{ duration: 0.14, ease: "easeOut" }}
-              >
-                <div
-                  className="session-list__group-header"
-                  onClick={() => toggleGroup(group.tag)}
-                  data-testid="group-header"
-                  data-group={group.tag}
-                >
-                  <span className={`session-list__group-arrow${collapsed ? " session-list__group-arrow--collapsed" : ""}`}>
-                    ▾
-                  </span>
-                  <span className="session-list__group-label">{group.label}</span>
-                  <span className="session-list__group-count">{group.sessions.length}</span>
-                </div>
-                {!collapsed && (
-                  <div className="session-list__group-items">
-                    {group.sessions.map(renderSession)}
-                  </div>
-                )}
-              </motion.div>
-            );
-          })}
-        </motion.div>
-      ) : (
-        <motion.div
-          className="session-list__flat"
-          initial="hidden"
-          animate="show"
-          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.035 } } }}
-        >
-          {processed.map(renderSession)}
-        </motion.div>
+      {filtered.length === 0 && sessions.length > 0 && (
+        <div className="session-list__empty" data-testid="sessions-empty">
+          No matching sessions
+        </div>
       )}
 
-      {contextMenu && (
-        <SessionContextMenu
-          session={contextMenu.session}
-          position={{ x: contextMenu.x, y: contextMenu.y }}
-          groups={groups}
-          onClose={() => setContextMenu(null)}
-          onRename={handleRenameStart}
-          onDelete={onDeleteSession}
-          onSetTag={onSetSessionTag}
-          onCreateGroup={onCreateGroup}
+      {filtered.length > 0 && (
+        <GroupedRows
+          sessions={filtered}
+          groupBy={groupBy}
+          sortBy={sortBy}
+          onJump={onSessionClick}
         />
       )}
     </div>

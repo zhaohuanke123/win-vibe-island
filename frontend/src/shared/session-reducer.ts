@@ -4,7 +4,7 @@
 // All session creation/update/completion logic centralized here.
 // Design per docs/open-island-alignment-prd.md §1.2
 
-import type { Session, UIPhase, ToolExecution } from "../store/sessions";
+import type { Session, UIPhase, NotifKind, ToolExecution } from "../store/sessions";
 import type { AgentType } from "./agents";
 
 // ─── AgentEvent types (mirrors Rust agent_event.rs) ─────────────────────────
@@ -275,6 +275,10 @@ function applyPermissionRequested(
   p: PermissionRequestPayload
 ): SessionReducerState {
   const newState = ensureSession(state, p.sessionId, p.timestamp);
+  // Determine 2-way vs 3-way based on whether the tool input suggests
+  // multiple options (e.g. Bash with allow-always vs just allow/deny).
+  // Default to 'two' unless we detect 3+ distinct action choices.
+  const notifKind: NotifKind = "two";
   return {
     sessions: newState.sessions.map((s) =>
       s.id === p.sessionId
@@ -283,6 +287,12 @@ function applyPermissionRequested(
             state: "waitingForApproval" as UIPhase,
             lastActivity: p.timestamp,
             toolName: p.toolName,
+            notifKind,
+            currentTool: p.toolName ? {
+              name: p.toolName,
+              input: p.toolInput ?? {},
+              startTime: p.timestamp,
+            } : s.currentTool,
           }
         : s
     ),
@@ -301,6 +311,15 @@ function applyQuestionAsked(
             ...s,
             state: "waitingForAnswer" as UIPhase,
             lastActivity: p.timestamp,
+            notifKind: "jump" as NotifKind,
+            currentTool: {
+              name: "question",
+              input: {
+                question: p.questionText,
+                options: p.options ?? [],
+              },
+              startTime: p.timestamp,
+            },
           }
         : s
     ),
@@ -319,6 +338,8 @@ function applySessionCompleted(
             ...s,
             state: "completed" as UIPhase,
             lastActivity: p.timestamp,
+            notifKind: "done" as NotifKind,
+            ...(p.summary ? { toolName: p.summary } : {}),
             ...(p.isInterrupt ? { lastError: "Session interrupted" } : {}),
           }
         : s
@@ -340,6 +361,7 @@ function applyToolUseStarted(
             lastActivity: p.timestamp,
             toolName: p.toolName,
             filePath: p.toolInput?.file_path as string | undefined,
+            notifKind: undefined,
             currentTool: {
               name: p.toolName,
               input: p.toolInput,
