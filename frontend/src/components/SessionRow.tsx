@@ -77,7 +77,7 @@ export const SessionRow = memo(function SessionRow({
     setExpanded((prev) => !prev);
   }, []);
 
-  const projectName = extractProjectName(session.cwd);
+  const projectName = extractProjectName(session.cwd) || session.label || "";
   const branch = extractBranch(session);
   const agent = getAgent(session.agent ?? "claude");
   const phaseColorHex = phaseColor(session.state);

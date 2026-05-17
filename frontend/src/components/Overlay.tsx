@@ -197,19 +197,22 @@ export function Overlay() {
     setActiveSession(session.id);
     setError(null);
 
-    if (session.pid || session.jumpTarget) {
-      const terminalName = session.jumpTarget?.terminalType || "Terminal";
-      const sessionLabel = session.title || session.label;
-      showJumpToast(terminalName, sessionLabel);
+    if (!session.pid && !session.jumpTarget) {
+      // No terminal target — just mark active; user can use chevron for details
+      return;
+    }
 
-      try {
-        await invoke<FocusResult>("focus_session_window", {
-          sessionPid: session.pid ?? null,
-          jumpTarget: session.jumpTarget ?? null,
-        });
-      } catch (e) {
-        setError(`Failed to focus window: ${e}`);
-      }
+    const terminalName = session.jumpTarget?.terminalType || "Terminal";
+    const sessionLabel = session.title || session.label;
+    showJumpToast(terminalName, sessionLabel);
+
+    try {
+      await invoke<FocusResult>("focus_session_window", {
+        sessionPid: session.pid ?? null,
+        jumpTarget: session.jumpTarget ?? null,
+      });
+    } catch (e) {
+      setError(`Failed to focus window: ${e}`);
     }
   }, [setActiveSession, showJumpToast]);
 
