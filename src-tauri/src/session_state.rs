@@ -120,6 +120,12 @@ impl SessionState {
         if let Some(ref ti) = p.tool_input {
             s.tool_input = Some(ti.clone());
         }
+        if let Some(ref prompt) = p.prompt {
+            s.last_prompt = Some(prompt.clone());
+        }
+        if let Some(ref title) = p.title {
+            s.title = Some(title.clone());
+        }
     }
 
     fn on_permission_requested(&mut self, p: &PermissionRequestPayload) {

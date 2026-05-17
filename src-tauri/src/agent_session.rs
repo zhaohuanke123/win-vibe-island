@@ -50,6 +50,9 @@ pub struct AgentSession {
     pub tool_name: Option<String>,
     pub tool_input: Option<serde_json::Value>,
 
+    // ── User prompt ──
+    pub last_prompt: Option<String>,
+
     // ── User-defined tag ──
     pub tag: Option<String>,
 }
@@ -78,6 +81,7 @@ impl AgentSession {
             last_error: None,
             tool_name: None,
             tool_input: None,
+            last_prompt: None,
             tag: None,
         }
     }
