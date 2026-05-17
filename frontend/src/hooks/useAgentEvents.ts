@@ -15,6 +15,7 @@ interface SessionStartEvent {
   source?: string;
   model?: string;
   agent_type?: string;
+  detected_agent?: string;
   pid?: number;
 }
 
@@ -127,6 +128,26 @@ function mapState(raw: string): UIPhase {
   return VALID_STATES.includes(mapped) ? (mapped as UIPhase) : "idle";
 }
 
+// Helper to normalize Rust AgentTool enum string to frontend agent type
+function normalizeAgent(raw: string | undefined | null, fallback = "claude"): string {
+  if (!raw) return fallback;
+  const lower = raw.toLowerCase();
+  // Map PascalCase/Title variants to frontend agent keys
+  const map: Record<string, string> = {
+    claudecode: "claude",
+    codex: "codex",
+    cursor: "cursor",
+    gemini: "gemini",
+    kimi: "kimi",
+    opencode: "opencode",
+    qoder: "qoder",
+    qwencode: "qwen",
+    factory: "factory",
+    codebuddy: "codebuddy",
+  };
+  return map[lower] || lower || fallback;
+}
+
 export function useAgentEvents() {
   const { addSession, removeSession, updateSessionState, updateSessionInfo, addPendingApproval, removeApprovalByToolUseId, removeApprovalsBySessionId } = useSessionsStore();
   const dispatchAgentEvent = useSessionsStore((s) => s.dispatchAgentEvent);
@@ -138,13 +159,13 @@ export function useAgentEvents() {
     const setupListeners = async () => {
       // Listen for session_start events (from SessionStart hook)
       const unlistenStart = await listen<SessionStartEvent>("session_start", (event) => {
-        const { session_id, label, cwd, pid, agent_type } = event.payload;
+        const { session_id, label, cwd, pid, agent_type, detected_agent } = event.payload;
 
         // Check if session already exists
         const existingSession = useSessionsStore.getState().sessions.find(s => s.id === session_id);
         if (existingSession) {
           // Session exists, just update it (preserve existing pid if new one is null)
-          updateSessionInfo(session_id, { label, state: "idle", agent: agent_type as any });
+          updateSessionInfo(session_id, { label, state: "idle", agent: normalizeAgent(agent_type || detected_agent) as any });
         } else {
           // Create new session
           addSession({
@@ -153,7 +174,7 @@ export function useAgentEvents() {
             cwd: cwd || "",
             state: "idle" as UIPhase,
             pid: pid ?? undefined,
-            agent: agent_type as any,
+            agent: normalizeAgent(agent_type || detected_agent) as any,
             toolHistory: [],
             createdAt: Date.now(),
             lastActivity: Date.now(),
@@ -377,7 +398,7 @@ export function useAgentEvents() {
 
         // Try to match this process to an existing hook-tracked session
         const sessions = useSessionsStore.getState().sessions;
-        const agentType = process.agent_type;
+        const agentType = normalizeAgent(process.agent_type);
         // Find matching sessions WITHOUT a pid that are not process-* auto-detected
         const match = sessions.find(s =>
           s.agent === agentType && !s.pid && !s.id.startsWith("process-")
