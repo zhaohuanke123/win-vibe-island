@@ -41,7 +41,7 @@ Installer formats:
 
 The app checks Claude Code settings at startup. It prefers an existing user-level `~/.claude/settings.json`, then an existing project-level `.claude/settings.json`, and creates user-level settings if neither exists.
 
-Manual hook configuration is documented in [docs/hooks-setup.md](docs/hooks-setup.md). The generated example is in [docs/claude-settings.example.json](docs/claude-settings.example.json).
+Manual hook configuration is documented in [docs/hooks/hooks-setup.md](docs/hooks/hooks-setup.md). The generated example is in [docs/hooks/claude-settings.example.json](docs/hooks/claude-settings.example.json).
 
 ## Overlay States
 
@@ -159,7 +159,7 @@ See [architecture.md](architecture.md) and [DESIGN.md](DESIGN.md) for current im
 
 - Ensure `PermissionRequest` is configured with endpoint `http://localhost:7878/hooks/permission-request`.
 - Ensure the hook timeout is high enough for user interaction.
-- Use the latest docs response format in [docs/hooks-setup.md](docs/hooks-setup.md).
+- Use the latest docs response format in [docs/hooks/hooks-setup.md](docs/hooks/hooks-setup.md).
 
 ### Overlay Not Visible
 

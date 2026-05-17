@@ -296,6 +296,6 @@ Task 17/39: Fix Approval Panel Window Height
 
 - `architecture.md` — 架构约束和 Session/ToolExecution 数据模型
 - `WORKFLOW.md` — Orchestrator + Executor + Verifier 工作流
-- `docs/states-and-flows.md` — Agent 状态与 UI 流程
-- `docs/animation-design.md` — 动画系统方案
-- `docs/testing.md` — 测试策略（新组件需要测试覆盖）
+- `docs/architecture/states-and-flows.md` — Agent 状态与 UI 流程
+- `docs/architecture/animation-design.md` — 动画系统方案
+- `docs/testing/testing.md` — 测试策略（新组件需要测试覆盖）

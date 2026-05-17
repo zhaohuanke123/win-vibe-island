@@ -58,16 +58,14 @@ Memory 只能提醒 agent 读取本文件，不能替代项目状态文件。
 | 文件 | 用途 | 何时读取 |
 |------|------|----------|
 | [WORKFLOW.md](WORKFLOW.md) | 工作流程指南（Orchestrator） | 需要执行任务时 |
-| [agents/executor.md](agents/executor.md) | Executor 子代理指令 | spawn executor 时 |
-| [agents/verifier.md](agents/verifier.md) | Verifier 子代理指令 | spawn verifier 时 |
 | [architecture.md](architecture.md) | 架构约束 + 模块详情 | 编码前 |
 | [task.json](task.json) | 任务定义、依赖、文档引用 | 需要知道做什么时 |
 | [progress.txt](progress.txt) | 开发历史、文档更新、测试证据 | 需要了解上下文时 |
 || [LOGGING_CONTRACT.md](LOGGING_CONTRACT.md) | AI-Native 错误处理规范 | 写/读错误处理代码时 |
-|| [docs/hooks-setup.md](docs/hooks-setup.md) | Claude Code Hooks 配置指南 | 配置 hooks 时 |
-|| [docs/testing.md](docs/testing.md) | 测试策略与 API 文档 | 测试时 |
-|| [docs/animation-design.md](docs/animation-design.md) | 动画系统方案与参数 | 调动画时 |
-|| [docs/states-and-flows.md](docs/states-and-flows.md) | Agent 状态与 UI 流程 | 需要确认状态行为时 |
+|| [docs/hooks/hooks-setup.md](docs/hooks/hooks-setup.md) | Claude Code Hooks 配置指南 | 配置 hooks 时 |
+|| [docs/testing/testing.md](docs/testing/testing.md) | 测试策略与 API 文档 | 测试时 |
+|| [docs/architecture/animation-design.md](docs/architecture/animation-design.md) | 动画系统方案与参数 | 调动画时 |
+|| [docs/architecture/states-and-flows.md](docs/architecture/states-and-flows.md) | Agent 状态与 UI 流程 | 需要确认状态行为时 |
 || [docs/README.md](docs/README.md) | 文档索引 | 首次阅读文档时 |
 
 ---
@@ -81,9 +79,6 @@ Memory 只能提醒 agent 读取本文件，不能替代项目状态文件。
 ├── architecture.md        ← 架构约束 + 模块详情
 ├── task.json              ← 任务定义与文档引用
 ├── progress.txt           ← 开发历史、文档更新、测试证据
-├── agents/                ← Agent 子角色指令
-│   ├── executor.md        ← Executor 子代理指令
-│   └── verifier.md        ← Verifier 子代理指令
 ├── src-tauri/             ← Rust 后端
 │   └── src/
 │       ├── lib.rs         ← Tauri 构建器
@@ -91,10 +86,23 @@ Memory 只能提醒 agent 读取本文件，不能替代项目状态文件。
 │       ├── events.rs      ← 事件发射
 │       ├── hook_server.rs ← HTTP Hook 服务器
 │       ├── hook_config.rs ← Claude Code Hooks 自动配置
+│       ├── hook_manifest.rs ← Hook 清单管理
 │       ├── pipe_server.rs ← Named Pipe 服务器
 │       ├── overlay.rs     ← Win32 Overlay 窗口
 │       ├── window_focus.rs← 窗口焦点管理
-│       └── process_watcher.rs ← 进程监控
+│       ├── process_watcher.rs ← 进程监控
+│       ├── audio.rs       ← 通知提示音
+│       ├── agent_event.rs ← 统一事件模型
+│       ├── session_state.rs ← Session 状态 reducer
+│       ├── session_store.rs ← Session 持久化
+│       ├── claude_usage.rs ← Claude Code usage 统计
+│       ├── transcript_discovery.rs ← Transcript 发现
+│       ├── approval_types.rs ← 审批类型
+│       ├── logger.rs      ← 日志模块
+│       ├── command_analyzer.rs ← Bash 命令解析
+│       ├── config/        ← 应用配置
+│       ├── adapters/      ← Agent 事件适配器
+│       └── bin/           ← 二进制入口
 ├── LOGGING_CONTRACT.md    ← AI-Native 错误处理规范
 ├── frontend/              ← React 前端
 │   └── src/
@@ -110,11 +118,11 @@ Memory 只能提醒 agent 读取本文件，不能替代项目状态文件。
 │   └── python/            ← Python SDK
 ├── docs/                  ← 文档
 │   ├── README.md          ← 文档索引
-│   ├── hooks-setup.md     ← Claude Code Hooks 配置
-│   ├── testing.md         ← 测试策略与 API
-│   ├── animation-design.md← 动画系统方案
-│   ├── states-and-flows.md← 状态与流程
-│   ├── release-process.md ← 发布流程
+│   ├── architecture/      ← 架构与设计文档
+│   ├── hooks/             ← Hook 配置
+│   ├── testing/           ← 测试文档
+│   ├── design/            ← 设计 PRD & 迁移计划
+│   ├── operations/        ← 发布 & 运维
 │   └── archive/           ← 历史文档归档
 ```
 

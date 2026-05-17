@@ -133,7 +133,7 @@ maxLines = 100,  // ← 超出 100 行的 diff 被静默截断
 
 ## 5. 自动化测试要求
 
-> 详见 `docs/testing.md` §Win App 自动化测试策略。
+> 详见 `docs/testing/testing.md` §Win App 自动化测试策略。
 
 在修改 CSS/TS 之前，需要先补全以下测试：
 
