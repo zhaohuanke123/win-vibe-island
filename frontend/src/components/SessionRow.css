@@ -390,3 +390,33 @@
   align-items: baseline;
   gap: 6px;
 }
+
+/* ── Detail button (info icon) ── */
+
+.session-row__detail-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  opacity: 0.32;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 4px;
+  transition: background 150ms ease-in-out, color 150ms ease-in-out, opacity 150ms ease-in-out;
+}
+
+.session-row__detail-btn:hover {
+  background: rgba(110, 167, 255, 0.1);
+  color: var(--phase-running);
+  opacity: 0.7;
+}
+
+.session-row--compact .session-row__detail-btn {
+  width: 20px;
+  height: 20px;
+}

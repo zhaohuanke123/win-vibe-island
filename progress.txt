@@ -6,6 +6,43 @@ and any relevant notes.
 
 ---
 
+## [2026-05-17] - 恢复会话详情面板和右键上下文菜单 ✅
+
+### Documentation Gate:
+- Requirement ref: 用户反馈功能丢失（v8 迁移中 SessionDetail/SessionContextMenu 被断开）
+- Design ref: states-and-flows.md §5.1.1-5.1.2（新增交互行为描述）
+
+### What was done:
+- **SessionRow.tsx**: 新增 `onDetail` 和 `onContextMenu` props，在 chevron 前添加 info 图标详情按钮，根 div 接入右键菜单处理器（`e.preventDefault()`）
+- **SessionRow.css**: 新增 `.session-row__detail-btn` 样式（22x22px，低透明度，hover 蓝色，compact 变体 20x20px）
+- **GroupedRows.tsx**: 扩展 `GroupedRowsProps` 接口，在 flat list 和 grouped list 两个渲染路径都透传 `onDetail`/`onContextMenu` 给 SessionRow
+- **Overlay.tsx**: 导入 SessionDetail/SessionContextMenu，添加 contextMenu 状态和 store 操作（renameSession/removeSession/setSessionTag/createGroup），条件渲染详情面板（viewingSessionId 有值时显示 SessionDetail 替代列表），Fragment 包裹返回值以在外部渲染右键菜单（避免 overflow:hidden 裁剪）
+
+### 行为说明:
+- 左键点击 session 行 → 跳转终端（不变）
+- 点击行右侧 info 按钮 → 打开 SessionDetail 面板（工具历史/状态/元信息）
+- 右键点击 session 行 → 上下文菜单（重命名/删除/分组）
+- SessionDetail "← Back" → 返回列表
+- session 被删除后详情面板自动关闭
+
+### Files modified:
+- frontend/src/components/SessionRow.tsx
+- frontend/src/components/SessionRow.css
+- frontend/src/components/GroupedRows.tsx
+- frontend/src/components/Overlay.tsx
+- architecture.md（SessionRow 注释更新）
+- docs/architecture/states-and-flows.md（新增 §5.1.1-5.1.2 交互行为）
+
+### Testing:
+- `npm run build` → 零错误通过
+- 14 个新测试全部通过（SessionDetailAndContextMenu.test.tsx）
+- 全量测试 234/235 通过（1 个预存失败与本次改动无关）
+- Verifier agent VERDICT: PASS
+
+### Status: completed ✅
+
+---
+
 ## [2026-05-16] - Task 47: Hook Manifest 清单机制 ✅
 
 ### Documentation Gate:

@@ -312,6 +312,26 @@
 |------|----------|----------|----------|
 | 折叠 (collapsed) | 60px | 点击穿透 | 默认状态 |
 | 展开 (expanded) | 普通内容自适应，审批/问答为 720px | 可交互 | 点击 bar / 收到 approval 请求 |
+| 详情 (detail) | 自适应 | 可交互 | 点击 session 行右侧 info 按钮 |
+
+#### 5.1.1 Session 交互行为
+
+| 操作 | 目标 | 行为 |
+|------|------|------|
+| 左键点击 session 行 | 行主体 | 跳转到终端窗口（onJump） |
+| 点击 info 按钮 | 行右侧按钮 | 打开 SessionDetail 面板（onDetail），替代会话列表 |
+| 右键点击 session 行 | 行任意位置 | 打开 SessionContextMenu（重命名/删除/分组） |
+| SessionDetail "← Back" | 详情面板 | 返回会话列表 |
+
+#### 5.1.2 SessionContextMenu 操作
+
+| 操作 | 行为 | Store 方法 |
+|------|------|-----------|
+| Rename | 弹出 prompt 输入新名称 | `renameSession(id, label)` |
+| Delete | 直接移除 session | `removeSession(id)` |
+| Assign to group | 设置 session tag | `setSessionTag(id, tag)` |
+| New group | 创建新分组并分配 | `createGroup(name)` + `setSessionTag(id, name)` |
+| Remove from group | 清除 session tag | `setSessionTag(id, undefined)` |
 
 ### 5.2 Session 数据结构
 

@@ -138,6 +138,8 @@ interface GroupedRowsProps {
   sortBy: SortBy;
   onJump?: (session: Session) => void;
   density?: "comfortable" | "compact";
+  onDetail?: (session: Session) => void;
+  onContextMenu?: (session: Session, position: { x: number; y: number }) => void;
 }
 
 export const GroupedRows = memo(function GroupedRows({
@@ -146,6 +148,8 @@ export const GroupedRows = memo(function GroupedRows({
   sortBy,
   onJump,
   density = "comfortable",
+  onDetail,
+  onContextMenu,
 }: GroupedRowsProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -197,7 +201,7 @@ export const GroupedRows = memo(function GroupedRows({
     return (
       <div className="grouped-rows grouped-rows--flat" data-testid="grouped-rows-flat">
         {sorted.map((s) => (
-          <SessionRow key={s.id} session={s} onJump={onJump} density={density} data-testid="flat-row" />
+          <SessionRow key={s.id} session={s} onJump={onJump} onDetail={onDetail} onContextMenu={onContextMenu} density={density} data-testid="flat-row" />
         ))}
       </div>
     );
@@ -236,7 +240,7 @@ export const GroupedRows = memo(function GroupedRows({
             {!isCol && (
               <div className="grouped-rows__items" data-testid="group-items">
                 {group.sessions.map((s) => (
-                  <SessionRow key={s.id} session={s} onJump={onJump} density={density} />
+                  <SessionRow key={s.id} session={s} onJump={onJump} onDetail={onDetail} onContextMenu={onContextMenu} density={density} />
                 ))}
               </div>
             )}

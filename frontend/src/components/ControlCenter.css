@@ -16,8 +16,10 @@
 .cc__head {
   display: flex;
   align-items: center;
-  padding: 14px 20px 0;
+  justify-content: space-between;
+  padding: 14px 12px 0 20px;
   flex-shrink: 0;
+  user-select: none;
 }
 
 .cc__title {
@@ -25,6 +27,26 @@
   font-weight: 600;
   color: var(--paper);
   letter-spacing: 0.01em;
+}
+
+.cc__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--ink-mute);
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cc__close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--paper);
 }
 
 /* ── Tabs ── */

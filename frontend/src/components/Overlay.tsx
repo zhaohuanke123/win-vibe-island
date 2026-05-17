@@ -7,6 +7,8 @@ import { ApprovalPanel } from "./ApprovalPanel";
 import { JumpToast, useJumpToast } from "./JumpToast";
 import { PanelHead } from "./PanelHead";
 import { GroupedRows } from "./GroupedRows";
+import { SessionDetail } from "./SessionDetail";
+import { SessionContextMenu } from "./SessionContextMenu";
 import type { GroupBy, SortBy } from "./GroupedRows";
 import { isAttentionPhase } from "../shared/phase-colors";
 import { useSessionsStore } from "../store/sessions";
@@ -106,6 +108,11 @@ export function Overlay() {
   const removeCurrentApproval = useSessionsStore((s) => s.removeCurrentApproval);
   const setCurrentApprovalIndex = useSessionsStore((s) => s.setCurrentApprovalIndex);
   const config = useConfigStore((s) => s.config);
+  const renameSession = useSessionsStore((s) => s.renameSession);
+  const removeSession = useSessionsStore((s) => s.removeSession);
+  const setSessionTag = useSessionsStore((s) => s.setSessionTag);
+  const createGroup = useSessionsStore((s) => s.createGroup);
+  const groups = useSessionsStore((s) => s.groups);
   const overlayLayout = normalizeOverlayLayoutConfig(config.overlay);
   const density = config.ui.density;
   const BAR_HEIGHT = config.ui.dimensions.barHeight;
@@ -125,6 +132,10 @@ export function Overlay() {
   const [expanded, setExpanded] = useState(false);
   const [collapsedApprovalFocusKey, setCollapsedApprovalFocusKey] = useState<string | null>(null);
   const [viewingSessionId, setViewingSessionId] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    session: Session;
+    position: { x: number; y: number };
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast: jumpToast, showToast: showJumpToast, dismissToast: dismissJumpToast } = useJumpToast();
   const hadApprovalRequestRef = useRef(false);
@@ -224,6 +235,24 @@ export function Overlay() {
   }, [sessions, activeSessionId, setActiveSession]);
 
   const clearError = useCallback(() => { setError(null); }, []);
+
+  const handleDetail = useCallback((session: Session) => {
+    setViewingSessionId(session.id);
+  }, []);
+
+  const handleContextMenu = useCallback((session: Session, position: { x: number; y: number }) => {
+    setContextMenu({ session, position });
+  }, []);
+
+  const handleContextMenuClose = useCallback(() => setContextMenu(null), []);
+
+  const handleContextMenuRename = useCallback(() => {
+    if (!contextMenu) return;
+    const newName = window.prompt("Rename session", contextMenu.session.label || contextMenu.session.title || "");
+    if (newName && newName.trim()) {
+      renameSession(contextMenu.session.id, newName.trim());
+    }
+  }, [contextMenu, renameSession]);
 
   const isApprovalFocusMode = Boolean(approvalFocusKey);
   const isApprovalManuallyCollapsed = approvalFocusKey !== null && collapsedApprovalFocusKey === approvalFocusKey;
@@ -355,166 +384,191 @@ export function Overlay() {
   // ── Filter sessions for expanded mode ──
   // Don't show idle/completed sessions that are stale in the "active" section
   const visibleSessions = sessions;
+  const viewingSession = viewingSessionId
+    ? sessions.find((s) => s.id === viewingSessionId) ?? null
+    : null;
 
   return (
-    <AnimatedOverlay
-      className={`overlay overlay--v8 ${isOverlayExpanded ? "overlay--expanded" : "overlay--compact"}${isApprovalFocusMode ? " overlay--approval-mode" : ""}`}
-      data-testid="overlay"
-      isExpanded={isOverlayExpanded}
-      expandedHeight={isOverlayExpanded ? overlayExpandedHeight : undefined}
-    >
-      <div className="overlay__shell pill" style={{ position: "relative" }}>
-        {/* Jump Toast — non-blocking, pointer-events: none */}
-        {jumpToast && (
-          <JumpToast
-            terminalName={jumpToast.terminalName}
-            sessionLabel={jumpToast.sessionLabel}
-            onDismiss={dismissJumpToast}
-            data-testid="jump-toast"
-          />
-        )}
-
-        {/* Notch / Compact bar — using v8 NotchRow */}
-        <div className="overlay__bar pill__bar" data-testid="status-bar" onClick={handleBarClick}>
-          <NotchRow
-            phase={notchPhase}
-            agent={notchAgent}
-            label={notchLabel}
-            rightSlot={
-              <span className="notch-row__right">
-                {pendingApprovals.length > 0 && (
-                  <span className="notch-row__chip" style={{
-                    background: "rgba(244, 164, 164, 0.2)",
-                    color: "#f4a4a4",
-                  }}>
-                    {pendingApprovals.length} pending
-                  </span>
-                )}
-              </span>
-            }
-            data-testid="notch-row"
-          />
-        </div>
-
-        {/* Expanded panel */}
-        <AnimatePresence initial={false}>
-          {isOverlayExpanded && (
-            <motion.div
-              className="overlay__panel pill__body"
-              ref={panelRef}
-              initial={{ opacity: 0, y: -10, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.985 }}
-              transition={{ duration: 0.2, ease: "easeInOut" }}
-            >
-              {error && (
-                <div className="overlay__error" onClick={clearError}>
-                  <span className="overlay__error-icon">!</span>
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {isApprovalFocusMode && currentApproval ? (
-                <ApprovalFocusContent
-                  approvalRequest={currentApproval}
-                  approvalSession={approvalSession}
-                  sessionsCount={sessions.length}
-                  onApprovalHandled={handleApprovalHandled}
-                  queueInfo={pendingApprovals.length > 1 ? { current: currentApprovalIndex + 1, total: pendingApprovals.length } : undefined}
-                  onNavigatePrev={pendingApprovals.length > 1 && currentApprovalIndex > 0 ? handleNavigatePrev : undefined}
-                  onNavigateNext={pendingApprovals.length > 1 && currentApprovalIndex < pendingApprovals.length - 1 ? handleNavigateNext : undefined}
-                />
-              ) : (
-                <>
-                  <PanelHead
-                    sessions={sessions}
-                    onSettingsClick={() => {
-                      invoke("open_control_center").catch((e) => {
-                        reportTauriError("failed to open control center", e);
-                      });
-                    }}
-                    data-testid="panel-head"
-                  />
-                  <div className="panel-list" data-testid="panel-list">
-                    <div className="oi-list-controls" style={{
-                      display: "flex",
-                      gap: "6px",
-                      padding: "6px 10px",
-                      borderBottom: "1px solid var(--line)",
-                    }}>
-                      <select
-                        className="oi-select"
-                        value={groupBy}
-                        onChange={(e) => setGroupBy(e.target.value as GroupBy)}
-                        style={{
-                          background: "transparent",
-                          color: "var(--paper)",
-                          border: "1px solid var(--line)",
-                          borderRadius: "4px",
-                          padding: "2px 6px",
-                          fontSize: "10.5px",
-                          fontFamily: "var(--font-ui)",
-                        }}
-                      >
-                        <option value="state">Group: State</option>
-                        <option value="agent">Group: Agent</option>
-                        <option value="project">Group: Project</option>
-                        <option value="none">No Group</option>
-                      </select>
-                      <select
-                        className="oi-select"
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as SortBy)}
-                        style={{
-                          background: "transparent",
-                          color: "var(--paper)",
-                          border: "1px solid var(--line)",
-                          borderRadius: "4px",
-                          padding: "2px 6px",
-                          fontSize: "10.5px",
-                          fontFamily: "var(--font-ui)",
-                        }}
-                      >
-                        <option value="attention">By Attention</option>
-                        <option value="updated">By Recent</option>
-                      </select>
-                    </div>
-                    <GroupedRows
-                      sessions={visibleSessions}
-                      groupBy={groupBy}
-                      sortBy={sortBy}
-                      onJump={handleJump}
-                      density={density}
-                    />
-                  </div>
-                  {/* PanelFooter */}
-                  <div className="panel-foot" data-testid="panel-foot" style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "6px 10px",
-                    borderTop: "1px solid var(--line)",
-                    fontSize: "10.5px",
-                    color: "var(--ink-soft)",
-                    fontFamily: "var(--font-mono)",
-                  }}>
-                    <span className="panel-foot__summary">
-                      {sessions.length} session{sessions.length === 1 ? "" : "s"}
-                      {(() => {
-                        const wc = sessions.filter(s => isAttentionPhase(s.state)).length;
-                        return wc > 0 ? ` · ${wc} waiting` : "";
-                      })()}
-                    </span>
-                    <span className="panel-foot__shortcut" style={{ opacity: 0.5 }}>
-                      Ctrl+Alt+Space
-                    </span>
-                  </div>
-                </>
-              )}
-            </motion.div>
+    <>
+      <AnimatedOverlay
+        className={`overlay overlay--v8 ${isOverlayExpanded ? "overlay--expanded" : "overlay--compact"}${isApprovalFocusMode ? " overlay--approval-mode" : ""}`}
+        data-testid="overlay"
+        isExpanded={isOverlayExpanded}
+        expandedHeight={isOverlayExpanded ? overlayExpandedHeight : undefined}
+      >
+        <div className="overlay__shell pill" style={{ position: "relative" }}>
+          {/* Jump Toast — non-blocking, pointer-events: none */}
+          {jumpToast && (
+            <JumpToast
+              terminalName={jumpToast.terminalName}
+              sessionLabel={jumpToast.sessionLabel}
+              onDismiss={dismissJumpToast}
+              data-testid="jump-toast"
+            />
           )}
-        </AnimatePresence>
-      </div>
-    </AnimatedOverlay>
+
+          {/* Notch / Compact bar — using v8 NotchRow */}
+          <div className="overlay__bar pill__bar" data-testid="status-bar" onClick={handleBarClick}>
+            <NotchRow
+              phase={notchPhase}
+              agent={notchAgent}
+              label={notchLabel}
+              rightSlot={
+                <span className="notch-row__right">
+                  {pendingApprovals.length > 0 && (
+                    <span className="notch-row__chip" style={{
+                      background: "rgba(244, 164, 164, 0.2)",
+                      color: "#f4a4a4",
+                    }}>
+                      {pendingApprovals.length} pending
+                    </span>
+                  )}
+                </span>
+              }
+              data-testid="notch-row"
+            />
+          </div>
+
+          {/* Expanded panel */}
+          <AnimatePresence initial={false}>
+            {isOverlayExpanded && (
+              <motion.div
+                className="overlay__panel pill__body"
+                ref={panelRef}
+                initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.985 }}
+                transition={{ duration: 0.2, ease: "easeInOut" }}
+              >
+                {error && (
+                  <div className="overlay__error" onClick={clearError}>
+                    <span className="overlay__error-icon">!</span>
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                {isApprovalFocusMode && currentApproval ? (
+                  <ApprovalFocusContent
+                    approvalRequest={currentApproval}
+                    approvalSession={approvalSession}
+                    sessionsCount={sessions.length}
+                    onApprovalHandled={handleApprovalHandled}
+                    queueInfo={pendingApprovals.length > 1 ? { current: currentApprovalIndex + 1, total: pendingApprovals.length } : undefined}
+                    onNavigatePrev={pendingApprovals.length > 1 && currentApprovalIndex > 0 ? handleNavigatePrev : undefined}
+                    onNavigateNext={pendingApprovals.length > 1 && currentApprovalIndex < pendingApprovals.length - 1 ? handleNavigateNext : undefined}
+                  />
+                ) : viewingSession ? (
+                  <SessionDetail
+                    session={viewingSession}
+                    onBack={() => setViewingSessionId(null)}
+                    data-testid="session-detail"
+                  />
+                ) : (
+                  <>
+                    <PanelHead
+                      sessions={sessions}
+                      onSettingsClick={() => {
+                        invoke("open_control_center").catch((e) => {
+                          reportTauriError("failed to open control center", e);
+                        });
+                      }}
+                      data-testid="panel-head"
+                    />
+                    <div className="panel-list" data-testid="panel-list">
+                      <div className="oi-list-controls" style={{
+                        display: "flex",
+                        gap: "6px",
+                        padding: "6px 10px",
+                        borderBottom: "1px solid var(--line)",
+                      }}>
+                        <select
+                          className="oi-select"
+                          value={groupBy}
+                          onChange={(e) => setGroupBy(e.target.value as GroupBy)}
+                          style={{
+                            background: "transparent",
+                            color: "var(--paper)",
+                            border: "1px solid var(--line)",
+                            borderRadius: "4px",
+                            padding: "2px 6px",
+                            fontSize: "10.5px",
+                            fontFamily: "var(--font-ui)",
+                          }}
+                        >
+                          <option value="state">Group: State</option>
+                          <option value="agent">Group: Agent</option>
+                          <option value="project">Group: Project</option>
+                          <option value="none">No Group</option>
+                        </select>
+                        <select
+                          className="oi-select"
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value as SortBy)}
+                          style={{
+                            background: "transparent",
+                            color: "var(--paper)",
+                            border: "1px solid var(--line)",
+                            borderRadius: "4px",
+                            padding: "2px 6px",
+                            fontSize: "10.5px",
+                            fontFamily: "var(--font-ui)",
+                          }}
+                        >
+                          <option value="attention">By Attention</option>
+                          <option value="updated">By Recent</option>
+                        </select>
+                      </div>
+                      <GroupedRows
+                        sessions={visibleSessions}
+                        groupBy={groupBy}
+                        sortBy={sortBy}
+                        onJump={handleJump}
+                        onDetail={handleDetail}
+                        onContextMenu={handleContextMenu}
+                        density={density}
+                      />
+                    </div>
+                    {/* PanelFooter */}
+                    <div className="panel-foot" data-testid="panel-foot" style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "6px 10px",
+                      borderTop: "1px solid var(--line)",
+                      fontSize: "10.5px",
+                      color: "var(--ink-soft)",
+                      fontFamily: "var(--font-mono)",
+                    }}>
+                      <span className="panel-foot__summary">
+                        {sessions.length} session{sessions.length === 1 ? "" : "s"}
+                        {(() => {
+                          const wc = sessions.filter(s => isAttentionPhase(s.state)).length;
+                          return wc > 0 ? ` · ${wc} waiting` : "";
+                        })()}
+                      </span>
+                      <span className="panel-foot__shortcut" style={{ opacity: 0.5 }}>
+                        Ctrl+Alt+Space
+                      </span>
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </AnimatedOverlay>
+      {contextMenu && (
+        <SessionContextMenu
+          session={contextMenu.session}
+          position={contextMenu.position}
+          groups={groups}
+          onClose={handleContextMenuClose}
+          onRename={handleContextMenuRename}
+          onDelete={(id) => removeSession(id)}
+          onSetTag={(id, tag) => setSessionTag(id, tag)}
+          onCreateGroup={(name) => createGroup(name)}
+        />
+      )}
+    </>
   );
 }

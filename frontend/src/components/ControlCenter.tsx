@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { logger } from "../client/logger";
 import { useConfigStore, type NotificationSound, type StateIndicatorKind, type DensityMode } from "../store/config";
 import "./ControlCenter.css";
@@ -388,10 +389,17 @@ function ShortcutsTab() {
 export function ControlCenter() {
   const [activeTab, setActiveTab] = useState<TabId>("hooks");
 
+  const handleClose = () => {
+    getCurrentWindow().hide().catch(() => {});
+  };
+
   return (
     <div className="cc" data-testid="control-center">
       <div className="cc__head">
-        <span className="cc__title">Vibe Island</span>
+        <span className="cc__title" data-tauri-drag-region>Vibe Island</span>
+        <button className="cc__close" onClick={handleClose} title="Close" aria-label="Close">
+          ✕
+        </button>
       </div>
       <nav className="cc__tabs" data-testid="cc-tabs">
         {TABS.map((tab) => (

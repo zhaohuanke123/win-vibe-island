@@ -35,6 +35,8 @@ interface SessionRowProps {
   indicatorKind?: StateIndicatorKind;
   density?: "comfortable" | "compact";
   onJump?: (session: Session) => void;
+  onDetail?: (session: Session) => void;
+  onContextMenu?: (session: Session, position: { x: number; y: number }) => void;
   "data-testid"?: string;
 }
 
@@ -44,6 +46,8 @@ export const SessionRow = memo(function SessionRow({
   indicatorKind = "dot",
   density = "comfortable",
   onJump,
+  onDetail,
+  onContextMenu,
   "data-testid": testId,
 }: SessionRowProps) {
   const stale = session.state === "completed" && (Date.now() - session.lastActivity) / 1000 > 300;
@@ -120,6 +124,10 @@ export const SessionRow = memo(function SessionRow({
           ? ({ "--phase-color": phaseColorHex } as React.CSSProperties)
           : undefined
       }
+      onContextMenu={onContextMenu ? (e) => {
+        e.preventDefault();
+        onContextMenu(session, { x: e.clientX, y: e.clientY });
+      } : undefined}
     >
       {/* Row body — click to jump */}
       <div className="session-row__body" onClick={handleRowClick}>
@@ -189,6 +197,24 @@ export const SessionRow = memo(function SessionRow({
         <span className="session-row__age" data-testid="row-age">
           {age}
         </span>
+
+        {/* Detail button */}
+        {onDetail && (
+          <button
+            className="session-row__detail-btn"
+            onClick={(e) => { e.stopPropagation(); onDetail(session); }}
+            data-testid="row-detail-btn"
+            aria-label="View session details"
+          >
+            <svg viewBox="0 0 16 16" width={isCompact ? 12 : 14} height={isCompact ? 12 : 14}
+              fill="none" stroke="currentColor" strokeWidth="1.5"
+              strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="8" cy="8" r="6" />
+              <line x1="8" y1="7" x2="8" y2="11" />
+              <circle cx="8" cy="5" r="0.5" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
+        )}
 
         {/* Chevron — click to expand/collapse */}
         <button
