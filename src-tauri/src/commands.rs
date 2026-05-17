@@ -810,3 +810,33 @@ pub fn discover_transcripts() -> Result<String, String> {
     let discovered = crate::transcript_discovery::discover_sessions();
     serde_json::to_string(&discovered).map_err(|e| format!("Failed to serialize: {}", e))
 }
+
+/// Open the Control Center settings window.
+#[tauri::command]
+pub fn open_control_center(app: AppHandle) -> Result<(), String> {
+    use tauri::WebviewUrl;
+
+    if let Some(existing) = app.get_webview_window("control-center") {
+        let _ = existing.show();
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+
+    // Window is declared in tauri.conf.json with visible=false.
+    // Since it's already registered, just show it.
+    // If it wasn't created (e.g., conf missing), create it dynamically.
+    let url = WebviewUrl::App("/?window=control-center".into());
+    let window = tauri::WebviewWindow::builder(&app, "control-center", url)
+        .title("Vibe Island — Control Center")
+        .inner_size(560.0, 520.0)
+        .min_inner_size(460.0, 400.0)
+        .resizable(true)
+        .decorations(true)
+        .shadow(true)
+        .center()
+        .build()
+        .map_err(|e| format!("Failed to create control center window: {}", e))?;
+
+    let _ = window.show();
+    Ok(())
+}

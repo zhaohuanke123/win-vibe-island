@@ -356,6 +356,7 @@ pub fn run() {
             commands::get_claude_usage,
             logger::log_entry,
             commands::discover_transcripts,
+            commands::open_control_center,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

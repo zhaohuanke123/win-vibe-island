@@ -1486,11 +1486,15 @@
         "Create SessionRow.css with all row styles",
         "npm run build"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "dependencies": [52, 53, 56],
       "requirement_ref": "docs/v8-migration-plan.md#C1",
       "design_ref": "docs/v8-migration-plan.md#C1",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "frontend/src/components/SessionRow.tsx",
         "frontend/src/components/SessionRow.css"
@@ -1511,11 +1515,15 @@
         "Replace SessionList.tsx internals with GroupedRows",
         "npm run build"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "dependencies": [52, 57],
       "requirement_ref": "docs/v8-migration-plan.md#C2",
       "design_ref": "docs/v8-migration-plan.md#C2",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "frontend/src/components/GroupedRows.tsx",
         "frontend/src/components/SessionList.tsx"
@@ -1532,11 +1540,15 @@
         "Integrate into Pill panel mode replacing current Overlay header/footer",
         "npm run build"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "dependencies": [55, 58],
       "requirement_ref": "docs/v8-migration-plan.md#C3",
       "design_ref": "docs/v8-migration-plan.md#C3",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "frontend/src/components/PanelHead.tsx",
         "frontend/src/components/Overlay.tsx"
@@ -1557,11 +1569,15 @@
         "Create NotifBody.css with notification card styles",
         "npm run build"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "dependencies": [57],
       "requirement_ref": "docs/v8-migration-plan.md#D1",
       "design_ref": "docs/v8-migration-plan.md#D1",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "frontend/src/components/NotifBody.tsx",
         "frontend/src/components/NotifBody.css",
@@ -1580,11 +1596,15 @@
         "Verify AnimatedOverlay spring still syncs window size correctly",
         "npm run build"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "dependencies": [55],
       "requirement_ref": "docs/v8-migration-plan.md#E1",
       "design_ref": "docs/v8-migration-plan.md#E1",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "frontend/src/config/animation.ts",
         "frontend/src/components/AnimatedOverlay.tsx"
@@ -1603,11 +1623,15 @@
         "Update border colors to rgba(255,255,255,0.06-0.12)",
         "npm run build"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "dependencies": [55],
       "requirement_ref": "docs/v8-migration-plan.md#E2",
       "design_ref": "docs/v8-migration-plan.md#E2",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "frontend/src/components/Overlay.css",
         "frontend/src/App.css",
@@ -1626,11 +1650,15 @@
         "pointer-events: none so toast doesn't block interaction",
         "npm run build"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "low",
       "dependencies": [57],
       "requirement_ref": "docs/v8-migration-plan.md#F1",
       "design_ref": "docs/v8-migration-plan.md#F1",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "frontend/src/components/Pill.tsx",
         "frontend/src/components/Pill.css"
@@ -1647,11 +1675,15 @@
         "Add density toggle to Control Center settings",
         "npm run build"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "low",
       "dependencies": [57],
       "requirement_ref": "docs/v8-migration-plan.md#F2",
       "design_ref": "docs/v8-migration-plan.md#F2",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "frontend/src/components/SessionRow.tsx",
         "frontend/src/store/config.ts"
@@ -1669,11 +1701,15 @@
         "Bar indicator wrapper ::before also dims for detached/stale",
         "npm run build"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "low",
       "dependencies": [57],
       "requirement_ref": "docs/v8-migration-plan.md#F3",
       "design_ref": "docs/v8-migration-plan.md#F3",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "frontend/src/store/sessions.ts",
         "frontend/src/components/SessionRow.tsx",
@@ -1696,11 +1732,15 @@
         "Replace Overlay settings button with gear icon → open Control Center",
         "npm run build + cargo check"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "low",
       "dependencies": [59, 60],
       "requirement_ref": "docs/v8-migration-plan.md#G1",
       "design_ref": "docs/v8-migration-plan.md#G1",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "frontend/src/components/ControlCenter.tsx",
         "frontend/src/components/ControlCenter.css",

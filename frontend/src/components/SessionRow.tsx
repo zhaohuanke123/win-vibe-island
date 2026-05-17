@@ -4,19 +4,12 @@ import { StateIndicator } from "./StateIndicator";
 import type { StateIndicatorKind } from "./StateIndicator";
 import { NotifBody } from "./NotifBody";
 import { getAgent, hexA } from "../shared/agents";
-import { phaseColor, fmtAge, isAttentionPhase } from "../shared/phase-colors";
+import { phaseColor, fmtAge, isAttentionPhase, getAttachmentState } from "../shared/phase-colors";
+import type { AttachmentState } from "../shared/phase-colors";
 import type { Session } from "../store/sessions";
 import "./SessionRow.css";
 
 type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored" | "CommandFailed";
-
-const STALE_THRESHOLD_SEC = 300; // 5 minutes
-
-function isStale(session: Session): boolean {
-  if (session.state !== "completed") return false;
-  const elapsed = (Date.now() - session.lastActivity) / 1000;
-  return elapsed > STALE_THRESHOLD_SEC;
-}
 
 /** Extract project name from cwd (last path segment). */
 function extractProjectName(cwd: string): string {
@@ -55,7 +48,7 @@ export const SessionRow = memo(function SessionRow({
 }: SessionRowProps) {
   const [expanded, setExpanded] = useState(false);
   const [jumping, setJumping] = useState(false);
-  const stale = isStale(session);
+  const attachmentState: AttachmentState = getAttachmentState(session);
 
   const handleRowClick = useCallback(async () => {
     if (onJump) {
@@ -105,7 +98,8 @@ export const SessionRow = memo(function SessionRow({
   const rowClassName = [
     "session-row",
     isActive ? "session-row--active" : "",
-    stale ? "session-row--stale" : "",
+    attachmentState === "stale" ? "session-row--stale" : "",
+    attachmentState === "detached" ? "session-row--detached" : "",
     expanded ? "session-row--expanded" : "",
     isAttentionPhase(session.state) ? "session-row--attention" : "",
     jumping ? "session-row--jumping" : "",
@@ -171,7 +165,7 @@ export const SessionRow = memo(function SessionRow({
 
         {/* Agent chip */}
         <span
-          className="session-row__agent-chip"
+          className={`session-row__agent-chip${attachmentState === "detached" ? " session-row__agent-chip--dimmed" : ""}`}
           data-testid="agent-chip"
           style={{ backgroundColor: hexA(agent.color, 0.18), color: agent.color }}
         >

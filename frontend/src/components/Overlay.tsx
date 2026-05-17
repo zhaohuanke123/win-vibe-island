@@ -126,7 +126,15 @@ export function Overlay() {
   const [collapsedApprovalFocusKey, setCollapsedApprovalFocusKey] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
+  // Note: settings/activity inline panels kept as fallback; gear icon now opens Control Center window
+  void setShowSettings;
+  void setShowActivity;
   const [viewingSessionId, setViewingSessionId] = useState<string | null>(null);
+  const openControlCenter = useCallback(() => {
+    invoke("open_control_center").catch((e) => {
+      reportTauriError("failed to open control center", e);
+    });
+  }, []);
   const viewingSession = viewingSessionId ? sessions.find((s) => s.id === viewingSessionId) ?? null : null;
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -450,7 +458,7 @@ export function Overlay() {
                 <>
                   <PanelHead
                     sessions={sessions}
-                    onSettingsClick={() => { setShowSettings(true); setShowActivity(false); setViewingSessionId(null); }}
+                    onSettingsClick={() => { openControlCenter(); }}
                     data-testid="panel-head"
                   />
                   <div className="panel-list" data-testid="panel-list">

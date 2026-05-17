@@ -104,6 +104,9 @@ export interface Session {
 
   // Notification card kind — set by reducer based on event type
   notifKind?: NotifKind;
+
+  // Detached — true when the backing process has exited
+  detached?: boolean;
 }
 
 export interface DiffData {
@@ -175,6 +178,8 @@ interface SessionsStore {
   updateToolExecution: (sessionId: string, executionId: string, update: Partial<ToolExecution>) => void;
   renameSession: (id: string, label: string) => void;
   setSessionTag: (id: string, tag?: string) => void;
+  /** Mark a session as detached (process exited). */
+  markSessionDetached: (id: string) => void;
   createGroup: (name: string) => void;
   deleteGroup: (name: string) => void;
   renameGroup: (oldName: string, newName: string) => void;
@@ -360,6 +365,13 @@ export const useSessionsStore = create<SessionsStore>((set, _get) => ({
     set((s) => ({
       sessions: s.sessions.map((ses) =>
         ses.id === id ? { ...ses, tag } : ses
+      ),
+    })),
+
+  markSessionDetached: (id) =>
+    set((s) => ({
+      sessions: s.sessions.map((ses) =>
+        ses.id === id ? { ...ses, detached: true } : ses
       ),
     })),
 

@@ -22,6 +22,22 @@
         "shadow": false,
         "alwaysOnTop": true,
         "visible": true
+      },
+      {
+        "label": "control-center",
+        "title": "Vibe Island — Control Center",
+        "url": "/?window=control-center",
+        "width": 560,
+        "height": 520,
+        "minWidth": 460,
+        "minHeight": 400,
+        "resizable": true,
+        "decorations": true,
+        "transparent": false,
+        "shadow": true,
+        "alwaysOnTop": false,
+        "visible": false,
+        "center": true
       }
     ],
     "trayIcon": {

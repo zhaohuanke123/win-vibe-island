@@ -1,0 +1,486 @@
+/* ── Control Center Window ── */
+
+.cc {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-ui);
+  overflow: hidden;
+}
+
+/* ── Header ── */
+
+.cc__head {
+  display: flex;
+  align-items: center;
+  padding: 14px 20px 0;
+  flex-shrink: 0;
+}
+
+.cc__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--paper);
+  letter-spacing: 0.01em;
+}
+
+/* ── Tabs ── */
+
+.cc__tabs {
+  display: flex;
+  gap: 0;
+  padding: 12px 20px 0;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.cc__tab {
+  position: relative;
+  padding: 8px 14px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-mute);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.cc__tab:hover {
+  color: var(--ink-soft);
+}
+
+.cc__tab--active {
+  color: var(--paper);
+}
+
+.cc__tab--active::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--paper);
+  border-radius: 1px;
+}
+
+/* ── Body ── */
+
+.cc__body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 20px 24px;
+}
+
+.cc__body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cc__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cc__body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.cc__body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ── Section (shared) ── */
+
+.cc-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cc-section__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Typography ── */
+
+.cc-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+}
+
+.cc-hint {
+  font-size: 10px;
+  color: var(--ink-mute);
+}
+
+.cc-empty {
+  font-size: 11px;
+  color: var(--ink-mute);
+  padding: 4px 0;
+}
+
+/* ── Badge ── */
+
+.cc-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  color: var(--paper);
+}
+
+.cc-badge--ok {
+  background: rgba(111, 185, 130, 0.2);
+  border: 1px solid rgba(111, 185, 130, 0.35);
+}
+
+.cc-badge--partial {
+  background: rgba(255, 213, 138, 0.2);
+  border: 1px solid rgba(255, 213, 138, 0.35);
+}
+
+.cc-badge--missing {
+  background: rgba(244, 164, 164, 0.2);
+  border: 1px solid rgba(244, 164, 164, 0.35);
+}
+
+/* ── Hook Grid ── */
+
+.cc-hook-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cc-hook-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: var(--ink-soft);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cc-hook-item--installed {
+  color: rgba(111, 185, 130, 0.85);
+}
+
+.cc-hook-item--missing {
+  color: rgba(244, 164, 164, 0.7);
+}
+
+.cc-hook-item--external {
+  color: rgba(255, 213, 138, 0.7);
+}
+
+.cc-hook-item__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.cc-hook-item__name {
+  white-space: nowrap;
+}
+
+.cc-hook-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+/* ── Buttons ── */
+
+.cc-btn {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cc-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-hover);
+}
+
+.cc-btn--danger:hover {
+  background: rgba(244, 164, 164, 0.15);
+  border-color: rgba(244, 164, 164, 0.35);
+  color: var(--phase-approval);
+}
+
+/* ── Usage Bars ── */
+
+.cc-usage {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cc-usage__row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cc-usage__label {
+  font-size: 10px;
+  color: var(--ink-mute);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.cc-usage__bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cc-usage__bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.cc-usage__fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.cc-usage__fill--green {
+  background: rgba(111, 185, 130, 0.75);
+}
+
+.cc-usage__fill--yellow {
+  background: rgba(255, 213, 138, 0.75);
+}
+
+.cc-usage__fill--red {
+  background: rgba(244, 164, 164, 0.75);
+}
+
+.cc-usage__fill--none {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.cc-usage__pct {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--paper);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* ── Terminal Grid ── */
+
+.cc-terminal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.cc-terminal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+}
+
+.cc-terminal-card__name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--paper);
+}
+
+.cc-terminal-card__status {
+  font-size: 10px;
+  color: var(--ink-mute);
+}
+
+/* ── Settings: Setting Row ── */
+
+.cc-setting-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Settings: Toggle Group ── */
+
+.cc-toggle-group {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.cc-toggle-btn {
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cc-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-hover);
+}
+
+.cc-toggle-btn--active {
+  background: rgba(110, 167, 255, 0.15);
+  border-color: rgba(110, 167, 255, 0.3);
+  color: var(--paper);
+}
+
+/* ── Settings: Sound Grid ── */
+
+.cc-sound-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.cc-sound-btn {
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cc-sound-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-hover);
+}
+
+.cc-sound-btn--selected {
+  background: rgba(110, 167, 255, 0.2);
+  border-color: rgba(110, 167, 255, 0.35);
+  color: var(--paper);
+}
+
+.cc-sound-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Settings: Switch ── */
+
+.cc-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.cc-switch input {
+  display: none;
+}
+
+.cc-switch__slider {
+  width: 32px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  position: relative;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.cc-switch__slider::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: var(--ink-soft);
+  border-radius: 50%;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.cc-switch input:checked + .cc-switch__slider {
+  background: rgba(110, 167, 255, 0.4);
+}
+
+.cc-switch input:checked + .cc-switch__slider::after {
+  transform: translateX(14px);
+  background: var(--paper);
+}
+
+.cc-switch__text {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+/* ── Shortcuts ── */
+
+.cc-shortcut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cc-shortcut-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: 5px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+}
+
+.cc-shortcut__keys {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--paper);
+  white-space: nowrap;
+  min-width: 100px;
+  text-align: center;
+}
+
+.cc-shortcut__action {
+  font-size: 11px;
+  color: var(--ink-soft);
+}

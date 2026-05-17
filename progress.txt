@@ -1443,6 +1443,28 @@ All 9 AgentEvent variants handled by sessionReducer:
 
 ### Status: completed ✅
 
+---
+
+## [2026-05-17] - Tasks 57-66: v8 UI Migration Phase B-G ✅
+
+### What was done:
+- Task 57: Session Row Redesign — spatial split, agent chip, terminal badge, staleness
+- Task 58: Grouped Session List — groupBy (none/state/agent/project) + sort (attention/updated)
+- Task 59: Panel Head & Footer — chips + summary + 380px scroll
+- Task 60: Notification Cards — 4 kinds (two/three/jump/done)
+- Task 61: Spring Physics — softened springs, CSS transitions
+- Task 62: Color Palette & Typography — v8 design system variables, 22 CSS files
+- Task 63: Jump Toast — 1.5s fade on terminal jump
+- Task 64: Density Mode — comfortable/compact toggle
+- Task 65: Detached Sessions — attachment state visual dimming
+- Task 66: Control Center — 5-tab settings window (560px)
+
+### Testing:
+- npm run build passes
+- cargo check passes
+
+### Status: ALL TASKS COMPLETE ✅ (66/66)
+
 ## [2026-05-05] - 文档清理 v1.0
 
 ### What was done

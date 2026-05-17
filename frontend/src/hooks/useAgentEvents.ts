@@ -130,6 +130,7 @@ function mapState(raw: string): UIPhase {
 export function useAgentEvents() {
   const { addSession, removeSession, updateSessionState, updateSessionInfo, addPendingApproval, removeApprovalByToolUseId, removeApprovalsBySessionId } = useSessionsStore();
   const dispatchAgentEvent = useSessionsStore((s) => s.dispatchAgentEvent);
+  const markSessionDetached = useSessionsStore((s) => s.markSessionDetached);
 
   useEffect(() => {
     const unlisteners: UnlistenFn[] = [];
@@ -388,10 +389,22 @@ export function useAgentEvents() {
       unlisteners.push(unlistenProcessDetected);
 
       // Listen for process_terminated events
+      // Mark sessions matching the PID as detached instead of removing them
       const unlistenProcessTerminated = await listen<ProcessTerminatedEvent>("process_terminated", (event) => {
         const { pid } = event.payload;
-        const sessionId = `process-${pid}`;
-        removeSession(sessionId);
+        // Mark auto-detected process sessions as detached
+        const procSessionId = `process-${pid}`;
+        const existingProc = useSessionsStore.getState().sessions.find(s => s.id === procSessionId);
+        if (existingProc) {
+          markSessionDetached(procSessionId);
+        }
+        // Also mark any hook-tracked sessions with matching PID
+        const sessions = useSessionsStore.getState().sessions;
+        for (const ses of sessions) {
+          if (ses.pid === pid && !ses.detached) {
+            markSessionDetached(ses.id);
+          }
+        }
       });
       unlisteners.push(unlistenProcessTerminated);
 
@@ -430,7 +443,7 @@ export function useAgentEvents() {
     return () => {
       unlisteners.forEach((unlisten) => unlisten());
     };
-  }, [addSession, removeSession, updateSessionState, updateSessionInfo, addPendingApproval, removeApprovalByToolUseId, removeApprovalsBySessionId, dispatchAgentEvent]);
+  }, [addSession, removeSession, updateSessionState, updateSessionInfo, addPendingApproval, removeApprovalByToolUseId, removeApprovalsBySessionId, dispatchAgentEvent, markSessionDetached]);
 }
 
 // Helper to extract project name from cwd path
