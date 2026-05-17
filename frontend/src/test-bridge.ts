@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionsStore } from "./store/sessions";
+import { useConfigStore } from "./store/config";
 import type { Session, ApprovalRequest, HookServerStatus, UIPhase, ApprovalType, DiffData, Question, ToolExecution } from "./store/sessions";
 
 export interface VibeTestBridge {
@@ -13,6 +14,30 @@ export interface VibeTestBridge {
   resetAll: () => Promise<void>;
   isTauriRuntime: () => boolean;
   simulateEvent: (event: string, payload: Record<string, unknown>) => void;
+
+  // ── New: Batch / Store Direct Access ──
+  setSessions: (sessions: Session[]) => void;
+  updateSession: (id: string, updates: Partial<Session>) => void;
+  setSessionField: (id: string, field: string, value: unknown) => void;
+  setConfigField: (path: string[], value: unknown) => void;
+  getSessionCount: () => number;
+
+  // ── New: Tool Lifecycle Simulation ──
+  simulateToolUse: (sessionId: string, toolName: string, toolInput?: Record<string, unknown>) => void;
+  simulateToolComplete: (sessionId: string, toolName: string, durationMs?: number) => void;
+  simulateToolError: (sessionId: string, toolName: string, error: string) => void;
+
+  // ── New: Layout Measurement Utilities ──
+  getElementRect: (selector: string) => Promise<{width: number; height: number; top: number; left: number} | null>;
+  getElementStyles: (selector: string, props: string[]) => Promise<Record<string, string>>;
+  getElementCount: (selector: string) => Promise<number>;
+  getTextContents: (selector: string) => Promise<string[]>;
+
+  // ── New: Config / Store injection ──
+  setDensity: (mode: "comfortable" | "compact") => void;
+  setGroupBy: (mode: string) => void;
+  setSortBy: (mode: string) => void;
+  setStateIndicator: (kind: string) => void;
 }
 
 const isTauriRuntime = () => !!window.__TAURI_INTERNALS__;
@@ -207,6 +232,119 @@ export function registerTestBridge() {
 
     isTauriRuntime,
     simulateEvent,
+
+    // ── New: Batch / Store Direct Access ──
+    setSessions: (sessions) => {
+      useSessionsStore.setState({ sessions, activeSessionId: sessions[0]?.id ?? null });
+    },
+    updateSession: (id, updates) => {
+      useSessionsStore.getState().updateSessionInfo(id, updates);
+    },
+    setSessionField: (id, field, value) => {
+      useSessionsStore.getState().updateSessionInfo(id, { [field]: value } as Partial<Session>);
+    },
+    setConfigField: (path, value) => {
+      const current = useConfigStore.getState().config;
+      // Deep-set by path
+      let obj: any = current;
+      for (let i = 0; i < path.length - 1; i++) {
+        obj = obj[path[i]];
+      }
+      obj[path[path.length - 1]] = value;
+      useConfigStore.setState({ config: { ...current } });
+    },
+    getSessionCount: () => useSessionsStore.getState().sessions.length,
+
+    // ── New: Tool Lifecycle ──
+    simulateToolUse: (sessionId, toolName, toolInput) => {
+      const store = useSessionsStore.getState();
+      const input = toolInput ?? {};
+      store.updateSessionInfo(sessionId, {
+        state: "running",
+        toolName,
+        filePath: (input.file_path as string) || (input.filePath as string) || undefined,
+        currentTool: { name: toolName, input, startTime: Date.now() },
+      });
+    },
+    simulateToolComplete: (sessionId, toolName, durationMs) => {
+      const store = useSessionsStore.getState();
+      const session = store.sessions.find((s) => s.id === sessionId);
+      if (session?.currentTool) {
+        store.addToolExecution(sessionId, {
+          id: `tool-${Date.now()}`,
+          toolName: toolName || session.currentTool.name,
+          input: session.currentTool.input,
+          duration: durationMs,
+          timestamp: Date.now(),
+          status: "success",
+        });
+      }
+      store.updateSessionInfo(sessionId, {
+        toolName: undefined,
+        filePath: undefined,
+        currentTool: undefined,
+      });
+    },
+    simulateToolError: (sessionId, toolName, error) => {
+      const store = useSessionsStore.getState();
+      store.updateSessionInfo(sessionId, {
+        state: "completed",
+        lastError: error,
+      });
+      store.addToolExecution(sessionId, {
+        id: `tool-${Date.now()}`,
+        toolName,
+        input: {},
+        error,
+        timestamp: Date.now(),
+        status: "failed",
+      });
+      store.updateSessionInfo(sessionId, {
+        toolName: undefined,
+        filePath: undefined,
+        currentTool: undefined,
+      });
+    },
+
+    // ── New: Layout Measurement ──
+    getElementRect: (selector) => Promise.resolve((() => {
+      const el = document.querySelector(selector);
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      return { width: rect.width, height: rect.height, top: rect.top, left: rect.left };
+    })()),
+    getElementStyles: (selector, props) => Promise.resolve((() => {
+      const el = document.querySelector(selector);
+      if (!el) return {};
+      const cs = getComputedStyle(el);
+      const result: Record<string, string> = {};
+      for (const p of props) result[p] = cs.getPropertyValue(p).trim();
+      return result;
+    })()),
+    getElementCount: (selector) => Promise.resolve(document.querySelectorAll(selector).length),
+    getTextContents: (selector) => Promise.resolve(
+      Array.from(document.querySelectorAll(selector)).map((el) => el.textContent ?? "")
+    ),
+
+    // ── New: Config / Store injection ──
+    setDensity: (mode) => {
+      useConfigStore.setState({
+        config: { ...useConfigStore.getState().config, ui: { ...useConfigStore.getState().config.ui, density: mode } },
+      });
+    },
+    setGroupBy: (mode) => {
+      // Trigger the overlay's internal groupBy select by setting the store
+      // We dispatch a custom event that the test spec handles
+      window.dispatchEvent(new CustomEvent("vibe:setGroupBy", { detail: mode }));
+    },
+    setSortBy: (mode) => {
+      window.dispatchEvent(new CustomEvent("vibe:setSortBy", { detail: mode }));
+    },
+    setStateIndicator: (kind) => {
+      useConfigStore.setState({
+        config: { ...useConfigStore.getState().config, ui: { ...useConfigStore.getState().config.ui, stateIndicator: kind as any } },
+      });
+    },
   };
 }
 

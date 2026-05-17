@@ -107,6 +107,7 @@ export function Overlay() {
   const setCurrentApprovalIndex = useSessionsStore((s) => s.setCurrentApprovalIndex);
   const config = useConfigStore((s) => s.config);
   const overlayLayout = normalizeOverlayLayoutConfig(config.overlay);
+  const density = config.ui.density;
   const BAR_HEIGHT = config.ui.dimensions.barHeight;
   const EXPANDED_MIN = overlayLayout.expandedMinHeight;
   const EXPANDED_MAX = overlayLayout.expandedMaxHeight;
@@ -483,6 +484,7 @@ export function Overlay() {
                       groupBy={groupBy}
                       sortBy={sortBy}
                       onJump={handleJump}
+                      density={density}
                     />
                   </div>
                   {/* PanelFooter */}

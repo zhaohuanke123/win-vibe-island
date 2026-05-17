@@ -4,9 +4,20 @@ use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
+use tokio::sync::oneshot;
 
 #[cfg(target_os = "windows")]
 use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
+
+/// Result of processing a hook event — indicates whether a blocking response is needed.
+enum HookEventResult {
+    /// Fire-and-forget: no response needed (e.g. SessionStart, Notification).
+    FireAndForget,
+    /// Respond immediately with an empty allow payload (PreToolUse).
+    RespondImmediately(String),
+    /// Wait for user approval/rejection before responding (PermissionRequest).
+    WaitForApproval(String, oneshot::Receiver<crate::hook_server::PermissionDecision>),
+}
 
 /// Get the pipe name from configuration
 fn get_pipe_name() -> String {
@@ -251,11 +262,21 @@ async fn handle_connection(
                         let msg_type = envelope.get("type").and_then(|v| v.as_str()).unwrap_or("");
 
                         if msg_type == "hook_event" {
-                            // New: CLI hook event
-                            handle_hook_event(&app, &envelope);
-                            // For blocking events, we need to wait for user response
-                            // and write back through the pipe. For now, fire-and-forget
-                            // events are handled; blocking events will be enhanced later.
+                            match handle_hook_event(&app, &envelope) {
+                                HookEventResult::FireAndForget => {}
+                                result => {
+                                    // Blocking event — build and send response back through pipe
+                                    if let Err(e) = write_pipe_response(
+                                        &mut server,
+                                        result,
+                                    )
+                                    .await
+                                    {
+                                        log::error!("Failed to write pipe response: {}", e);
+                                        break; // pipe broken, stop handling this connection
+                                    }
+                                }
+                            }
                             continue;
                         }
                     }
@@ -293,11 +314,100 @@ async fn handle_connection(
     Ok(())
 }
 
+/// Write a response back to the CLI through the named pipe.
+#[cfg(target_os = "windows")]
+async fn write_pipe_response(
+    server: &mut NamedPipeServer,
+    result: HookEventResult,
+) -> Result<(), String> {
+    use tokio::io::AsyncWriteExt;
+
+    let (request_id, decision) = match result {
+        HookEventResult::FireAndForget => return Ok(()),
+        HookEventResult::RespondImmediately(rid) => {
+            (rid, crate::hook_server::PermissionDecision {
+                behavior: "allow".to_string(),
+                message: None,
+                updated_input: None,
+            })
+        }
+        HookEventResult::WaitForApproval(rid, rx) => {
+            let decision = tokio::time::timeout(
+                tokio::time::Duration::from_secs(290),
+                rx,
+            ).await;
+            match decision {
+                Ok(Ok(d)) => (rid, d),
+                Ok(Err(_)) => {
+                    log::warn!("Approval channel closed; fail-open allow");
+                    (rid, crate::hook_server::PermissionDecision {
+                        behavior: "allow".to_string(),
+                        message: Some("Approval channel closed".to_string()),
+                        updated_input: None,
+                    })
+                }
+                Err(_) => {
+                    log::warn!("Approval timed out after 290s; fail-open allow");
+                    (rid, crate::hook_server::PermissionDecision {
+                        behavior: "allow".to_string(),
+                        message: Some("Approval timed out".to_string()),
+                        updated_input: None,
+                    })
+                }
+            }
+        }
+    };
+
+    let stdout_payload = if let Some(ref updated_input) = decision.updated_input {
+        serde_json::json!({
+            "hookSpecificOutput": {
+                "hookEventName": "PermissionRequest",
+                "decision": {
+                    "behavior": decision.behavior,
+                    "updatedInput": updated_input,
+                }
+            }
+        })
+    } else {
+        serde_json::json!({
+            "hookSpecificOutput": {
+                "hookEventName": "PermissionRequest",
+                "decision": { "behavior": decision.behavior }
+            }
+        })
+    };
+
+    let envelope = serde_json::json!({
+        "type": "hook_response",
+        "request_id": request_id,
+        "stdout_payload": stdout_payload,
+    });
+
+    let message = serde_json::to_string(&envelope).unwrap_or_default();
+    let framed = format!("{}\n", message);
+
+    log::info!("Writing pipe response ({} bytes): behavior={}", framed.len(), decision.behavior);
+
+    server.write_all(framed.as_bytes()).await
+        .map_err(|e| format!("Pipe write error: {}", e))?;
+    server.flush().await
+        .map_err(|e| format!("Pipe flush error: {}", e))?;
+
+    log::info!("Pipe response written for request_id={}", request_id);
+    Ok(())
+}
+
 /// Handle a hook event envelope from the CLI.
-/// Dispatches to the same logic as hook_server.rs handlers.
-fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
+/// Returns HookEventResult indicating whether the connection handler must send a response.
+fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEventResult {
     use crate::adapters::claude_adapter::ClaudeCodeAdapter;
     use crate::session_state;
+
+    let request_id = envelope
+        .get("request_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
 
     let event_name = envelope
         .get("hook_event_name")
@@ -350,6 +460,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
                 "state_change",
                 &serde_json::json!({ "session_id": session_id, "state": "idle" }),
             );
+            HookEventResult::FireAndForget
         }
         "PreToolUse" => {
             let _ = app.emit(
@@ -388,6 +499,9 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
                     }),
                 );
             }
+            // PreToolUse is blocking in the CLI but doesn't need user input —
+            // acknowledge immediately so the agent continues without waiting.
+            HookEventResult::RespondImmediately(request_id)
         }
         "PostToolUse" => {
             let event = ClaudeCodeAdapter::to_tool_use_completed(&payload);
@@ -405,6 +519,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
                 "state_change",
                 &serde_json::json!({ "session_id": session_id, "state": "running" }),
             );
+            HookEventResult::FireAndForget
         }
         "PostToolUseFailure" => {
             let event = ClaudeCodeAdapter::to_tool_use_completed(&payload);
@@ -422,6 +537,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
                 "state_change",
                 &serde_json::json!({ "session_id": session_id, "state": "completed", "error": payload.get("error") }),
             );
+            HookEventResult::FireAndForget
         }
         "Notification" => {
             let event = ClaudeCodeAdapter::to_notification_updated(&payload);
@@ -454,6 +570,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
                     );
                 }
             }
+            HookEventResult::FireAndForget
         }
         "Stop" => {
             let _ = app.emit(
@@ -466,6 +583,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
             );
             let event = ClaudeCodeAdapter::to_session_completed(&payload);
             session_state::apply_event(&event);
+            HookEventResult::FireAndForget
         }
         "StopFailure" => {
             let _ = app.emit(
@@ -476,6 +594,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
                     "error": payload.get("error"),
                 }),
             );
+            HookEventResult::FireAndForget
         }
         "UserPromptSubmit" => {
             let event = ClaudeCodeAdapter::to_user_prompt_submit(&payload);
@@ -488,11 +607,9 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
                     "prompt": payload.get("prompt"),
                 }),
             );
+            HookEventResult::FireAndForget
         }
         "PermissionRequest" => {
-            // For PermissionRequest via pipe, we use the same logic as hook_server
-            // but the response goes back through the pipe instead of HTTP.
-            // The CLI will block waiting for a response.
             let event = ClaudeCodeAdapter::to_permission_requested(&payload);
             session_state::apply_event(&event);
 
@@ -535,15 +652,34 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
                 "state_change",
                 &serde_json::json!({ "session_id": session_id, "state": "waitingForApproval" }),
             );
+
+            // Register pending approval with hook_server so the frontend's
+            // submit_approval_response can find it.  The returned receiver
+            // will be awaited by the connection handler.
+            match crate::hook_server::register_pipe_approval(
+                tool_use_id,
+                session_id,
+                tool_name,
+                tool_input,
+            ) {
+                Some(rx) => HookEventResult::WaitForApproval(request_id, rx),
+                None => {
+                    // Hook server not running — fail-open: allow the tool.
+                    log::warn!("PermissionRequest via pipe but hook_server not running; fail-open allow");
+                    HookEventResult::RespondImmediately(request_id)
+                }
+            }
         }
         "PermissionDenied" => {
             let _ = app.emit(
                 "state_change",
                 &serde_json::json!({ "session_id": session_id, "state": "running" }),
             );
+            HookEventResult::FireAndForget
         }
         _ => {
             log::debug!("Unhandled hook event via pipe: {}", event_name);
+            HookEventResult::FireAndForget
         }
     }
 }

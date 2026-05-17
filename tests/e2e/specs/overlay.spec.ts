@@ -14,17 +14,32 @@ test.describe("Overlay", () => {
     const sessions = await client.getSessions();
     expect(sessions).toHaveLength(0);
 
-    await expect(page.getByTestId("empty-state")).toBeVisible();
+    // Click bar to expand and see the empty state
+    await client.clickBar();
+    await page.waitForTimeout(500);
+    await expect(page.getByTestId("grouped-rows-empty")).toBeVisible();
   });
 
   test("shows session after simulate_session_start", async ({ page }) => {
+    // Create a running session (not idle, not waitingForApproval)
     await client.simulateSessionStart("test-1", "Test Project");
+    await client.simulateStateChange("test-1", "running");
 
     const sessions = await client.getSessions();
     expect(sessions).toHaveLength(1);
     expect(sessions[0].label).toBe("Test Project");
 
-    await expect(page.getByTestId("session-label")).toHaveText("Test Project");
+    // Click bar to expand
+    await client.clickBar();
+    await page.waitForTimeout(500);
+
+    // Session should be in "In progress" group (not collapsed)
+    const rows = await client.getElementCount("[data-testid='session-row']");
+    expect(rows).toBe(1);
+
+    // Row content contains the label
+    const labels = await client.getTextContents("[data-testid='row-content']");
+    expect(labels.some(l => l.includes("Test Project"))).toBe(true);
   });
 
   test("expands when approval request arrives", async ({ page }) => {
@@ -41,6 +56,7 @@ test.describe("Overlay", () => {
     expect(approval).not.toBeNull();
     expect(approval.toolUseId).toBe("tool-123");
 
+    // Approval auto-expands overlay
     await expect(page.getByTestId("approval-panel")).toBeVisible();
     await expect(page.getByTestId("risk-level")).toContainText("MEDIUM");
   });
@@ -74,11 +90,19 @@ test.describe("Overlay", () => {
 
   test("updates session state after simulate_state_change", async ({ page }) => {
     await client.simulateSessionStart("test-1", "Test Project");
-    await client.simulateStateChange("test-1", "thinking");
+    await client.simulateStateChange("test-1", "running");
 
     const sessions = await client.getSessions();
-    expect(sessions[0].state).toBe("thinking");
+    expect(sessions[0].state).toBe("running");
 
-    await expect(page.getByTestId("session-state")).toHaveText("thinking");
+    // Click bar to expand and verify the phase is shown
+    await client.clickBar();
+    await page.waitForTimeout(500);
+
+    // Session row has data-phase attribute
+    const phaseEl = page.locator('[data-session-id="test-1"]');
+    await expect(phaseEl).toBeAttached({ timeout: 3000 });
+    const phase = await phaseEl.getAttribute("data-phase");
+    expect(phase).toBe("running");
   });
 });

@@ -1055,6 +1055,42 @@ fn extract_questions(tool_input: &serde_json::Value) -> Option<Vec<serde_json::V
     }
 }
 
+/// Register a pending approval from the Named Pipe path.
+///
+/// Unlike the HTTP path (which creates the channel inline in the handler),
+/// the pipe server needs to register the approval and get back a receiver
+/// so it can await the user's decision and write the response back through
+/// the pipe.  The frontend calls the same `submit_approval_response` command
+/// regardless of which path created the pending entry.
+pub fn register_pipe_approval(
+    tool_use_id: String,
+    session_id: String,
+    tool_name: String,
+    tool_input: serde_json::Value,
+) -> Option<oneshot::Receiver<PermissionDecision>> {
+    let state_guard = HOOK_SERVER_STATE.lock();
+    if let Some(ref state) = *state_guard {
+        let (response_tx, response_rx) = oneshot::channel::<PermissionDecision>();
+        let mut pending = state.pending_approvals.lock();
+        pending.insert(
+            tool_use_id.clone(),
+            PendingApproval {
+                tool_use_id,
+                session_id,
+                tool_name,
+                tool_input,
+                response_tx,
+                created_at: std::time::Instant::now(),
+            },
+        );
+        Some(response_rx)
+    } else {
+        log::warn!("register_pipe_approval: hook server not running, pipe approval unavailable");
+        None
+    }
+}
+
+
 /// Submit an approval response for a pending permission request.
 /// This is called from the frontend when the user approves or rejects an action.
 ///
