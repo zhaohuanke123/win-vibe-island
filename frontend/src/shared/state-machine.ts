@@ -15,7 +15,7 @@
  */
 
 import { logger } from "../client/logger";
-import type { AgentState } from "../store/sessions";
+import type { UIPhase } from "../store/sessions";
 
 /**
  * 状态转换矩阵 — 单一事实来源
@@ -23,27 +23,23 @@ import type { AgentState } from "../store/sessions";
  * Key:   当前状态 current
  * Value: 所有合法的下一个状态 next
  *
- * 设计参考 docs/states-and-flows.md 中的状态转换图:
- *
- *   idle → running → thinking → streaming → done
- *                     ↓            ↓
- *                  error ←─── PostToolUseFailure
- *   any → approval → running
+ * 4-phase model:
+ *   idle → running → completed
+ *   running → waitingForApproval → running
+ *   running → waitingForAnswer → running
  */
-export const TRANSITION_MATRIX: Record<AgentState, AgentState[]> = {
-  idle: ["running", "thinking", "approval", "error", "done"],
-  running: ["thinking", "approval", "error", "done", "streaming", "idle"],
-  thinking: ["streaming", "error", "approval", "done", "running", "idle"],
-  streaming: ["thinking", "done", "error", "approval", "running", "idle"],
-  approval: ["running", "error", "done", "idle"],
-  error: ["idle", "running", "done", "thinking", "approval"],
-  done: ["idle", "running", "error"],
+export const TRANSITION_MATRIX: Record<UIPhase, UIPhase[]> = {
+  idle: ["running", "waitingForApproval", "waitingForAnswer", "completed"],
+  running: ["running", "waitingForApproval", "waitingForAnswer", "completed", "idle"],
+  waitingForApproval: ["running", "completed", "idle"],
+  waitingForAnswer: ["running", "completed", "idle"],
+  completed: ["idle", "running"],
 };
 
 /** 检查 current → next 是否合法 */
 export function canTransition(
-  current: AgentState,
-  next: AgentState,
+  current: UIPhase,
+  next: UIPhase,
 ): boolean {
   if (current === next) return true; // 同状态不报错
   const allowed = TRANSITION_MATRIX[current];
@@ -58,8 +54,8 @@ export function canTransition(
  *   - reason: 不合法时的说明
  */
 export function validateTransition(
-  current: AgentState,
-  next: AgentState,
+  current: UIPhase,
+  next: UIPhase,
 ): { valid: boolean; reason?: string } {
   if (current === next) {
     return { valid: true };
@@ -93,8 +89,8 @@ export function validateTransition(
  */
 export function safeTransition(
   sessionId: string,
-  current: AgentState,
-  next: AgentState,
+  current: UIPhase,
+  next: UIPhase,
   context?: Record<string, unknown>,
 ): ReturnType<typeof validateTransition> {
   const result = validateTransition(current, next);

@@ -17,7 +17,7 @@ import type { ApprovalRequest, Session } from "../store/sessions";
 import "./Overlay.css";
 import "./ApprovalQueue.css";
 
-type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored";
+type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored" | "CommandFailed";
 
 function clampOverlayHeight(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, Math.ceil(value)));
@@ -111,7 +111,7 @@ export function Overlay() {
   const APPROVAL_FOCUS_HEIGHT = overlayLayout.approvalFocusHeight;
   const EXPANDED_BORDER_RADIUS = overlayLayout.expandedBorderRadius;
   const active = sessions.find((s) => s.id === activeSessionId);
-  const approvalStateSession = sessions.find((s) => s.state === "approval") ?? null;
+  const approvalStateSession = sessions.find((s) => s.state === "waitingForApproval" || s.state === "waitingForAnswer") ?? null;
   const currentApproval = pendingApprovals[currentApprovalIndex] ?? null;
   const approvalSession = currentApproval
     ? sessions.find((s) => s.id === currentApproval.sessionId) ?? null
@@ -209,10 +209,13 @@ export function Overlay() {
       setViewingSessionId((prev) => (prev === session.id ? null : session.id));
     }
 
-    if (session.pid) {
+    if (session.pid || session.jumpTarget) {
       setIsLoading(true);
       try {
-        await invoke<FocusResult>("focus_session_window", { sessionPid: session.pid });
+        await invoke<FocusResult>("focus_session_window", {
+          sessionPid: session.pid ?? null,
+          jumpTarget: session.jumpTarget ?? null,
+        });
       } catch (e) {
         setError(`Failed to focus window: ${e}`);
       } finally {

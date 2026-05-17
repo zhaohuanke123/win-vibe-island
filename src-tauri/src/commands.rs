@@ -6,6 +6,7 @@ use crate::pipe_server;
 use crate::process_watcher;
 use crate::session_store;
 use crate::window_focus::{self, FocusResult};
+use crate::agent_event::JumpTarget;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, LogicalSize, Manager, Size, WebviewWindow};
 
@@ -198,13 +199,31 @@ pub fn stop_pipe_server() -> Result<(), String> {
 }
 
 // Window focus command
-/// Focus the window belonging to the session with the given PID.
+/// Focus the window belonging to the session.
 ///
-/// This brings the agent's terminal/editor window to the foreground.
-/// Returns the result indicating success, flash-only (focus blocked), or not found.
+/// Accepts a JumpTarget with terminal type, PID, workspace path, and extra info.
+/// Uses the best available strategy for the detected terminal type:
+/// - Windows Terminal: `wt -w 0 focus-tab --target <tab-id>`
+/// - VS Code: `code -r <workspace-path>`
+/// - Cursor: `cursor -r <workspace-path>`
+/// - Fallback: PID → SetForegroundWindow + FlashWindowEx
 #[tauri::command]
-pub fn focus_session_window(session_pid: u32) -> FocusResult {
-    window_focus::focus_window_by_pid(session_pid)
+pub fn focus_session_window(
+    session_pid: Option<u32>,
+    jump_target: Option<JumpTarget>,
+) -> FocusResult {
+    if let Some(ref target) = jump_target {
+        if target.terminal_type.is_some() {
+            return window_focus::focus_with_jump_target(target);
+        }
+    }
+
+    // Legacy fallback: PID only
+    if let Some(pid) = session_pid {
+        return window_focus::focus_window_by_pid(pid);
+    }
+
+    FocusResult::NotFound
 }
 
 // Process watcher commands
@@ -778,4 +797,16 @@ pub fn flash_taskbar(app: AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.request_user_attention(Some(tauri::UserAttentionType::Informational));
     }
+}
+
+#[tauri::command]
+pub fn get_claude_usage() -> crate::claude_usage::ClaudeUsage {
+    crate::claude_usage::get_claude_usage()
+}
+
+/// Scan Claude Code transcript files and return discovered sessions.
+#[tauri::command]
+pub fn discover_transcripts() -> Result<String, String> {
+    let discovered = crate::transcript_discovery::discover_sessions();
+    serde_json::to_string(&discovered).map_err(|e| format!("Failed to serialize: {}", e))
 }

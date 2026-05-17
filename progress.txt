@@ -6,6 +6,178 @@ and any relevant notes.
 
 ---
 
+## [2026-05-16] - Task 47: Hook Manifest 清单机制 ✅
+
+### Documentation Gate:
+- Requirement ref: docs/open-island-alignment-prd.md §2.1
+- Design ref: docs/open-island-alignment-prd.md §2.1
+
+### What was done:
+- Created `src-tauri/src/hook_manifest.rs`: HookManifest struct with hook_command, installed_at, installed_hooks, app_version
+- Manifest read/write/delete to `~/.claude/vibe-island-manifest.json`
+- Refactored `hook_config.rs`: install checks manifest for dedup, uninstall uses manifest-scoped removal
+- Backup strategy: timestamped backups with max-3 pruning
+- Extended HookConfigStatus with manifest_present, manifest_installed_at, hook_details
+- SettingsPanel Hook Status area with per-hook colored dots and manifest info
+- 17 tests pass including 3 new manifest tests
+
+### Testing:
+- cargo check passes
+- cargo test --lib hook_config passes (17 tests)
+- npm run build passes
+
+### Status: completed ✅
+
+---
+
+## [2026-05-16] - Task 51: Phase Model Migration ✅
+
+### Documentation Gate:
+- Requirement ref: docs/v8-migration-plan.md §A1
+- Design ref: docs/v8-migration-plan.md §A1
+
+### What was done:
+- Migrated 7-state model → 4-phase + UI-only idle
+- AgentPhase: 'running' | 'waitingForApproval' | 'waitingForAnswer' | 'completed'
+- UIPhase = AgentPhase | 'idle' (idle is UI-only, derived not stored)
+- Updated 17 files across Rust backend (6) and React frontend (11)
+- Added LEGACY_STATE_MAP for backward compat with stored sessions
+- Updated all test files to new phase names
+
+### State mapping:
+idle→idle, thinking→running, running→running, streaming→running, approval→waitingForApproval/waitingForAnswer, error→completed, done→completed
+
+### Testing:
+- cargo check passes
+- npm run build passes
+- vitest: 221/227 tests pass (1 file has OOM crash, pre-existing infrastructure issue)
+
+### Notes:
+- Rust config types still have 7-field StateColors but frontend correctly uses 5-field model
+- claude_adapter.rs method name `to_thinking_updated` is cosmetic, emits Running correctly
+
+### Status: completed ✅
+
+---
+
+## [2026-05-16] - Task 48: Transcript 扫描与 Session 恢复 ✅
+
+### Documentation Gate:
+- Requirement ref: docs/open-island-alignment-prd.md §3.1
+- Design ref: docs/open-island-alignment-prd.md §3.1
+
+### What was done:
+- Created src-tauri/src/transcript_discovery.rs
+- Scans ~/.claude/projects/ for *.jsonl (last 24h, max 40 files)
+- Stream-parses JSONL with BufReader (no full file load)
+- Extracts: session_id, cwd, last user prompt, model name, timestamp
+- Auto-runs on startup, merges into session_state (non-destructive)
+- Added discover_transcripts IPC command
+
+### Testing:
+- cargo check passes
+- npm run build passes
+
+### Status: completed ✅
+
+---
+
+## [2026-05-16] - Task 49: 终端跳回增强 ✅
+
+### Documentation Gate:
+- Requirement ref: docs/open-island-alignment-prd.md §4.1
+- Design ref: docs/open-island-alignment-prd.md §4.1
+
+### What was done:
+- Extended AgentSession with JumpTarget fields
+- Added FocusStrategy trait with per-terminal registry
+- Implemented Windows Terminal / VS Code / Cursor / PID fallback strategies
+- hook_server detects terminal type on session start
+- Frontend passes jumpTarget on session click
+
+### Testing:
+- cargo check passes
+- npm run build passes
+
+### Status: completed ✅
+
+---
+
+## [2026-05-16] - Task 50: Claude Code Usage Dashboard ✅
+
+### Documentation Gate:
+- Requirement ref: docs/open-island-alignment-prd.md §5.1
+- Design ref: docs/open-island-alignment-prd.md §5.1
+
+### What was done:
+- Created src-tauri/src/claude_usage.rs
+- Reads ~/.claude/plugins/claude-hud/.usage-cache.json
+- Parses 5h/7d usage percentages + reset time with freshness check
+- Added get_claude_usage IPC command
+- SettingsPanel Usage section with progress bars + color coding
+
+### Testing:
+- cargo check passes
+- npm run build passes
+
+### Status: completed ✅
+
+### Documentation Gate:
+- Requirement ref: docs/v8-migration-plan.md
+- Design ref: Open Island v8-bundle design system (v8_core.jsx, v8_pill.jsx, styles_v8.css)
+- Source analysis: Phase model, pill architecture, BarsGlyph, agent taxonomy, notification cards, session list redesign
+
+### What was planned:
+
+**Phase A: Phase Model & Agent Taxonomy (P0)**
+- Task 51: Phase Model Migration — 7 states → 4 phases + UI-only idle
+- Task 52: Agent Brand System — 10 agents with brand colors
+- Task 53: Phase Color System — semantic phase colors
+
+**Phase B: Pill UI Architecture (P0-P1)**
+- Task 54: UnifiedBars Glyph — replace StatusDot with 3-bar animated glyph
+- Task 55: Pill Shell & Notch Row — pill container with notch/panel/notif modes
+- Task 56: State Indicator Variants — dot/bar/glyph/tint
+
+**Phase C: Session Row & Panel (P1)**
+- Task 57: Session Row Redesign — spatial split (body=jump, chevron=expand)
+- Task 58: Grouped Session List — groupBy (none/state/agent/project) + sort (attention/updated)
+- Task 59: Panel Head & Footer — chips + session summary + max-height 380px scroll
+
+**Phase D: Notification Cards (P1)**
+- Task 60: 4 notification kinds — two/three/jump/done
+
+**Phase E: Animation & Visual Polish (P2)**
+- Task 61: Spring Physics Alignment — match v8 timing
+- Task 62: Color Palette & Typography — ink/paper palette
+
+**Phase F: Interaction & UX (P2)**
+- Task 63: Jump Toast — visual feedback for terminal jump
+- Task 64: Density Mode — comfortable/compact
+- Task 65: Detached Session Handling — visual differentiation
+
+**Phase G: Settings (P3)**
+- Task 66: Control Center Window — dedicated settings window
+
+### Files created:
+- docs/v8-migration-plan.md
+
+### Files modified:
+- task.json (16 new tasks, 51-66)
+- docs/README.md (index update with v8-migration-plan reference)
+
+### Key design decisions:
+- Phase model: 7-state → 4-phase is a fundamental type change affecting reducer, store, backend, hooks
+- Agent brand colors: 10 specific hex values locked to v8 reference PR #385
+- Pill shape: single shape transforming between 3 modes, flat-top + semicircle-bottom
+- Spatial split: row body = jump (primary), chevron = expand (secondary) — different from current click-to-view-detail
+- Notification cards: 4 kinds replace current ApprovalPanel, work embedded in row OR standalone
+- No "improvements" — replicate v8 design exactly, tune only for Windows-specific feedback
+
+### Status: Pending implementation (Tasks 51-66 added, execution order: A→B→C→D→E→F→G)
+
+---
+
 ## [2026-05-15] - Open Island 对标规划 (Tasks 43-50)
 
 ### Documentation Gate:

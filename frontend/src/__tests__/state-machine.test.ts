@@ -4,20 +4,18 @@ import {
   validateTransition,
   TRANSITION_MATRIX,
 } from "../shared/state-machine";
-import type { AgentState } from "../store/sessions";
+import type { UIPhase } from "../store/sessions";
 
 /* ============================================================
- * State Machine 测试
+ * State Machine 测试 (4-phase model)
  * ============================================================ */
 
-const ALL_STATES: AgentState[] = [
+const ALL_STATES: UIPhase[] = [
   "idle",
   "running",
-  "thinking",
-  "streaming",
-  "approval",
-  "error",
-  "done",
+  "waitingForApproval",
+  "waitingForAnswer",
+  "completed",
 ];
 
 describe("StateMachine: canTransition", () => {
@@ -29,40 +27,29 @@ describe("StateMachine: canTransition", () => {
 
   it("idle → running 合法", () => {
     expect(canTransition("idle", "running")).toBe(true);
-    expect(canTransition("idle", "thinking")).toBe(true);
-    expect(canTransition("idle", "approval")).toBe(true);
-    expect(canTransition("idle", "error")).toBe(true);
+    expect(canTransition("idle", "waitingForApproval")).toBe(true);
+    expect(canTransition("idle", "completed")).toBe(true);
   });
 
-  it("running → thinking 合法", () => {
-    expect(canTransition("running", "thinking")).toBe(true);
-    expect(canTransition("running", "approval")).toBe(true);
-    expect(canTransition("running", "error")).toBe(true);
-    expect(canTransition("running", "done")).toBe(true);
+  it("running → waiting* 合法", () => {
+    expect(canTransition("running", "waitingForApproval")).toBe(true);
+    expect(canTransition("running", "waitingForAnswer")).toBe(true);
+    expect(canTransition("running", "completed")).toBe(true);
   });
 
-  it("thinking → streaming 合法", () => {
-    expect(canTransition("thinking", "streaming")).toBe(true);
-    expect(canTransition("thinking", "error")).toBe(true);
-    expect(canTransition("thinking", "approval")).toBe(true);
-    expect(canTransition("thinking", "done")).toBe(true);
+  it("waitingForApproval → running 合法", () => {
+    expect(canTransition("waitingForApproval", "running")).toBe(true);
+    expect(canTransition("waitingForApproval", "completed")).toBe(true);
   });
 
-  it("streaming → thinking 合法（工具循环）", () => {
-    expect(canTransition("streaming", "thinking")).toBe(true);
-    expect(canTransition("streaming", "done")).toBe(true);
-    expect(canTransition("streaming", "error")).toBe(true);
+  it("waitingForAnswer → running 合法", () => {
+    expect(canTransition("waitingForAnswer", "running")).toBe(true);
+    expect(canTransition("waitingForAnswer", "completed")).toBe(true);
   });
 
-  it("approval → running 合法", () => {
-    expect(canTransition("approval", "running")).toBe(true);
-    expect(canTransition("approval", "error")).toBe(true);
-    expect(canTransition("approval", "done")).toBe(true);
-  });
-
-  it("done → idle 合法（新会话）", () => {
-    expect(canTransition("done", "idle")).toBe(true);
-    expect(canTransition("done", "running")).toBe(true);
+  it("completed → idle/running 合法", () => {
+    expect(canTransition("completed", "idle")).toBe(true);
+    expect(canTransition("completed", "running")).toBe(true);
   });
 });
 
@@ -74,13 +61,13 @@ describe("StateMachine: validateTransition", () => {
   });
 
   it("不合法转换返回 valid=false + reason", () => {
-    const result = validateTransition("done", "thinking");
+    const result = validateTransition("completed", "waitingForApproval");
     expect(result.valid).toBe(false);
     expect(result.reason).toContain("not in the allowed matrix");
   });
 
   it("不存在的源状态返回 valid=false", () => {
-    const result = validateTransition("nonexistent" as AgentState, "idle");
+    const result = validateTransition("nonexistent" as UIPhase, "idle");
     expect(result.valid).toBe(false);
     expect(result.reason).toContain("Unknown state");
   });
@@ -100,18 +87,17 @@ describe("StateMachine: 转换矩阵完整性", () => {
     }
   });
 
-  it("所有目标状态都是合法的 AgentState", () => {
+  it("所有目标状态都是合法的 UIPhase", () => {
     for (const [_from, toList] of Object.entries(TRANSITION_MATRIX)) {
       for (const to of toList) {
-        expect(ALL_STATES).toContain(to as AgentState);
+        expect(ALL_STATES).toContain(to as UIPhase);
       }
     }
   });
 
-  it("done 是最接近终点的状态（最少出边）", () => {
-    // done 应该是最受限的状态
-    expect(TRANSITION_MATRIX.done.length).toBeLessThanOrEqual(
-      Math.min(...ALL_STATES.filter((s) => s !== "done").map((s) => TRANSITION_MATRIX[s].length))
+  it("completed 是最接近终点的状态（最少出边）", () => {
+    expect(TRANSITION_MATRIX.completed.length).toBeLessThanOrEqual(
+      Math.min(...ALL_STATES.filter((s) => s !== "completed").map((s) => TRANSITION_MATRIX[s].length))
     );
   });
 });

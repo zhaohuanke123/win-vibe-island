@@ -1,17 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
 import { StatusDot } from '../../components/StatusDot'
+import type { UIPhase } from '../../store/sessions'
 
 describe('StatusDot', () => {
-  const states = [
+  const states: { state: UIPhase; expectedClass: string }[] = [
     { state: 'idle', expectedClass: 'status-dot--idle' },
     { state: 'running', expectedClass: 'status-dot--running' },
-    { state: 'thinking', expectedClass: 'status-dot--thinking' },
-    { state: 'streaming', expectedClass: 'status-dot--streaming' },
-    { state: 'approval', expectedClass: 'status-dot--approval' },
-    { state: 'error', expectedClass: 'status-dot--error' },
-    { state: 'done', expectedClass: 'status-dot--done' },
-  ] as const
+    { state: 'waitingForApproval', expectedClass: 'status-dot--waitingForApproval' },
+    { state: 'waitingForAnswer', expectedClass: 'status-dot--waitingForAnswer' },
+    { state: 'completed', expectedClass: 'status-dot--completed' },
+  ]
 
   states.forEach(({ state, expectedClass }) => {
     it(`should render with correct class for ${state} state`, () => {

@@ -76,27 +76,27 @@ export type NotificationSound =
   | "purr"
   | "tink";
 
+export type StateIndicatorKind = "dot" | "bar" | "glyph" | "tint";
+
 export interface UiConfig {
   stateColors: StateColors;
   animation: AnimationConfig;
   dimensions: UiDimensions;
+  stateIndicator: StateIndicatorKind;
 }
 
 export interface StateColors {
   idle: string;
-  thinking: string;
   running: string;
-  streaming: string;
-  approval: string;
-  error: string;
-  done: string;
+  waitingForApproval: string;
+  waitingForAnswer: string;
+  completed: string;
 }
 
 export interface AnimationConfig {
-  thinkingDurationMs: number;
   runningDurationMs: number;
-  streamingDurationMs: number;
-  approvalDurationMs: number;
+  waitingForApprovalDurationMs: number;
+  waitingForAnswerDurationMs: number;
   spring: SpringConfig;
 }
 
@@ -197,19 +197,16 @@ const DEFAULT_CONFIG: AppConfig = {
   },
   ui: {
     stateColors: {
-      idle: "#6b7280",
-      thinking: "#a78bfa",
-      running: "#3b82f6",
-      streaming: "#06b6d4",
-      approval: "#f59e0b",
-      error: "#ef4444",
-      done: "#22c55e",
+      idle: "#9a958a",
+      running: "#6ea7ff",
+      waitingForApproval: "#f4a4a4",
+      waitingForAnswer: "#ffd58a",
+      completed: "#6fb982",
     },
     animation: {
-      thinkingDurationMs: 1200,
       runningDurationMs: 1000,
-      streamingDurationMs: 500,
-      approvalDurationMs: 600,
+      waitingForApprovalDurationMs: 600,
+      waitingForAnswerDurationMs: 600,
       spring: {
         expand: { stiffness: 300, damping: 22, mass: 0.9 },
         collapse: { stiffness: 380, damping: 26, mass: 0.85 },
@@ -223,6 +220,7 @@ const DEFAULT_CONFIG: AppConfig = {
       gap: 8,
       statusDotSize: 12,
     },
+    stateIndicator: "dot",
   },
 };
 
@@ -301,14 +299,12 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
   getAnimationDuration: (state) => {
     const anim = get().config.ui.animation;
     switch (state) {
-      case "thinking":
-        return anim.thinkingDurationMs;
       case "running":
         return anim.runningDurationMs;
-      case "streaming":
-        return anim.streamingDurationMs;
-      case "approval":
-        return anim.approvalDurationMs;
+      case "waitingForApproval":
+        return anim.waitingForApprovalDurationMs;
+      case "waitingForAnswer":
+        return anim.waitingForAnswerDurationMs;
       default:
         return 1000;
     }

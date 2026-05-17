@@ -18,7 +18,7 @@ fn get_pipe_name() -> String {
 pub struct AgentEvent {
     /// Unique session identifier
     pub session_id: String,
-    /// Current state: "idle", "running", "approval", "done"
+    /// Current state: "idle", "running", "waitingForApproval", "waitingForAnswer", "completed"
     pub state: String,
     /// Optional payload with additional event data
     #[serde(default)]
@@ -364,7 +364,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
                 "state_change",
                 &serde_json::json!({
                     "session_id": session_id,
-                    "state": "thinking",
+                    "state": "running",
                     "tool_name": payload.get("tool_name"),
                     "tool_input": payload.get("tool_input"),
                 }),
@@ -403,7 +403,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
             );
             let _ = app.emit(
                 "state_change",
-                &serde_json::json!({ "session_id": session_id, "state": "streaming" }),
+                &serde_json::json!({ "session_id": session_id, "state": "running" }),
             );
         }
         "PostToolUseFailure" => {
@@ -420,7 +420,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
             );
             let _ = app.emit(
                 "state_change",
-                &serde_json::json!({ "session_id": session_id, "state": "error", "error": payload.get("error") }),
+                &serde_json::json!({ "session_id": session_id, "state": "completed", "error": payload.get("error") }),
             );
         }
         "Notification" => {
@@ -432,7 +432,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
                         "state_change",
                         &serde_json::json!({
                             "session_id": session_id,
-                            "state": "approval",
+                            "state": "waitingForApproval",
                             "message": payload.get("message"),
                         }),
                     );
@@ -460,7 +460,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
                 "state_change",
                 &serde_json::json!({
                     "session_id": session_id,
-                    "state": "done",
+                    "state": "completed",
                     "reason": payload.get("reason"),
                 }),
             );
@@ -472,7 +472,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
                 "state_change",
                 &serde_json::json!({
                     "session_id": session_id,
-                    "state": "error",
+                    "state": "completed",
                     "error": payload.get("error"),
                 }),
             );
@@ -533,7 +533,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) {
             );
             let _ = app.emit(
                 "state_change",
-                &serde_json::json!({ "session_id": session_id, "state": "approval" }),
+                &serde_json::json!({ "session_id": session_id, "state": "waitingForApproval" }),
             );
         }
         "PermissionDenied" => {

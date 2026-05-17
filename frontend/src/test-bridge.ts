@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionsStore } from "./store/sessions";
-import type { Session, ApprovalRequest, HookServerStatus, AgentState, ApprovalType, DiffData, Question, ToolExecution } from "./store/sessions";
+import type { Session, ApprovalRequest, HookServerStatus, UIPhase, ApprovalType, DiffData, Question, ToolExecution } from "./store/sessions";
 
 export interface VibeTestBridge {
   invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
@@ -38,7 +38,7 @@ function simulateEvent(event: string, payload: Record<string, unknown>) {
           id: sessionId,
           label: (payload.label as string) || "Test Session",
           cwd: (payload.cwd as string) || "",
-          state: "idle" as AgentState,
+          state: "idle" as UIPhase,
           toolHistory: [],
           createdAt: Date.now(),
           lastActivity: Date.now(),
@@ -48,7 +48,7 @@ function simulateEvent(event: string, payload: Record<string, unknown>) {
     }
     case "state_change": {
       const sessionId = payload.session_id as string;
-      const state = payload.state as AgentState;
+      const state = payload.state as UIPhase;
       const existing = store.sessions.find((s) => s.id === sessionId);
       if (existing) {
         store.updateSessionState(sessionId, state);
@@ -93,7 +93,7 @@ function simulateEvent(event: string, payload: Record<string, unknown>) {
       const toolName = payload.tool_name as string;
       const toolInput = (payload.tool_input as Record<string, unknown>) || {};
       useSessionsStore.getState().updateSessionInfo(sessionId, {
-        state: "thinking",
+        state: "running",
         toolName,
         currentTool: {
           name: toolName,

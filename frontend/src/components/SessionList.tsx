@@ -5,7 +5,7 @@ import { SessionContextMenu } from "./SessionContextMenu";
 import { useElapsedTime } from "../hooks/useElapsedTime";
 import { getToolDescription } from "../shared/tool-description";
 import { classifyTool, getCategoryVisual } from "../shared/tool-category";
-import type { Session, AgentState } from "../store/sessions";
+import type { Session, UIPhase } from "../store/sessions";
 import "./SessionList.css";
 
 interface SessionListProps {
@@ -22,7 +22,7 @@ interface SessionListProps {
 }
 
 type SortBy = "lastActivity" | "createdAt";
-type StateFilter = "all" | AgentState;
+type StateFilter = "all" | UIPhase;
 
 interface GroupData {
   tag: string;
@@ -32,7 +32,7 @@ interface GroupData {
 
 /** Auto-updating elapsed time since createdAt, only for active sessions */
 function SessionElapsed({ session }: { session: Session }) {
-  const elapsed = useElapsedTime(session.createdAt, session.state !== "done" && session.state !== "idle");
+  const elapsed = useElapsedTime(session.createdAt, session.state !== "completed" && session.state !== "idle");
   if (!elapsed) return null;
   return <span className="session-list__session-elapsed">{elapsed}</span>;
 }
@@ -40,11 +40,9 @@ function SessionElapsed({ session }: { session: Session }) {
 const STATE_FILTERS: { label: string; value: StateFilter }[] = [
   { label: "All", value: "all" },
   { label: "Running", value: "running" },
-  { label: "Thinking", value: "thinking" },
-  { label: "Streaming", value: "streaming" },
-  { label: "Approval", value: "approval" },
-  { label: "Error", value: "error" },
-  { label: "Done", value: "done" },
+  { label: "Waiting (Approval)", value: "waitingForApproval" },
+  { label: "Waiting (Answer)", value: "waitingForAnswer" },
+  { label: "Completed", value: "completed" },
   { label: "Idle", value: "idle" },
 ];
 

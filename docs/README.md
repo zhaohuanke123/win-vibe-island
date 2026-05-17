@@ -24,6 +24,7 @@
 || [docs/release-process.md](release-process.md) | 发布流程与 checklist |
 || [docs/ux-optimization-prd.md](ux-optimization-prd.md) | UX 优化 PRD — Firecrawl + writing-plans 体验改善方案 |
 || [docs/open-island-alignment-prd.md](open-island-alignment-prd.md) | Open Island 对标架构升级 PRD — v2.0 路线图 |
+|| [docs/v8-migration-plan.md](v8-migration-plan.md) | v8 UI/动画/功能迁移计划 — 对标 Open Island v8 设计系统 |
 
 ## 任务与进度
 

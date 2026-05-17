@@ -1177,16 +1177,22 @@
         "SettingsPanel 新增 Hook Status 区域：显示 installed/missing/managed_by_vibe",
         "npm run build + cargo check 验证"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "critical",
       "dependencies": [],
       "requirement_ref": "docs/open-island-alignment-prd.md#21-manifest-清单机制",
       "design_ref": "docs/open-island-alignment-prd.md#21-manifest-清单机制",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "src-tauri/src/hook_manifest.rs",
         "src-tauri/src/hook_config.rs",
         "src-tauri/src/lib.rs",
-        "frontend/src/components/SettingsPanel.tsx"
+        "frontend/src/components/SettingsPanel.tsx",
+        "frontend/src/components/SettingsPanel.css",
+        "frontend/src/shared/error-dictionary.ts"
       ]
     },
     {
@@ -1202,16 +1208,21 @@
         "启动时自动运行，合并已有 registry 数据",
         "cargo check + npm run build 验证"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "dependencies": [
         44
       ],
       "requirement_ref": "docs/open-island-alignment-prd.md#31-transcript-扫描",
       "design_ref": "docs/open-island-alignment-prd.md#31-transcript-扫描",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "src-tauri/src/transcript_discovery.rs",
-        "src-tauri/src/session_store.rs",
+        "src-tauri/src/session_state.rs",
+        "src-tauri/src/commands.rs",
         "src-tauri/src/lib.rs"
       ]
     },
@@ -1230,18 +1241,25 @@
         "前端: session 点击时传递 jumpTarget 而非仅 PID",
         "npm run build + cargo check 验证"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "dependencies": [
         44
       ],
       "requirement_ref": "docs/open-island-alignment-prd.md#41-windows-终端精确跳回",
       "design_ref": "docs/open-island-alignment-prd.md#41-windows-终端精确跳回",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "src-tauri/src/window_focus.rs",
         "src-tauri/src/hook_server.rs",
+        "src-tauri/src/commands.rs",
         "src-tauri/src/agent_session.rs",
-        "frontend/src/components/SessionList.tsx"
+        "frontend/src/store/sessions.ts",
+        "frontend/src/components/Overlay.tsx",
+        "frontend/src/shared/session-reducer.ts"
       ]
     },
     {
@@ -1255,14 +1273,440 @@
         "SettingsPanel: 新增 Usage 标签页，显示两个进度条（5h / 7d）",
         "npm run build + cargo check 验证"
       ],
-      "status": "pending",
+      "status": "completed",
       "priority": "low",
       "dependencies": [],
       "requirement_ref": "docs/open-island-alignment-prd.md#51-claude-code-用量面板",
       "design_ref": "docs/open-island-alignment-prd.md#51-claude-code-用量面板",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
+        "src-tauri/src/claude_usage.rs",
         "src-tauri/src/commands.rs",
-        "frontend/src/components/SettingsPanel.tsx"
+        "src-tauri/src/lib.rs",
+        "frontend/src/components/SettingsPanel.tsx",
+        "frontend/src/components/SettingsPanel.css"
+      ]
+    },
+    {
+      "id": 51,
+      "title": "Phase Model Migration: 7 states → 4 phases + idle",
+      "description": "Migrate from current 7-state model (idle/thinking/running/streaming/approval/error/done) to reference's 4-phase model (running/waitingForApproval/waitingForAnswer/completed) + UI-only idle. Maps: thinking→running, streaming→running, approval→waitingForApproval|waitingForAnswer, error→completed(with error), done→completed.",
+      "steps": [
+        "Update frontend/src/shared/session-reducer.ts: replace PHASE_TO_STATE with AgentPhase type ('running'|'waitingForApproval'|'waitingForAnswer'|'completed'), add UIPhase = AgentPhase|'idle'",
+        "Update frontend/src/store/sessions.ts: Session.state from 7-string union to AgentPhase",
+        "Update src-tauri/src/agent_session.rs: SessionPhase enum to 4 cases",
+        "Update hook_server.rs event-to-phase mapping for new model",
+        "Update useAgentEvents.ts: permissionRequested→waitingForApproval, questionAsked→waitingForAnswer",
+        "Verify all existing components still work with phase names",
+        "npm run build + cargo check"
+      ],
+      "status": "completed",
+      "priority": "critical",
+      "dependencies": [],
+      "requirement_ref": "docs/v8-migration-plan.md#A1",
+      "design_ref": "docs/v8-migration-plan.md#A1",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "frontend/src/shared/session-reducer.ts",
+        "frontend/src/store/sessions.ts",
+        "frontend/src/shared/state-machine.ts",
+        "src-tauri/src/agent_event.rs",
+        "src-tauri/src/agent_session.rs",
+        "src-tauri/src/session_state.rs",
+        "src-tauri/src/adapters/claude_adapter.rs",
+        "src-tauri/src/hook_server.rs",
+        "src-tauri/src/pipe_server.rs",
+        "src-tauri/src/session_store.rs",
+        "frontend/src/hooks/useAgentEvents.ts",
+        "frontend/src/components/StatusDot.tsx",
+        "frontend/src/components/Overlay.tsx",
+        "frontend/src/components/SessionList.tsx",
+        "frontend/src/store/config.ts",
+        "frontend/src/hooks/useSessionPersistence.ts",
+        "frontend/src/test-bridge.ts"
+      ]
+    },
+    {
+      "id": 52,
+      "title": "Agent Brand System: 10 agents with brand colors",
+      "description": "Define agent taxonomy with brand color hex, CLI names, and short codes. Add agent field to Session type. Create hexA() tint helper.",
+      "steps": [
+        "Create frontend/src/shared/agents.ts: AGENTS map (claude/codex/cursor/gemini/kimi/opencode/qoder/qwen/factory/codebuddy) with color, cli, name, short",
+        "Add hexA(hex, alpha) helper for tinted backgrounds",
+        "Add AgentType to Session type in sessions.ts",
+        "Update hook_server.rs to extract agent type from process name or config path",
+        "Add CSS .agent-dot.{type} rules for each agent color",
+        "npm run build"
+      ],
+      "status": "completed",
+      "priority": "critical",
+      "dependencies": [51],
+      "requirement_ref": "docs/v8-migration-plan.md#A2",
+      "design_ref": "docs/v8-migration-plan.md#A2",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "frontend/src/shared/agents.ts",
+        "frontend/src/store/sessions.ts",
+        "frontend/src/shared/session-reducer.ts",
+        "frontend/src/components/AgentDot.css",
+        "src-tauri/src/agent_event.rs",
+        "src-tauri/src/adapters/claude_adapter.rs",
+        "src-tauri/src/hook_server.rs",
+        "src-tauri/src/process_watcher.rs"
+      ]
+    },
+    {
+      "id": 53,
+      "title": "Phase Color System: semantic phase colors",
+      "description": "Define 5 semantic phase colors (approval #f4a4a4, answer #ffd58a, running #6ea7ff, completed #6fb982, idle #9a958a) distinct from agent brand colors.",
+      "steps": [
+        "Create frontend/src/shared/phase-colors.ts: PHASE_COLOR map + phaseColor() helper",
+        "Add phasePriority mapping and isAttentionPhase() helper",
+        "Add fmtAge() relative time helper",
+        "Update session-reducer.ts to use phaseColor for state rendering",
+        "npm run build"
+      ],
+      "status": "completed",
+      "priority": "critical",
+      "dependencies": [51],
+      "requirement_ref": "docs/v8-migration-plan.md#A3",
+      "design_ref": "docs/v8-migration-plan.md#A3",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "frontend/src/shared/phase-colors.ts"
+      ]
+    },
+    {
+      "id": 54,
+      "title": "UnifiedBars Glyph: replace StatusDot with animated 3-bar glyph",
+      "description": "Replace StatusDot component with BarsGlyph — 3-bar animated SVG glyph. 4 visual modes: idle (middle breathing), running (wave 0.9s), waiting (outer cross-pulse), done (stroke-draw tick). Accepts both raw glyph modes and phase names.",
+      "steps": [
+        "Create frontend/src/components/BarsGlyph.tsx: SVG component with 3 rect bars",
+        "Implement idle animation: middle bar breathing (CSS keyframes, scale 0.7↔1.0, 3s)",
+        "Implement running animation: 3-bar wave (SMIL animate, 0.9s, staggered 0.2s)",
+        "Implement waiting animation: outer bars cross-pulse (CSS keyframes, 1.2s)",
+        "Implement done animation: stroke-draw tick (SVG stroke-dasharray, 0.4s, fill=freeze)",
+        "Create BarsGlyph.css with all animation definitions",
+        "Add phaseGlyph() helper to map phase names to glyph modes",
+        "npm run build"
+      ],
+      "status": "completed",
+      "priority": "critical",
+      "dependencies": [53],
+      "requirement_ref": "docs/v8-migration-plan.md#B1",
+      "design_ref": "docs/v8-migration-plan.md#B1",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "frontend/src/components/BarsGlyph.tsx",
+        "frontend/src/components/BarsGlyph.css"
+      ]
+    },
+    {
+      "id": 55,
+      "title": "Pill Shell & Notch Row: pill container with 3 modes",
+      "description": "Implement the pill container that transforms between notch (compact 32px), panel (expanded session list), and notif (notification card) modes. Flat-top, semicircle-bottom shape.",
+      "steps": [
+        "Create frontend/src/components/Pill.tsx: shell with mode prop (notch/panel/notif)",
+        "Create frontend/src/components/NotchRow.tsx: compact row with BarsGlyph + agent dot + label + right slot",
+        "Implement pill CSS: flat-top border-radius 0, bottom semicircle 20px, ink background",
+        "Framer Motion spring transition between modes (height, width)",
+        "Integrate Pill into AnimatedOverlay.tsx replacing current shell",
+        "npm run build"
+      ],
+      "status": "completed",
+      "priority": "critical",
+      "dependencies": [54],
+      "requirement_ref": "docs/v8-migration-plan.md#B2",
+      "design_ref": "docs/v8-migration-plan.md#B2",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "frontend/src/components/Pill.tsx",
+        "frontend/src/components/Pill.css",
+        "frontend/src/components/NotchRow.tsx",
+        "frontend/src/components/AnimatedOverlay.tsx"
+      ]
+    },
+    {
+      "id": 56,
+      "title": "State Indicator Variants: dot/bar/glyph/tint",
+      "description": "Implement 4 visual styles for session row state indicators. dot=colored circle, bar=left-edge strip, glyph=mini BarsGlyph, tint=phase color on project text. Configurable via settings.",
+      "steps": [
+        "Create frontend/src/components/StateIndicator.tsx with kind+phase props",
+        "Implement dot mode: colored circle with phaseColor()",
+        "Implement bar mode: ::before pseudo-element on wrapper with --phase-color CSS var",
+        "Implement glyph mode: miniaturized BarsGlyph 16x16, idle→static dim dot",
+        "Implement tint mode: phaseColor on project name text, no leading indicator",
+        "Add CSS for all variants (.ind-dot/.ind-bar/.ind-glyph/.ind-tint)",
+        "Add stateIndicator setting to config store",
+        "npm run build"
+      ],
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [54],
+      "requirement_ref": "docs/v8-migration-plan.md#B3",
+      "design_ref": "docs/v8-migration-plan.md#B3",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "frontend/src/components/StateIndicator.tsx",
+        "frontend/src/components/StateIndicator.css",
+        "frontend/src/store/config.ts"
+      ]
+    },
+    {
+      "id": 57,
+      "title": "Session Row Redesign: spatial split + expanded detail",
+      "description": "Redesign session row with jump-first click semantics. Row body = jump to terminal (primary), trailing chevron = expand inline detail (secondary). Shows project, branch, msg, agent chip, terminal badge, age. Expanded detail shows NotifBody or running info.",
+      "steps": [
+        "Create frontend/src/components/SessionRow.tsx: redesigned row component",
+        "Implement spatial split: row body onClick → onJump, chevron onClick → toggle expanded",
+        "Implement row layout: StateIndicator + project·branch·msg + agent chip + terminal + age + chevron",
+        "Implement expanded detail block with NotifBody or running info",
+        "Add staleness logic: isStale(s) for completed >5min, auto-collapse",
+        "Create SessionRow.css with all row styles",
+        "npm run build"
+      ],
+      "status": "pending",
+      "priority": "high",
+      "dependencies": [52, 53, 56],
+      "requirement_ref": "docs/v8-migration-plan.md#C1",
+      "design_ref": "docs/v8-migration-plan.md#C1",
+      "files": [
+        "frontend/src/components/SessionRow.tsx",
+        "frontend/src/components/SessionRow.css"
+      ]
+    },
+    {
+      "id": 58,
+      "title": "Grouped Session List: groupBy + sort orthogonal knobs",
+      "description": "Implement groupBy (none/state/agent/project) and sort (attention/updated) orthogonal knobs. Replace current filter/sort UI. State groups ordered by priority, agent groups by AGENTS key order, project groups alphabetical.",
+      "steps": [
+        "Create frontend/src/components/GroupedRows.tsx: generic grouper with groupBy+sort props",
+        "Implement 'none' mode: flat sorted list",
+        "Implement 'state' mode: STATE_GROUP_DEFS priority groups, idle collapses by default",
+        "Implement 'agent' mode: groups by agent type, brand-colored headers",
+        "Implement 'project' mode: groups by cwd, alphabetical",
+        "Implement attention sort: phase priority → stale sinks → tiebreaker",
+        "Implement updated sort: pure last-activity recency",
+        "Replace SessionList.tsx internals with GroupedRows",
+        "npm run build"
+      ],
+      "status": "pending",
+      "priority": "high",
+      "dependencies": [52, 57],
+      "requirement_ref": "docs/v8-migration-plan.md#C2",
+      "design_ref": "docs/v8-migration-plan.md#C2",
+      "files": [
+        "frontend/src/components/GroupedRows.tsx",
+        "frontend/src/components/SessionList.tsx"
+      ]
+    },
+    {
+      "id": 59,
+      "title": "Panel Head & Footer: chips + session summary",
+      "description": "Add PanelHead with session count + waiting/running chips + gear icon. Add PanelFooter with session count summary + keyboard shortcut hint. Panel list constrained to max-height 380px with thin scrollbar.",
+      "steps": [
+        "Create frontend/src/components/PanelHead.tsx: session count + waiting/running chips + gear icon",
+        "Add PanelFooter to pill bottom: count summary + shortcut hint",
+        "Apply max-height 380px to session list area with 6px thin scrollbar",
+        "Integrate into Pill panel mode replacing current Overlay header/footer",
+        "npm run build"
+      ],
+      "status": "pending",
+      "priority": "high",
+      "dependencies": [55, 58],
+      "requirement_ref": "docs/v8-migration-plan.md#C3",
+      "design_ref": "docs/v8-migration-plan.md#C3",
+      "files": [
+        "frontend/src/components/PanelHead.tsx",
+        "frontend/src/components/Overlay.tsx"
+      ]
+    },
+    {
+      "id": 60,
+      "title": "Notification Cards: 4 kinds (two/three/jump/done)",
+      "description": "Implement 4 notification card kinds: two-way permission (2 buttons), three-way permission (3+ buttons), jump/answer (pick list + freeform), done (reply + jump). Works as standalone notif or embedded in expanded row.",
+      "steps": [
+        "Create frontend/src/components/NotifBody.tsx: unified notif body with kind prop",
+        "Implement 'two' kind: code block + 2 action buttons + keyboard hint",
+        "Implement 'three' kind: code block + 3+ action buttons + 1/2/3 keyboard",
+        "Implement 'jump' kind: options pick list + freeform input + send/dismiss",
+        "Implement 'done' kind: reply text + quick reply input + jump back button",
+        "Add notifKind field to Session type",
+        "Map permissionRequested → 'two'|'three', questionAsked → 'jump', completed → 'done'",
+        "Create NotifBody.css with notification card styles",
+        "npm run build"
+      ],
+      "status": "pending",
+      "priority": "high",
+      "dependencies": [57],
+      "requirement_ref": "docs/v8-migration-plan.md#D1",
+      "design_ref": "docs/v8-migration-plan.md#D1",
+      "files": [
+        "frontend/src/components/NotifBody.tsx",
+        "frontend/src/components/NotifBody.css",
+        "frontend/src/store/sessions.ts",
+        "frontend/src/shared/session-reducer.ts"
+      ]
+    },
+    {
+      "id": 61,
+      "title": "Spring Physics Alignment: match v8 timing",
+      "description": "Align Framer Motion spring parameters with v8's CSS transition feel. Expand ~300ms, collapse ~250ms, state changes 120-200ms. Keep Framer Motion for window resize, use CSS transitions for row-level.",
+      "steps": [
+        "Update frontend/src/config/animation.ts: soften springs (stiffness 200/280)",
+        "Add CSS transition constants: 120ms ease (hover), 160ms ease (chevron), 300ms ease (expand)",
+        "Remove per-row Framer Motion, use CSS transitions instead",
+        "Verify AnimatedOverlay spring still syncs window size correctly",
+        "npm run build"
+      ],
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": [55],
+      "requirement_ref": "docs/v8-migration-plan.md#E1",
+      "design_ref": "docs/v8-migration-plan.md#E1",
+      "files": [
+        "frontend/src/config/animation.ts",
+        "frontend/src/components/AnimatedOverlay.tsx"
+      ]
+    },
+    {
+      "id": 62,
+      "title": "Color Palette & Typography: v8 design system",
+      "description": "Apply v8 color palette (ink #0d0d0f, paper #f1ead9) and typography (Inter + JetBrains Mono). Replace current CSS variables.",
+      "steps": [
+        "Update CSS custom properties: --ink, --paper, --ink-soft, --ink-mute, --line, --bg-soft",
+        "Apply ink background to pill/overlay surface",
+        "Apply paper color to all text and icons",
+        "Set Inter as primary font, JetBrains Mono for mono labels",
+        "Update section header styles: uppercase, 10.5px, letter-spacing 0.12em",
+        "Update border colors to rgba(255,255,255,0.06-0.12)",
+        "npm run build"
+      ],
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": [55],
+      "requirement_ref": "docs/v8-migration-plan.md#E2",
+      "design_ref": "docs/v8-migration-plan.md#E2",
+      "files": [
+        "frontend/src/components/Overlay.css",
+        "frontend/src/App.css",
+        "frontend/src/components/Pill.css"
+      ]
+    },
+    {
+      "id": 63,
+      "title": "Jump Toast: visual feedback for terminal jump",
+      "description": "Add toast notification that appears for 1.5s when user clicks a session row to jump to terminal. Shows terminal name, fade in/out animation.",
+      "steps": [
+        "Add toast state to Overlay/Pill component",
+        "Create toast element: position absolute top-right, ink background, paper text",
+        "Implement oi-toast-fade animation: 0→10% fade in, 10→80% hold, 80→100% fade out",
+        "Show toast on row jump click with terminal name",
+        "pointer-events: none so toast doesn't block interaction",
+        "npm run build"
+      ],
+      "status": "pending",
+      "priority": "low",
+      "dependencies": [57],
+      "requirement_ref": "docs/v8-migration-plan.md#F1",
+      "design_ref": "docs/v8-migration-plan.md#F1",
+      "files": [
+        "frontend/src/components/Pill.tsx",
+        "frontend/src/components/Pill.css"
+      ]
+    },
+    {
+      "id": 64,
+      "title": "Density Mode: comfortable/compact toggle",
+      "description": "Add compact density mode for power users. Comfortable: full row (~48px) with all fields. Compact: reduced row (~32px), no branch/You line, smaller fonts.",
+      "steps": [
+        "Add density setting to config store ('comfortable'|'compact')",
+        "SessionRow: accept density prop, conditionally hide branch/You/fields in compact",
+        "Compact: smaller fonts (10px agent chip, 10.5px labels), tighter padding, 20x20 chevron",
+        "Add density toggle to Control Center settings",
+        "npm run build"
+      ],
+      "status": "pending",
+      "priority": "low",
+      "dependencies": [57],
+      "requirement_ref": "docs/v8-migration-plan.md#F2",
+      "design_ref": "docs/v8-migration-plan.md#F2",
+      "files": [
+        "frontend/src/components/SessionRow.tsx",
+        "frontend/src/store/config.ts"
+      ]
+    },
+    {
+      "id": 65,
+      "title": "Detached Session Handling: visual differentiation",
+      "description": "Add visual cues for sessions whose process has exited. attached=full opacity, stale(completed>5min)=0.7, detached(process gone)=0.55.",
+      "steps": [
+        "Add attachmentState field to Session type ('attached'|'stale'|'detached')",
+        "Detect process exit via process_watcher → mark session detached",
+        "Add isStale() derivation: completed && updatedAt > 300s",
+        "CSS: .detached opacity 0.55, .stale opacity 0.7",
+        "Bar indicator wrapper ::before also dims for detached/stale",
+        "npm run build"
+      ],
+      "status": "pending",
+      "priority": "low",
+      "dependencies": [57],
+      "requirement_ref": "docs/v8-migration-plan.md#F3",
+      "design_ref": "docs/v8-migration-plan.md#F3",
+      "files": [
+        "frontend/src/store/sessions.ts",
+        "frontend/src/components/SessionRow.tsx",
+        "src-tauri/src/process_watcher.rs"
+      ]
+    },
+    {
+      "id": 66,
+      "title": "Control Center Window: dedicated settings window",
+      "description": "Move settings from in-overlay panel to a dedicated Control Center window (560px) with tabs: Hooks, Usage, Terminals, Settings, Shortcuts. Overlay keeps only gear icon to open it.",
+      "steps": [
+        "Add Control Center window config to tauri.conf.json",
+        "Create frontend/src/components/ControlCenter.tsx: window shell with tabs",
+        "Implement Hooks tab: per-agent hook install status",
+        "Implement Usage tab: Claude Code 5h/7d usage bars",
+        "Implement Terminals tab: grid of supported terminals",
+        "Implement Settings tab: density, state indicator, notifications, language",
+        "Implement Shortcuts tab: keyboard shortcut reference",
+        "Migrate SettingsPanel.tsx content to Control Center tabs",
+        "Replace Overlay settings button with gear icon → open Control Center",
+        "npm run build + cargo check"
+      ],
+      "status": "pending",
+      "priority": "low",
+      "dependencies": [59, 60],
+      "requirement_ref": "docs/v8-migration-plan.md#G1",
+      "design_ref": "docs/v8-migration-plan.md#G1",
+      "files": [
+        "frontend/src/components/ControlCenter.tsx",
+        "frontend/src/components/ControlCenter.css",
+        "frontend/src/components/Overlay.tsx",
+        "src-tauri/tauri.conf.json",
+        "src-tauri/src/lib.rs"
       ]
     }
   ]

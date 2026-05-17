@@ -1,12 +1,11 @@
 import { memo } from "react";
 import { motion, type Transition } from "framer-motion";
 import { useConfigStore } from "../store/config";
+import type { UIPhase } from "../store/sessions";
 import "./StatusDot.css";
 
-export type AgentState = "idle" | "thinking" | "running" | "streaming" | "approval" | "error" | "done";
-
 interface StatusDotProps {
-  state: AgentState;
+  state: UIPhase;
   "data-testid"?: string;
 }
 
@@ -18,19 +17,12 @@ export const StatusDot = memo(function StatusDot({ state, "data-testid": testId 
   const color = getStateColor(state);
   const transitionSpring = getSpringConfig("transition");
 
-  const isThinking = state === "thinking";
   const isRunning = state === "running";
-  const isStreaming = state === "streaming";
-  const isApproval = state === "approval";
+  const isWaitingForApproval = state === "waitingForApproval";
+  const isWaitingForAnswer = state === "waitingForAnswer";
+  const isWaiting = isWaitingForApproval || isWaitingForAnswer;
 
   const getAnimation = () => {
-    if (isThinking) {
-      return {
-        backgroundColor: color,
-        scale: [1, 1.3, 1],
-        opacity: 1,
-      };
-    }
     if (isRunning) {
       return {
         backgroundColor: color,
@@ -38,14 +30,7 @@ export const StatusDot = memo(function StatusDot({ state, "data-testid": testId 
         opacity: [1, 0.5, 1],
       };
     }
-    if (isStreaming) {
-      return {
-        backgroundColor: color,
-        scale: 1,
-        opacity: [1, 0.3, 1],
-      };
-    }
-    if (isApproval) {
+    if (isWaiting) {
       return {
         backgroundColor: color,
         scale: [1, 1.2, 1],
@@ -62,28 +47,22 @@ export const StatusDot = memo(function StatusDot({ state, "data-testid": testId 
   const getTransition = (): Transition => {
     const springBase = { type: "spring" as const, stiffness: transitionSpring.stiffness, damping: transitionSpring.damping };
 
-    if (isThinking) {
-      return {
-        backgroundColor: springBase,
-        scale: { duration: getAnimationDuration("thinking") / 1000, repeat: Infinity, ease: "easeInOut" },
-      };
-    }
     if (isRunning) {
       return {
         backgroundColor: springBase,
         opacity: { duration: getAnimationDuration("running") / 1000, repeat: Infinity, ease: "easeInOut" },
       };
     }
-    if (isStreaming) {
+    if (isWaitingForApproval) {
       return {
         backgroundColor: springBase,
-        opacity: { duration: getAnimationDuration("streaming") / 1000, repeat: Infinity, ease: "easeInOut" },
+        scale: { duration: getAnimationDuration("waitingForApproval") / 1000, repeat: Infinity, ease: "easeInOut" },
       };
     }
-    if (isApproval) {
+    if (isWaitingForAnswer) {
       return {
         backgroundColor: springBase,
-        scale: { duration: getAnimationDuration("approval") / 1000, repeat: Infinity, ease: "easeInOut" },
+        scale: { duration: getAnimationDuration("waitingForAnswer") / 1000, repeat: Infinity, ease: "easeInOut" },
       };
     }
     return {

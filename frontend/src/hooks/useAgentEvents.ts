@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { logger } from "../client/logger";
 import { useSessionsStore } from "../store/sessions";
-import type { AgentState } from "../store/sessions";
+import type { UIPhase } from "../store/sessions";
 import { APPROVAL_TYPES } from "../store/sessions";
 import type { AgentEvent } from "../shared/session-reducer";
 
@@ -111,6 +111,22 @@ interface ProcessTerminatedEvent {
   agent_type: string | null;
 }
 
+// Backward compat: map old state names to new phases
+const LEGACY_STATE_MAP: Record<string, UIPhase> = {
+  thinking: "running",
+  streaming: "running",
+  approval: "waitingForApproval",
+  error: "completed",
+  done: "completed",
+};
+
+const VALID_STATES: string[] = ["idle", "running", "waitingForApproval", "waitingForAnswer", "completed"];
+
+function mapState(raw: string): UIPhase {
+  const mapped = LEGACY_STATE_MAP[raw] ?? raw;
+  return VALID_STATES.includes(mapped) ? (mapped as UIPhase) : "idle";
+}
+
 export function useAgentEvents() {
   const { addSession, removeSession, updateSessionState, updateSessionInfo, addPendingApproval, removeApprovalByToolUseId, removeApprovalsBySessionId } = useSessionsStore();
   const dispatchAgentEvent = useSessionsStore((s) => s.dispatchAgentEvent);
@@ -134,7 +150,7 @@ export function useAgentEvents() {
             id: session_id,
             label: label || (cwd ? extractProjectName(cwd) : "Claude Code"),
             cwd: cwd || "",
-            state: "idle" as AgentState,
+            state: "idle" as UIPhase,
             pid,
             toolHistory: [],
             createdAt: Date.now(),
@@ -153,11 +169,7 @@ export function useAgentEvents() {
       // Listen for state_change events
       const unlistenState = await listen<StateChangeEvent>("state_change", (event) => {
         const { session_id, state, tool_name, tool_input, message, prompt } = event.payload;
-        // Valid states including new ones: thinking, streaming, error
-        const validStates = ["idle", "thinking", "running", "streaming", "approval", "error", "done"];
-        const validState = validStates.includes(state)
-          ? state as AgentState
-          : "idle";
+        const validState = mapState(state);
 
         // Create session if it doesn't exist
         const existingSession = useSessionsStore.getState().sessions.find(s => s.id === session_id);
@@ -174,12 +186,14 @@ export function useAgentEvents() {
           });
         } else {
           updateSessionState(session_id, validState);
-          // Clear approvals when session leaves "approval" state
-          if (existingSession.state === "approval" && validState !== "approval") {
+          // Clear approvals when session leaves waiting states
+          const wasWaiting = existingSession.state === "waitingForApproval" || existingSession.state === "waitingForAnswer";
+          const isStillWaiting = validState === "waitingForApproval" || validState === "waitingForAnswer";
+          if (wasWaiting && !isStillWaiting) {
             removeApprovalsBySessionId(session_id);
           }
           // Set title from first prompt if not already set
-          if (state === "running" && prompt && !existingSession.title) {
+          if (validState === "running" && prompt && !existingSession.title) {
             updateSessionInfo(session_id, { title: truncatePrompt(prompt) });
           }
         }
@@ -191,16 +205,15 @@ export function useAgentEvents() {
         }
 
         // If error message is provided, update lastError
-        if (state === "error" && message) {
+        if (validState === "completed" && message) {
           updateSessionInfo(session_id, { lastError: message });
         }
 
-        // Play notification sound when task completes (done state)
-        // Use debounce to prevent duplicate plays from React strict mode or rapid events
-        if (state === "done") {
+        // Play notification sound when task completes
+        if (validState === "completed") {
           const now = Date.now();
           const lastPlayTime = parseInt(localStorage.getItem("lastSoundPlayTime") || "0");
-          const debounceMs = 1000; // 1 second debounce
+          const debounceMs = 1000;
 
           if (now - lastPlayTime > debounceMs) {
             localStorage.setItem("lastSoundPlayTime", now.toString());
@@ -226,16 +239,16 @@ export function useAgentEvents() {
             id: session_id,
             label: "Claude Code",
             cwd: "",
-            state: "thinking",
+            state: "running",
             toolHistory: [],
             createdAt: Date.now(),
             lastActivity: Date.now(),
           });
         }
 
-        // Update with current tool info and set state to thinking
+        // Update with current tool info and set state to running
         updateSessionInfo(session_id, {
-          state: "thinking",
+          state: "running",
           toolName: tool_name,
           filePath: file_path,
           currentTool: {
@@ -306,7 +319,7 @@ export function useAgentEvents() {
         const { session_id, message, notification_type } = event.payload;
         // Handle different notification types
         if (notification_type === "permission_prompt") {
-          updateSessionState(session_id, "approval");
+          updateSessionState(session_id, "waitingForApproval");
           if (message) {
             addPendingApproval({
               toolUseId: `notification-${Date.now()}`,
@@ -327,7 +340,7 @@ export function useAgentEvents() {
         const { session_id, tool_use_id, tool_name, tool_input, approval_type, action, risk_level, diff, questions, plan_content } = event.payload;
         const session = useSessionsStore.getState().sessions.find(s => s.id === session_id);
 
-        updateSessionState(session_id, "approval");
+        updateSessionState(session_id, "waitingForApproval");
 
         const approvalRequest = {
           toolUseId: tool_use_id,
@@ -364,7 +377,7 @@ export function useAgentEvents() {
             id: sessionId,
             label: `${process.agent_type} (PID: ${process.pid})`,
             cwd: "",
-            state: "idle" as AgentState,
+            state: "idle" as UIPhase,
             pid: process.pid,
             toolHistory: [],
             createdAt: Date.now(),

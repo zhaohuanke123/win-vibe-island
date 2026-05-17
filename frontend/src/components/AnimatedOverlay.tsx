@@ -2,7 +2,11 @@ import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion, type Transition } from "framer-motion";
 import { OVERLAY_DIMENSIONS, SIZE_SYNC_THROTTLE_MS, SPRING_CONFIG } from "../config/animation";
+import { Pill, type PillMode } from "./Pill";
 import { logger } from "../client/logger";
+import type { UIPhase } from "../store/sessions";
+import type { AgentType } from "../shared/agents";
+import type { ReactNode } from "react";
 
 interface AnimatedOverlayProps {
   isExpanded: boolean;
@@ -10,6 +14,12 @@ interface AnimatedOverlayProps {
   className?: string;
   children: React.ReactNode;
   "data-testid"?: string;
+  pillMode?: PillMode;
+  pillPhase?: UIPhase;
+  pillAgent?: AgentType;
+  pillLabel?: string;
+  pillNotchRightSlot?: ReactNode;
+  onPillNotchClick?: () => void;
 }
 
 type AnimatedSize = {
@@ -35,7 +45,36 @@ function reportResizeError(error: unknown) {
   logger.warn("TAURI_IPC_ERROR", "failed to sync overlay size", { error: String(error) });
 }
 
-export function AnimatedOverlay({ isExpanded, expandedHeight, className, children, "data-testid": testId }: AnimatedOverlayProps) {
+export function AnimatedOverlay({
+  isExpanded,
+  expandedHeight,
+  className,
+  children,
+  "data-testid": testId,
+  pillMode,
+  pillPhase,
+  pillAgent,
+  pillLabel,
+  pillNotchRightSlot,
+  onPillNotchClick,
+}: AnimatedOverlayProps) {
+  // Pill mode: delegate rendering to Pill component
+  if (pillMode) {
+    return (
+      <Pill
+        mode={pillMode}
+        phase={pillPhase}
+        agent={pillAgent}
+        label={pillLabel}
+        notchRightSlot={pillNotchRightSlot}
+        onNotchClick={onPillNotchClick}
+        data-testid={testId}
+      >
+        {children}
+      </Pill>
+    );
+  }
+
   const lastSyncRef = useRef(0);
   const hasInitializedRef = useRef(false);
   const prevExpandedRef = useRef(false);

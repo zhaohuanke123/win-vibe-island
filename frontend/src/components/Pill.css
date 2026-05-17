@@ -1,0 +1,142 @@
+/* Pill Shell — v8 design system */
+
+.pill {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  background: #0d0d0f;
+  color: #f1ead9;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  user-select: none;
+  overflow: hidden;
+  transform-origin: top center;
+  will-change: transform;
+  transform: translateZ(0);
+  border-radius: 0 0 20px 20px;
+  contain: paint;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  mask-image: radial-gradient(white, black);
+}
+
+.pill *,
+.pill *::before,
+.pill *::after {
+  box-sizing: border-box;
+}
+
+/* Notch mode — compact */
+.pill--notch {
+  height: 32px;
+  min-height: 32px;
+  cursor: pointer;
+}
+
+/* Panel mode — expanded with scroll area */
+.pill--panel .pill__body {
+  max-height: 380px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+.pill--panel .pill__body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.pill--panel .pill__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pill--panel .pill__body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+.pill--panel .pill__body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Notif mode — notification card display */
+.pill--notif .pill__body {
+  padding: 10px 12px;
+}
+
+/* Pill body */
+.pill__body {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+}
+
+/* NotchRow */
+.notch-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  width: 100%;
+  flex: 0 0 32px;
+}
+
+.notch-row__glyph {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.notch-row__agent-dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.notch-row__label {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: #f1ead9;
+}
+
+.notch-row__spacer {
+  flex: 1 1 0;
+}
+
+.notch-row__right {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  color: rgba(241, 234, 217, 0.45);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.notch-row__right .notch-row__chip {
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.notch-row__right .notch-row__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f1ead9;
+}

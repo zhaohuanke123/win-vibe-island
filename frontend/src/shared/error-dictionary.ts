@@ -37,6 +37,7 @@ export type ErrorCode =
   | "SESSION_EVENT_ERROR"
   | "SESSION_PARSE_ERROR"
   | "HOOK_LISTENER_ERROR"
+  | "HOOK_CONFIG_ERROR"
   | "NOTIFICATION_ERROR";
 
 /**
@@ -140,6 +141,17 @@ export const ErrorRegistry: Record<ErrorCode, ErrorRegistryEntry> = {
       possibleCause: "Tauri play_notification_sound command failed",
       resolutionGuide:
         "Check src-tauri/src/audio.rs for sound file path or playback error",
+    },
+  },
+
+  HOOK_CONFIG_ERROR: {
+    message: "Hook configuration operation failed",
+    severity: "WARN",
+    aiHint: {
+      checkFiles: ["components/SettingsPanel.tsx", "src-tauri/src/hook_config.rs"],
+      possibleCause: "Claude Code settings.json read/write or manifest error",
+      resolutionGuide:
+        "Check ~/.claude/settings.json permissions and vibe-island-manifest.json integrity",
     },
   },
 };

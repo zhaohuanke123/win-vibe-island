@@ -17,6 +17,20 @@ const KNOWN_AGENTS: &[&str] = &[
     "cursor",
     "copilot-agent.exe",
     "copilot-agent",
+    "gemini.exe",
+    "gemini",
+    "kimi.exe",
+    "kimi",
+    "opencode.exe",
+    "opencode",
+    "qoder.exe",
+    "qoder",
+    "qwen.exe",
+    "qwen",
+    "droid.exe",
+    "droid",
+    "codebuddy.exe",
+    "codebuddy",
 ];
 
 /// Process information for a detected agent

@@ -38,6 +38,11 @@ impl SessionState {
         self.sessions.get(session_id)
     }
 
+    /// Insert a session directly (used by transcript discovery to fill gaps).
+    pub fn insert_from_transcript(&mut self, id: String, session: AgentSession) {
+        self.sessions.insert(id, session);
+    }
+
     // ── apply (main reducer) ─────────────────────────────────────────────
 
     /// Pure reducer: apply an `AgentEvent`, mutate internal state, then emit
@@ -88,7 +93,7 @@ impl SessionState {
             existing.is_remote = p.is_remote;
             existing.is_completed = false;
             existing.is_interrupted = false;
-            existing.phase = SessionPhase::Idle;
+            existing.phase = SessionPhase::Completed;
         } else {
             let mut session = AgentSession::new(
                 p.session_id.clone(),
@@ -119,7 +124,7 @@ impl SessionState {
 
     fn on_permission_requested(&mut self, p: &PermissionRequestPayload) {
         let s = self.get_or_create(&p.session_id, p.timestamp);
-        s.phase = SessionPhase::RequiresAttention;
+        s.phase = SessionPhase::WaitingForApproval;
         s.last_activity = p.timestamp;
         s.tool_name = Some(p.tool_name.clone());
         s.tool_input = Some(p.tool_input.clone());
@@ -127,7 +132,7 @@ impl SessionState {
 
     fn on_question_asked(&mut self, p: &QuestionAskedPayload) {
         let s = self.get_or_create(&p.session_id, p.timestamp);
-        s.phase = SessionPhase::RequiresAttention;
+        s.phase = SessionPhase::WaitingForAnswer;
         s.last_activity = p.timestamp;
     }
 
@@ -176,7 +181,7 @@ impl SessionState {
         });
 
         if !p.success {
-            s.phase = SessionPhase::Error;
+            s.phase = SessionPhase::Completed;
             s.last_error = p.error.clone();
         }
     }
@@ -189,7 +194,7 @@ impl SessionState {
 
     fn on_error_occurred(&mut self, p: &ErrorOccurredPayload) {
         let s = self.get_or_create(&p.session_id, p.timestamp);
-        s.phase = SessionPhase::Error;
+        s.phase = SessionPhase::Completed;
         s.last_error = Some(p.message.clone());
         s.last_activity = p.timestamp;
     }
@@ -236,5 +241,25 @@ pub fn apply_event(event: &AgentEvent) {
     let guard = GLOBAL_SESSION_STATE.lock();
     if let Some(ref arc) = *guard {
         arc.lock().apply(event);
+    }
+}
+
+/// Merge sessions into global state. Only inserts sessions whose id is not already present.
+/// Returns the number of newly inserted sessions.
+pub fn merge_sessions(sessions: Vec<AgentSession>) -> usize {
+    let guard = GLOBAL_SESSION_STATE.lock();
+    if let Some(ref arc) = *guard {
+        let mut state = arc.lock();
+        let mut merged = 0;
+        for session in sessions {
+            if !state.sessions().contains_key(&session.id) {
+                let id = session.id.clone();
+                state.insert_from_transcript(id, session);
+                merged += 1;
+            }
+        }
+        merged
+    } else {
+        0
     }
 }

@@ -3,11 +3,13 @@ mod agent_event;
 mod agent_session;
 mod approval_types;
 mod audio;
+mod claude_usage;
 mod command_analyzer;
 mod commands;
 mod config;
 mod events;
 mod hook_config;
+mod hook_manifest;
 mod hook_server;
 mod overlay;
 mod pipe_server;
@@ -16,6 +18,7 @@ mod logger;
 mod session_store;
 mod session_state;
 mod window_focus;
+mod transcript_discovery;
 
 use tauri::{
     menu::{CheckMenuItem, Menu, MenuItem, Submenu},
@@ -52,6 +55,8 @@ pub fn run() {
 
             // Initialize SessionState (single source of truth for agent sessions)
             session_state::init(app.handle().clone());
+            // Auto-discover transcript sessions on startup
+            transcript_discovery::merge_into_state(&transcript_discovery::discover_sessions());
 
             // Position the main window at the top-center of the screen (Dynamic Island style)
             if let Some(window) = app.get_webview_window("main") {
@@ -348,7 +353,9 @@ pub fn run() {
             commands::get_session_store_path,
             commands::analyze_command,
             commands::flash_taskbar,
+            commands::get_claude_usage,
             logger::log_entry,
+            commands::discover_transcripts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

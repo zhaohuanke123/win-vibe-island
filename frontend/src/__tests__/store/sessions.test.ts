@@ -169,9 +169,9 @@ describe('SessionsStore', () => {
 
       store.addSession(createSession())
 
-      store.updateSessionInfo('test-1', { state: 'thinking' })
+      store.updateSessionInfo('test-1', { state: 'running' })
 
-      expect(useSessionsStore.getState().sessions[0].state).toBe('thinking')
+      expect(useSessionsStore.getState().sessions[0].state).toBe('running')
     })
   })
 

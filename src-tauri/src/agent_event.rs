@@ -153,6 +153,10 @@ pub enum AgentTool {
     QwenCode,
     #[serde(rename = "codeBuddy")]
     CodeBuddy,
+    #[serde(rename = "qoder")]
+    Qoder,
+    #[serde(rename = "factory")]
+    Factory,
     /// Fallback for unknown agents
     #[serde(rename = "unknown")]
     Unknown,
@@ -169,7 +173,31 @@ impl AgentTool {
             AgentTool::KimiCli => "Kimi CLI",
             AgentTool::QwenCode => "Qwen Code",
             AgentTool::CodeBuddy => "CodeBuddy",
+            AgentTool::Qoder => "Qoder",
+            AgentTool::Factory => "Factory",
             AgentTool::Unknown => "Unknown Agent",
+        }
+    }
+
+    /// Detect the agent type from a process name or CLI binary name.
+    pub fn from_process_name(name: &str) -> Self {
+        let lower = name.to_lowercase().replace(".exe", "");
+        match lower.as_str() {
+            "claude" => AgentTool::ClaudeCode,
+            "codex" => AgentTool::Codex,
+            "opencode" => AgentTool::OpenCode,
+            "cursor" => AgentTool::Cursor,
+            "gemini" => AgentTool::GeminiCli,
+            "kimi" => AgentTool::KimiCli,
+            "qwen" => AgentTool::QwenCode,
+            "codebuddy" => AgentTool::CodeBuddy,
+            "qoder" => AgentTool::Qoder,
+            "droid" => AgentTool::Factory,
+            _ => {
+                if lower.contains("claude") { AgentTool::ClaudeCode }
+                else if lower.contains("codex") { AgentTool::Codex }
+                else { AgentTool::Unknown }
+            }
         }
     }
 }
@@ -183,23 +211,19 @@ impl std::fmt::Display for AgentTool {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum SessionPhase {
-    /// Agent is actively processing/running
+    /// Agent is actively processing/running (maps old: thinking, running, streaming)
     Running,
-    /// Agent is thinking (before tool execution)
-    Thinking,
-    /// Agent is idle/waiting for user input
-    Idle,
-    /// Agent needs user attention (permission or question)
-    RequiresAttention,
-    /// Session has completed
+    /// Agent needs permission approval from user
+    WaitingForApproval,
+    /// Agent is waiting for user answer to a question
+    WaitingForAnswer,
+    /// Session has completed (maps old: done, error — check is_error for distinction)
     Completed,
-    /// Session encountered an error
-    Error,
 }
 
 impl SessionPhase {
     pub fn requires_attention(&self) -> bool {
-        matches!(self, SessionPhase::RequiresAttention)
+        matches!(self, SessionPhase::WaitingForApproval | SessionPhase::WaitingForAnswer)
     }
 }
 

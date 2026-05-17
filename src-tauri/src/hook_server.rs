@@ -16,6 +16,7 @@ use crate::adapters::claude_adapter::ClaudeCodeAdapter;
 use crate::approval_types::approval_types;
 use crate::config::get_config;
 use crate::session_state;
+use crate::agent_event::*;
 use axum::{
     extract::State,
     http::StatusCode,
@@ -301,6 +302,28 @@ fn get_session_label(payload: &HookPayload) -> String {
     "Claude Code".to_string()
 }
 
+/// Detect agent type from hook payload (process name, config path, or agent_type field).
+fn detect_agent_from_payload(payload: &HookPayload) -> AgentTool {
+    // 1. Check explicit agent_type field first
+    if let Some(ref agent_type) = payload.agent_type {
+        return AgentTool::from_process_name(agent_type);
+    }
+    // 2. Check agent_id field
+    if let Some(ref agent_id) = payload.agent_id {
+        return AgentTool::from_process_name(agent_id);
+    }
+    // 3. Check transcript_path for agent config directory hints
+    if let Some(ref path) = payload.transcript_path {
+        let lower = path.to_lowercase();
+        if lower.contains("claude") { return AgentTool::ClaudeCode; }
+        if lower.contains("codex") { return AgentTool::Codex; }
+        if lower.contains("opencode") { return AgentTool::OpenCode; }
+        if lower.contains("cursor") { return AgentTool::Cursor; }
+    }
+    // 4. Default to Claude Code for hook_server (it only receives Claude Code hooks)
+    AgentTool::ClaudeCode
+}
+
 /// Handle SessionStart hook - triggered when a new session begins
 async fn handle_session_start(
     State(state): State<Arc<HookServerState>>,
@@ -317,6 +340,7 @@ async fn handle_session_start(
 
     let session_id = get_session_id(&payload);
     let label = get_session_label(&payload);
+    let detected_agent = detect_agent_from_payload(&payload);
 
     // Emit session_start event to frontend
     let _ = state.app_handle.emit(
@@ -328,12 +352,14 @@ async fn handle_session_start(
             "source": payload.source,
             "model": payload.model,
             "agent_type": payload.agent_type,
+            "detected_agent": serde_json::to_string(&detected_agent).unwrap_or_default(),
         }),
     );
 
     // Emit unified AgentEvent through SessionState
-    let session_started_event = ClaudeCodeAdapter::to_session_started(
-        &serde_json::to_value(&payload).unwrap_or_default()
+    let session_started_event = ClaudeCodeAdapter::to_session_started_with_agent(
+        &serde_json::to_value(&payload).unwrap_or_default(),
+        detected_agent,
     );
     session_state::apply_event(&session_started_event);
 
@@ -345,6 +371,21 @@ async fn handle_session_start(
             "state": "idle",
         }),
     );
+
+    // Note: idle is a UI-only state, not a reducer phase. The SessionState
+    // stores Running on session start; the frontend derives idle from
+    // "no active tool and session just created".
+
+    // Detect terminal type and emit JumpTargetUpdated
+    if let Some(ref cwd) = payload.cwd {
+        let jump_target = detect_jump_target(cwd.clone());
+        let jt_event = AgentEvent::JumpTargetUpdated(JumpTargetPayload {
+            session_id: session_id.clone(),
+            jump_target,
+            timestamp: chrono_timestamp(),
+        });
+        session_state::apply_event(&jt_event);
+    }
 
     Ok(StatusCode::OK)
 }
@@ -376,12 +417,12 @@ async fn handle_pre_tool_use(
         }),
     );
 
-    // Emit state_change to thinking (agent is about to use a tool)
+    // Emit state_change to running (agent is about to use a tool)
     let _ = state.app_handle.emit(
         "state_change",
         &serde_json::json!({
             "session_id": session_id,
-            "state": "thinking",
+            "state": "running",
             "tool_name": payload.tool_name,
             "tool_input": payload.tool_input,
         }),
@@ -453,12 +494,12 @@ async fn handle_post_tool_use(
         }),
     );
 
-    // Emit state_change to streaming (agent is processing the result)
+    // Emit state_change to running (agent is processing the result)
     let _ = state.app_handle.emit(
         "state_change",
         &serde_json::json!({
             "session_id": session_id,
-            "state": "streaming",
+            "state": "running",
         }),
     );
 
@@ -499,12 +540,12 @@ async fn handle_post_tool_use_failure(
         }),
     );
 
-    // Emit state_change to error
+    // Emit state_change to completed (with error)
     let _ = state.app_handle.emit(
         "state_change",
         &serde_json::json!({
             "session_id": session_id,
-            "state": "error",
+            "state": "completed",
             "error": payload.error,
         }),
     );
@@ -549,7 +590,7 @@ async fn handle_notification(
                 "state_change",
                 &serde_json::json!({
                     "session_id": session_id,
-                    "state": "approval",
+                    "state": "waitingForApproval",
                     "message": payload.message,
                 }),
             );
@@ -595,13 +636,13 @@ async fn handle_stop(
 
     let session_id = get_session_id(&payload);
 
-    // Emit state_change to done/idle
+    // Emit state_change to completed
     // Frontend will play notification sound based on user settings
     let _ = state.app_handle.emit(
         "state_change",
         &serde_json::json!({
             "session_id": session_id,
-            "state": "done",
+            "state": "completed",
             "reason": payload.reason,
         }),
     );
@@ -758,12 +799,12 @@ async fn handle_permission_request(
         }),
     );
 
-    // Also emit state_change to approval
+    // Also emit state_change to waitingForApproval
     let _ = state.app_handle.emit(
         "state_change",
         &serde_json::json!({
             "session_id": session_id,
-            "state": "approval",
+            "state": "waitingForApproval",
         }),
     );
 
@@ -1165,6 +1206,34 @@ async fn handle_test_approve(
     );
 
     Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+/// Detect terminal environment from the current process context.
+/// Uses the window_focus module's process tree detection.
+fn detect_jump_target(cwd: String) -> JumpTarget {
+    #[cfg(target_os = "windows")]
+    {
+        let pid = std::process::id();
+        let (terminal_type, extra) = crate::window_focus::detect_terminal_type(pid);
+        JumpTarget {
+            terminal_type,
+            pid: Some(pid),
+            workspace_path: Some(cwd),
+            window_title: None,
+            extra,
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        JumpTarget {
+            terminal_type: None,
+            pid: None,
+            workspace_path: Some(cwd),
+            window_title: None,
+            extra: None,
+        }
+    }
 }
 
 /// Get current timestamp as string

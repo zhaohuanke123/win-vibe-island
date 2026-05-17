@@ -1,0 +1,18 @@
+.agent-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.agent-dot--claude    { background: #d97742; }
+.agent-dot--codex     { background: #4aa3df; }
+.agent-dot--cursor    { background: #7a5cff; }
+.agent-dot--gemini    { background: #42e86b; }
+.agent-dot--kimi      { background: #fde047; }
+.agent-dot--opencode  { background: #ffb547; }
+.agent-dot--qoder     { background: #ff6b9f; }
+.agent-dot--qwen      { background: #c084fc; }
+.agent-dot--factory   { background: #6e9fff; }
+.agent-dot--codebuddy { background: #fca5a5; }

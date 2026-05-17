@@ -62,7 +62,7 @@ impl AgentSession {
             title: None,
             cwd: None,
             agent,
-            phase: SessionPhase::Idle,
+            phase: SessionPhase::Completed,
             origin: None,
             jump_target: None,
             model: None,

@@ -1,0 +1,59 @@
+.bars-glyph {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.bars-glyph .bar {
+  fill: #f1ead9;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* idle: middle bar breathing */
+.bars-glyph.idle .bar-2 {
+  animation: bars-breathe 3s ease-in-out infinite;
+}
+
+/* waiting: outer bars cross-pulse */
+.bars-glyph.waiting .bar-1 {
+  animation: bars-cross-pulse 1.2s ease-in-out infinite;
+}
+.bars-glyph.waiting .bar-3 {
+  animation: bars-cross-pulse 1.2s ease-in-out infinite 0.6s;
+}
+
+/* done: stroke-draw tick */
+.bars-glyph.done .tick-path {
+  animation: bars-tick-draw 0.4s ease-out forwards;
+}
+
+@keyframes bars-breathe {
+  0%, 100% {
+    transform: scaleY(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scaleY(0.7);
+    opacity: 0.5;
+  }
+}
+
+@keyframes bars-cross-pulse {
+  0%, 100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scaleY(0.4);
+    opacity: 0.4;
+  }
+}
+
+@keyframes bars-tick-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}

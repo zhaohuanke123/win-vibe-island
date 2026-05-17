@@ -4,7 +4,8 @@
 // All session creation/update/completion logic centralized here.
 // Design per docs/open-island-alignment-prd.md §1.2
 
-import type { Session, AgentState, ToolExecution } from "../store/sessions";
+import type { Session, UIPhase, ToolExecution } from "../store/sessions";
+import type { AgentType } from "./agents";
 
 // ─── AgentEvent types (mirrors Rust agent_event.rs) ─────────────────────────
 
@@ -30,15 +31,32 @@ export type AgentTool =
   | "kimiCli"
   | "qwenCode"
   | "codeBuddy"
+  | "qoder"
+  | "factory"
   | "unknown";
+
+const AGENT_TOOL_MAP: Record<string, AgentType> = {
+  claudeCode: 'claude',
+  codex: 'codex',
+  openCode: 'opencode',
+  cursor: 'cursor',
+  geminiCli: 'gemini',
+  kimiCli: 'kimi',
+  qwenCode: 'qwen',
+  codeBuddy: 'codebuddy',
+  qoder: 'qoder',
+  factory: 'factory',
+};
+
+function agentTypeFromTool(tool: AgentTool): AgentType {
+  return AGENT_TOOL_MAP[tool] ?? 'claude';
+}
 
 export type SessionPhase =
   | "running"
-  | "thinking"
-  | "idle"
-  | "requiresAttention"
-  | "completed"
-  | "error";
+  | "waitingForApproval"
+  | "waitingForAnswer"
+  | "completed";
 
 // ─── Payload types ──────────────────────────────────────────────────────────
 
@@ -140,15 +158,13 @@ export type AgentEvent =
   | { type: "jumpTargetUpdated"; jumpTargetUpdated: JumpTargetPayload }
   | { type: "errorOccurred"; errorOccurred: ErrorOccurredPayload };
 
-// ─── Phase → AgentState mapping ─────────────────────────────────────────────
+// ─── Phase → UIPhase mapping ─────────────────────────────────────────────
 
-const PHASE_TO_STATE: Record<SessionPhase, AgentState> = {
-  idle: "idle",
-  thinking: "thinking",
+const PHASE_TO_STATE: Record<SessionPhase, UIPhase> = {
   running: "running",
-  requiresAttention: "approval",
-  completed: "done",
-  error: "error",
+  waitingForApproval: "waitingForApproval",
+  waitingForAnswer: "waitingForAnswer",
+  completed: "completed",
 };
 
 // ─── Reducer ────────────────────────────────────────────────────────────────
@@ -208,7 +224,7 @@ function applySessionStarted(
               label: p.title,
               title: p.title,
               cwd: p.cwd ?? s.cwd,
-              state: "idle" as AgentState,
+              state: "idle" as UIPhase,
               model: p.model,
               source: p.origin,
               lastActivity: p.timestamp,
@@ -229,6 +245,7 @@ function applySessionStarted(
     toolHistory: [],
     model: p.model,
     source: p.origin,
+    agent: agentTypeFromTool(p.agent),
   };
   return { sessions: [...state.sessions, session] };
 }
@@ -263,7 +280,7 @@ function applyPermissionRequested(
       s.id === p.sessionId
         ? {
             ...s,
-            state: "approval" as AgentState,
+            state: "waitingForApproval" as UIPhase,
             lastActivity: p.timestamp,
             toolName: p.toolName,
           }
@@ -282,7 +299,7 @@ function applyQuestionAsked(
       s.id === p.sessionId
         ? {
             ...s,
-            state: "approval" as AgentState,
+            state: "waitingForAnswer" as UIPhase,
             lastActivity: p.timestamp,
           }
         : s
@@ -300,7 +317,7 @@ function applySessionCompleted(
       s.id === p.sessionId
         ? {
             ...s,
-            state: "done" as AgentState,
+            state: "completed" as UIPhase,
             lastActivity: p.timestamp,
             ...(p.isInterrupt ? { lastError: "Session interrupted" } : {}),
           }
@@ -319,7 +336,7 @@ function applyToolUseStarted(
       s.id === p.sessionId
         ? {
             ...s,
-            state: "running" as AgentState,
+            state: "running" as UIPhase,
             lastActivity: p.timestamp,
             toolName: p.toolName,
             filePath: p.toolInput?.file_path as string | undefined,
@@ -367,7 +384,7 @@ function applyToolUseCompleted(
         toolHistory,
         toolName: undefined,
         filePath: undefined,
-        ...(p.error ? { lastError: p.error, state: "error" as AgentState } : {}),
+        ...(p.error ? { lastError: p.error, state: "completed" as UIPhase } : {}),
       };
     }),
   };
@@ -385,6 +402,7 @@ function applyJumpTargetUpdated(
             ...s,
             lastActivity: p.timestamp,
             pid: p.jumpTarget.pid ?? s.pid,
+            jumpTarget: p.jumpTarget,
           }
         : s
     ),
@@ -401,7 +419,7 @@ function applyErrorOccurred(
       s.id === p.sessionId
         ? {
             ...s,
-            state: "error" as AgentState,
+            state: "completed" as UIPhase,
             lastError: p.message,
             lastActivity: p.timestamp,
           }

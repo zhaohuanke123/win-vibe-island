@@ -69,12 +69,10 @@ describe('sessionReducer: sessionStarted', () => {
 
 describe('sessionReducer: activityUpdated', () => {
   const phases: { phase: SessionPhase; expectedState: string }[] = [
-    { phase: 'idle', expectedState: 'idle' },
-    { phase: 'thinking', expectedState: 'thinking' },
     { phase: 'running', expectedState: 'running' },
-    { phase: 'requiresAttention', expectedState: 'approval' },
-    { phase: 'completed', expectedState: 'done' },
-    { phase: 'error', expectedState: 'error' },
+    { phase: 'waitingForApproval', expectedState: 'waitingForApproval' },
+    { phase: 'waitingForAnswer', expectedState: 'waitingForAnswer' },
+    { phase: 'completed', expectedState: 'completed' },
   ]
 
   phases.forEach(({ phase, expectedState }) => {
@@ -95,7 +93,7 @@ describe('sessionReducer: activityUpdated', () => {
     const result = sessionReducer(state, {
       type: 'activityUpdated',
       activityUpdated: {
-        sessionId: 's1', summary: 'reading', phase: 'thinking',
+        sessionId: 's1', summary: 'reading', phase: 'running',
         toolName: 'Read', toolInput: { file_path: '/foo.ts' }, timestamp: 2000,
       },
     })
@@ -118,7 +116,7 @@ describe('sessionReducer: activityUpdated', () => {
 // ─── permissionRequested ──────────────────────────────────────────────────
 
 describe('sessionReducer: permissionRequested', () => {
-  it('sets state to approval', () => {
+  it('sets state to waitingForApproval', () => {
     const state = makeState([makeSession()])
     const result = sessionReducer(state, {
       type: 'permissionRequested',
@@ -127,7 +125,7 @@ describe('sessionReducer: permissionRequested', () => {
         toolInput: { command: 'ls' }, timestamp: 2000,
       },
     })
-    expect(result.sessions[0].state).toBe('approval')
+    expect(result.sessions[0].state).toBe('waitingForApproval')
     expect(result.sessions[0].toolName).toBe('Bash')
   })
 })
@@ -135,7 +133,7 @@ describe('sessionReducer: permissionRequested', () => {
 // ─── questionAsked ────────────────────────────────────────────────────────
 
 describe('sessionReducer: questionAsked', () => {
-  it('sets state to approval', () => {
+  it('sets state to waitingForAnswer', () => {
     const state = makeState([makeSession()])
     const result = sessionReducer(state, {
       type: 'questionAsked',
@@ -143,14 +141,14 @@ describe('sessionReducer: questionAsked', () => {
         sessionId: 's1', questionText: 'Which option?', timestamp: 2000,
       },
     })
-    expect(result.sessions[0].state).toBe('approval')
+    expect(result.sessions[0].state).toBe('waitingForAnswer')
   })
 })
 
 // ─── sessionCompleted ─────────────────────────────────────────────────────
 
 describe('sessionReducer: sessionCompleted', () => {
-  it('sets state to done', () => {
+  it('sets state to completed', () => {
     const state = makeState([makeSession({ state: 'running' })])
     const result = sessionReducer(state, {
       type: 'sessionCompleted',
@@ -158,7 +156,7 @@ describe('sessionReducer: sessionCompleted', () => {
         sessionId: 's1', summary: 'finished', timestamp: 2000,
       },
     })
-    expect(result.sessions[0].state).toBe('done')
+    expect(result.sessions[0].state).toBe('completed')
   })
 
   it('sets lastError on interrupt', () => {
@@ -169,7 +167,7 @@ describe('sessionReducer: sessionCompleted', () => {
         sessionId: 's1', summary: 'stopped', timestamp: 2000, isInterrupt: true,
       },
     })
-    expect(result.sessions[0].state).toBe('done')
+    expect(result.sessions[0].state).toBe('completed')
     expect(result.sessions[0].lastError).toBe('Session interrupted')
   })
 
@@ -222,7 +220,7 @@ describe('sessionReducer: toolUseCompleted', () => {
     expect(result.sessions[0].currentTool).toBeUndefined()
   })
 
-  it('sets error state on failure', () => {
+  it('sets completed state on failure', () => {
     const state = makeState([makeSession()])
     const result = sessionReducer(state, {
       type: 'toolUseCompleted',
@@ -231,7 +229,7 @@ describe('sessionReducer: toolUseCompleted', () => {
         success: false, error: 'exit code 1', timestamp: 2000,
       },
     })
-    expect(result.sessions[0].state).toBe('error')
+    expect(result.sessions[0].state).toBe('completed')
     expect(result.sessions[0].lastError).toBe('exit code 1')
     expect(result.sessions[0].toolHistory[0].status).toBe('failed')
   })
@@ -284,7 +282,7 @@ describe('sessionReducer: jumpTargetUpdated', () => {
 // ─── errorOccurred ────────────────────────────────────────────────────────
 
 describe('sessionReducer: errorOccurred', () => {
-  it('sets error state with message', () => {
+  it('sets completed state with message', () => {
     const state = makeState([makeSession({ state: 'running' })])
     const result = sessionReducer(state, {
       type: 'errorOccurred',
@@ -292,7 +290,7 @@ describe('sessionReducer: errorOccurred', () => {
         sessionId: 's1', errorType: 'tool', message: 'crashed', timestamp: 2000,
       },
     })
-    expect(result.sessions[0].state).toBe('error')
+    expect(result.sessions[0].state).toBe('completed')
     expect(result.sessions[0].lastError).toBe('crashed')
   })
 })
@@ -309,7 +307,7 @@ describe('sessionReducer: ensureSession', () => {
     })
     expect(result.sessions).toHaveLength(1)
     expect(result.sessions[0].id).toBe('mystery')
-    expect(result.sessions[0].state).toBe('error')
+    expect(result.sessions[0].state).toBe('completed')
   })
 
   it('labelFromId extracts last path segment', () => {

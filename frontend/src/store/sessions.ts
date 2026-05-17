@@ -2,8 +2,15 @@ import { create } from "zustand";
 import { useConfigStore } from "./config";
 import { safeTransition } from "../shared/state-machine";
 import { sessionReducer, type AgentEvent } from "../shared/session-reducer";
+import type { AgentType } from "../shared/agents";
 
-export type AgentState = "idle" | "thinking" | "running" | "streaming" | "approval" | "error" | "done";
+export type AgentPhase = "running" | "waitingForApproval" | "waitingForAnswer" | "completed";
+
+/** UI-only idle state — derived from no active session, not stored in reducer */
+export type UIPhase = AgentPhase | "idle";
+
+/** @deprecated Use AgentPhase or UIPhase instead */
+export type AgentState = UIPhase;
 
 export type HookConnectionState = "connected" | "disconnected" | "error" | "unknown";
 
@@ -44,15 +51,26 @@ export interface ToolExecution {
   status: "pending" | "running" | "success" | "failed";
 }
 
+export interface JumpTarget {
+  terminalType?: string;
+  pid?: number;
+  workspacePath?: string;
+  windowTitle?: string;
+  extra?: Record<string, unknown>;
+}
+
 export interface Session {
   id: string;
   label: string;
   title?: string;
   cwd: string;
-  state: AgentState;
+  state: UIPhase;
   pid?: number;
   createdAt: number;
   lastActivity: number;
+
+  // Jump target for terminal/IDE focus
+  jumpTarget?: JumpTarget;
 
   // 当前工具信息
   currentTool?: {
@@ -70,6 +88,9 @@ export interface Session {
 
   // 错误信息
   lastError?: string;
+
+  // Agent type
+  agent?: AgentType;
 
   // Model 信息
   model?: string;
@@ -128,7 +149,7 @@ interface SessionsStore {
 
   addSession: (session: Session) => void;
   removeSession: (id: string) => void;
-  updateSessionState: (id: string, state: AgentState) => void;
+  updateSessionState: (id: string, state: UIPhase) => void;
   updateSessionInfo: (id: string, info: Partial<Session>) => void;
   setActiveSession: (id: string | null) => void;
   addPendingApproval: (request: ApprovalRequest) => void;

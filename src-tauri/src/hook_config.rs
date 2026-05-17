@@ -5,6 +5,7 @@
 //! On exit (in auto-cleanup mode), it can remove the hooks.
 
 use crate::config::get_config;
+use crate::hook_manifest;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{Read, Write};
@@ -28,7 +29,16 @@ impl Default for HookConfigMode {
     }
 }
 
-/// Hook configuration status
+/// Per-hook status detail
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum HookDetailStatus {
+    Installed,
+    Missing,
+    External,
+}
+
+/// Hook configuration status (enriched with manifest info)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HookConfigStatus {
@@ -44,6 +54,14 @@ pub struct HookConfigStatus {
     pub configured_hooks: Vec<String>,
     /// List of missing hook events
     pub missing_hooks: Vec<String>,
+    /// Whether a manifest file exists
+    pub manifest_present: bool,
+    /// Timestamp when hooks were installed (from manifest)
+    pub manifest_installed_at: Option<i64>,
+    /// App version at install time (from manifest)
+    pub manifest_app_version: Option<String>,
+    /// Per-hook status details
+    pub hook_details: Vec<(String, HookDetailStatus)>,
 }
 
 /// Required hook events for Vibe Island
@@ -56,11 +74,6 @@ const REQUIRED_HOOKS: &[&str] = &[
     "UserPromptSubmit",
     "PermissionRequest",
 ];
-
-/// Get the hook server URL from configuration (legacy HTTP mode)
-fn get_hook_server_url() -> String {
-    format!("http://localhost:{}", get_config().hook_server.port)
-}
 
 /// Get the path where the hooks CLI binary should be deployed
 pub fn get_hooks_bin_path() -> PathBuf {
@@ -135,9 +148,6 @@ fn find_hooks_source() -> Result<PathBuf, String> {
     Err("vibe-island-hooks.exe not found. Build the binary first.".to_string())
 }
 
-/// Backup file extension
-const BACKUP_EXT: &str = ".vibe-island-backup";
-
 /// Get the user-level Claude Code settings path
 fn get_user_settings_path() -> Option<PathBuf> {
     // On Windows: %USERPROFILE%\.claude\settings.json
@@ -175,62 +185,100 @@ fn get_default_settings_path() -> PathBuf {
     }
 }
 
-/// Check if hooks are configured in the settings file
-pub fn check_hook_config() -> HookConfigStatus {
-    let settings_path = get_active_settings_path();
-
-    if let Some(path) = settings_path {
-        let configured_hooks = read_configured_hooks(&path);
-        let missing_hooks: Vec<String> = REQUIRED_HOOKS
-            .iter()
-            .filter(|h| !configured_hooks.contains(&h.to_string()))
-            .map(|h| h.to_string())
-            .collect();
-
-        let configured = missing_hooks.is_empty();
-        let partial = !configured && !configured_hooks.is_empty();
-
-        HookConfigStatus {
-            configured,
-            partial,
-            mode: get_stored_mode(),
-            settings_path: Some(path.to_string_lossy().to_string()),
-            configured_hooks,
-            missing_hooks,
-        }
-    } else {
-        // No settings file exists
-        HookConfigStatus {
-            configured: false,
-            partial: false,
-            mode: get_stored_mode(),
-            settings_path: None,
-            configured_hooks: Vec::new(),
-            missing_hooks: REQUIRED_HOOKS.iter().map(|h| h.to_string()).collect(),
-        }
+/// Read settings.json as serde Value, returns empty object if missing/unparseable
+fn read_settings_json(path: &PathBuf) -> serde_json::Value {
+    if !path.exists() {
+        return serde_json::json!({});
     }
-}
-
-/// Read configured hook events from settings.json
-fn read_configured_hooks(path: &PathBuf) -> Vec<String> {
     let mut file = match fs::File::open(path) {
         Ok(f) => f,
-        Err(_) => return Vec::new(),
+        Err(_) => return serde_json::json!({}),
     };
-
     let mut content = String::new();
     if file.read_to_string(&mut content).is_err() {
-        return Vec::new();
+        return serde_json::json!({});
     }
+    serde_json::from_str(&content).unwrap_or(serde_json::json!({}))
+}
 
-    // Parse JSON and extract hook names
-    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-        if let Some(hooks) = json.get("hooks").and_then(|h| h.as_object()) {
-            return hooks.keys().map(|k| k.to_string()).collect();
+/// Write serde Value to settings.json
+fn write_settings_json(path: &PathBuf, settings: &serde_json::Value) -> Result<(), String> {
+    let content = serde_json::to_string_pretty(settings)
+        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    let mut file =
+        fs::File::create(path).map_err(|e| format!("Failed to create settings.json: {}", e))?;
+    file.write_all(content.as_bytes())
+        .map_err(|e| format!("Failed to write settings.json: {}", e))?;
+    Ok(())
+}
+
+/// Compute per-hook status from settings JSON
+fn compute_hook_details(
+    settings: &serde_json::Value,
+) -> (Vec<String>, Vec<(String, HookDetailStatus)>) {
+    let mut configured = Vec::new();
+    let mut details = Vec::new();
+    let hooks_obj = settings.get("hooks").and_then(|h| h.as_object());
+
+    for hook_name in REQUIRED_HOOKS {
+        match hooks_obj {
+            Some(obj) if obj.contains_key(*hook_name) => {
+                let groups = obj.get(*hook_name).and_then(|v| v.as_array());
+                let has_vibe = groups.map_or(false, |arr| {
+                    arr.iter().any(|g| group_contains_vibe_hook(g))
+                });
+                if has_vibe {
+                    details.push((hook_name.to_string(), HookDetailStatus::Installed));
+                } else {
+                    details.push((hook_name.to_string(), HookDetailStatus::External));
+                }
+                configured.push(hook_name.to_string());
+            }
+            _ => {
+                details.push((hook_name.to_string(), HookDetailStatus::Missing));
+            }
         }
     }
+    (configured, details)
+}
 
-    Vec::new()
+/// Check if hooks are configured in the settings file (enriched with manifest info)
+pub fn check_hook_config() -> HookConfigStatus {
+    let settings_path = get_active_settings_path();
+    let manifest = hook_manifest::read_manifest();
+
+    let (configured_hooks, hook_details) = if let Some(ref path) = settings_path {
+        let settings = read_settings_json(path);
+        compute_hook_details(&settings)
+    } else {
+        let details: Vec<(String, HookDetailStatus)> = REQUIRED_HOOKS
+            .iter()
+            .map(|h| (h.to_string(), HookDetailStatus::Missing))
+            .collect();
+        (Vec::new(), details)
+    };
+
+    let missing_hooks: Vec<String> = hook_details
+        .iter()
+        .filter(|(_, status)| matches!(status, HookDetailStatus::Missing))
+        .map(|(name, _)| name.clone())
+        .collect();
+
+    let configured = missing_hooks.is_empty();
+    let partial = !configured && !configured_hooks.is_empty();
+
+    HookConfigStatus {
+        configured,
+        partial,
+        mode: get_stored_mode(),
+        settings_path: settings_path.map(|p| p.to_string_lossy().to_string()),
+        configured_hooks,
+        missing_hooks,
+        manifest_present: manifest.is_some(),
+        manifest_installed_at: manifest.as_ref().map(|m| m.installed_at),
+        manifest_app_version: manifest.as_ref().map(|m| m.app_version.clone()),
+        hook_details,
+    }
 }
 
 /// Check if a single hook entry (innermost object) points to Vibe Island.
@@ -273,6 +321,7 @@ fn group_contains_vibe_hook(group: &serde_json::Value) -> bool {
 /// 1. A direct hook object: { "type": "http", "url": "..." }
 /// 2. A hook wrapper with nested hooks: { "hooks": [...] }
 /// 3. An array of hooks: [{ "hooks": [...] }, ...]
+#[allow(dead_code)]
 fn is_vibe_island_hook(hook_config: &serde_json::Value) -> bool {
     // Case 1: Direct hook object with URL
     if is_vibe_island_single_hook(hook_config) {
@@ -381,64 +430,64 @@ fn generate_hook_config() -> serde_json::Value {
 }
 
 /// Install hooks to settings.json.
-/// Deploys the CLI binary to a stable location, then writes command hook config.
-/// Returns the path where hooks were installed.
+/// Checks manifest for dedup. Creates timestamped backup. Writes manifest on success.
 pub fn install_hooks() -> Result<String, String> {
-    // Step 1: Deploy the hooks CLI binary to a stable location
+    // Check manifest for dedup
+    let required_set: Vec<String> = REQUIRED_HOOKS.iter().map(|h| h.to_string()).collect();
+    if let Some(ref manifest) = hook_manifest::read_manifest() {
+        let all_present = required_set.iter().all(|r| manifest.installed_hooks.contains(r));
+        if all_present {
+            log::info!("Manifest indicates hooks already installed, skipping dedup");
+            if let Some(path) = get_active_settings_path() {
+                let settings = read_settings_json(&path);
+                let (configured, _) = compute_hook_details(&settings);
+                if configured.len() >= required_set.len() {
+                    return Ok(path.to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+
+    // Deploy the hooks CLI binary
     match deploy_hooks_binary() {
         Ok(bin_path) => log::info!("Hooks binary deployed to {}", bin_path.display()),
-        // If deployment fails (e.g. in test mode, binary not built yet), continue anyway.
-        // The hook config will still be written; it just won't work until binary is available.
         Err(e) => log::warn!("Could not deploy hooks binary (hooks may not work yet): {}", e),
     }
 
     let settings_path = get_active_settings_path().unwrap_or_else(get_default_settings_path);
 
-    // Ensure .claude directory exists
-    let parent = settings_path.parent();
-    if let Some(dir) = parent {
+    if let Some(dir) = settings_path.parent() {
         if !dir.exists() {
             fs::create_dir_all(dir)
                 .map_err(|e| format!("Failed to create .claude directory: {}", e))?;
         }
     }
 
-    // Read existing settings or create new
-    let mut existing_settings: serde_json::Value = if settings_path.exists() {
-        let mut file = fs::File::open(&settings_path)
-            .map_err(|e| format!("Failed to open settings.json: {}", e))?;
-        let mut content = String::new();
-        file.read_to_string(&mut content)
-            .map_err(|e| format!("Failed to read settings.json: {}", e))?;
+    // Create timestamped backup before modifying
+    hook_manifest::create_timestamped_backup(&settings_path)?;
 
-        serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse settings.json: {}", e))?
-    } else {
-        serde_json::json!({})
-    };
-
-    // Create backup before modifying
-    let backup_path = settings_path.with_extension(BACKUP_EXT);
-    if settings_path.exists() {
-        fs::copy(&settings_path, &backup_path)
-            .map_err(|e| format!("Failed to create backup: {}", e))?;
-        log::info!("Backup created at {}", backup_path.display());
-    }
+    // Read existing settings
+    let mut existing_settings = read_settings_json(&settings_path);
 
     // Merge Vibe Island hooks
     let vibe_hooks = generate_hook_config();
     merge_hooks(&mut existing_settings, &vibe_hooks);
 
     // Write updated settings
-    let content = serde_json::to_string_pretty(&existing_settings)
-        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
-
-    let mut file = fs::File::create(&settings_path)
-        .map_err(|e| format!("Failed to create settings.json: {}", e))?;
-    file.write_all(content.as_bytes())
-        .map_err(|e| format!("Failed to write settings.json: {}", e))?;
+    write_settings_json(&settings_path, &existing_settings)?;
 
     log::info!("Hooks installed to {}", settings_path.display());
+
+    // Write manifest
+    let hooks_bin = get_hooks_bin_path();
+    let app_version = env!("CARGO_PKG_VERSION").to_string();
+    let manifest = hook_manifest::create_manifest(
+        hooks_bin.to_string_lossy().to_string(),
+        required_set,
+        app_version,
+    );
+    hook_manifest::write_manifest(&manifest)?;
+
     Ok(settings_path.to_string_lossy().to_string())
 }
 
@@ -490,90 +539,71 @@ fn merge_hooks(existing: &mut serde_json::Value, vibe_hooks: &serde_json::Value)
     }
 }
 
-/// Uninstall Vibe Island hooks from settings.json
+/// Uninstall Vibe Island hooks from settings.json.
+/// Only removes hooks recorded in the manifest. Cleans up manifest on success.
 pub fn uninstall_hooks() -> Result<(), String> {
     let settings_path = get_active_settings_path();
 
     if let Some(path) = settings_path {
         if !path.exists() {
-            return Ok(()); // No settings file, nothing to remove
+            let _ = hook_manifest::delete_manifest();
+            return Ok(());
         }
 
-        // Read existing settings
-        let mut file =
-            fs::File::open(&path).map_err(|e| format!("Failed to open settings.json: {}", e))?;
-        let mut content = String::new();
-        file.read_to_string(&mut content)
-            .map_err(|e| format!("Failed to read settings.json: {}", e))?;
+        // Create backup before modifying
+        hook_manifest::create_timestamped_backup(&path)?;
 
-        let mut settings: serde_json::Value = serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse settings.json: {}", e))?;
+        let mut settings = read_settings_json(&path);
 
-        // Remove Vibe Island hooks
-        remove_vibe_hooks(&mut settings);
+        // Use manifest to determine which hooks to remove
+        let manifest = hook_manifest::read_manifest();
+        let hooks_to_remove: Vec<String> = manifest
+            .as_ref()
+            .map(|m| m.installed_hooks.clone())
+            .unwrap_or_else(|| REQUIRED_HOOKS.iter().map(|h| h.to_string()).collect());
 
-        // Write updated settings
-        let content = serde_json::to_string_pretty(&settings)
-            .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+        remove_vibe_hooks_filtered(&mut settings, &hooks_to_remove);
 
-        let mut file = fs::File::create(&path)
-            .map_err(|e| format!("Failed to create settings.json: {}", e))?;
-        file.write_all(content.as_bytes())
-            .map_err(|e| format!("Failed to write settings.json: {}", e))?;
+        write_settings_json(&path, &settings)?;
 
         log::info!("Hooks removed from {}", path.display());
-
-        // Restore from backup if exists
-        let backup_path = path.with_extension(BACKUP_EXT);
-        if backup_path.exists() {
-            // Only restore if backup is different from current
-            let backup_content = fs::read_to_string(&backup_path)
-                .map_err(|e| format!("Failed to read backup: {}", e))?;
-            if backup_content != content {
-                fs::copy(&backup_path, &path)
-                    .map_err(|e| format!("Failed to restore backup: {}", e))?;
-                log::info!("Restored from backup");
-            }
-            // Remove backup file
-            fs::remove_file(&backup_path).map_err(|e| format!("Failed to remove backup: {}", e))?;
-        }
     }
 
+    // Clean up manifest
+    hook_manifest::delete_manifest()?;
     Ok(())
 }
 
-/// Remove Vibe Island hooks from settings, preserving user-defined hooks.
-///
-/// Works at the hook **group** level within each event:
-/// - For each event, removes only the hook groups that contain Vibe Island hooks
-/// - Preserves all user hook groups
-/// - Removes empty event entries and the "hooks" key if fully empty
-fn remove_vibe_hooks(settings: &mut serde_json::Value) {
+/// Remove only the specified Vibe Island hooks from settings, preserving everything else.
+fn remove_vibe_hooks_filtered(settings: &mut serde_json::Value, hooks_to_remove: &[String]) {
     if let Some(hooks) = settings.get_mut("hooks") {
         if let Some(hooks_map) = hooks.as_object_mut() {
-            let keys_to_update: Vec<String> = hooks_map.keys().cloned().collect();
-
-            for key in keys_to_update {
-                if let Some(groups) = hooks_map.get(&key).and_then(|v| v.as_array()).cloned() {
-                    // Keep only groups that do NOT contain vibe hooks
+            for hook_name in hooks_to_remove {
+                if let Some(groups) = hooks_map.get(hook_name).and_then(|v| v.as_array()).cloned() {
                     let preserved: Vec<serde_json::Value> = groups
                         .into_iter()
                         .filter(|g| !group_contains_vibe_hook(g))
                         .collect();
-
                     if preserved.is_empty() {
-                        hooks_map.remove(&key);
+                        hooks_map.remove(hook_name);
+                        log::info!("Removed hook event: {}", hook_name);
                     } else {
-                        hooks_map.insert(key, serde_json::Value::Array(preserved));
+                        hooks_map.insert(hook_name.clone(), serde_json::Value::Array(preserved));
                     }
                 }
             }
-
             if hooks_map.is_empty() {
                 settings.as_object_mut().unwrap().remove("hooks");
             }
         }
     }
+}
+
+/// Remove all Vibe Island hooks from settings (legacy fallback)
+#[allow(dead_code)]
+fn remove_vibe_hooks(settings: &mut serde_json::Value) {
+    let all_hooks: Vec<String> = REQUIRED_HOOKS.iter().map(|h| h.to_string()).collect();
+    remove_vibe_hooks_filtered(settings, &all_hooks);
 }
 
 /// Auto-configure hooks on startup if needed
@@ -816,10 +846,10 @@ mod tests {
         // Old vibe group removed, new vibe group added => 1 group
         assert_eq!(session_hooks.len(), 1);
         let first_hook = &session_hooks[0].get("hooks").unwrap().as_array().unwrap()[0];
-        let url = first_hook.get("url").unwrap().as_str().unwrap();
-
-        // Should be updated to new endpoint
-        assert!(url.contains("/hooks/session-start"));
+        let hook_type = first_hook.get("type").unwrap().as_str().unwrap();
+        assert_eq!(hook_type, "command");
+        let cmd = first_hook.get("command").unwrap().as_str().unwrap();
+        assert!(cmd.contains("vibe-island-hooks"));
     }
 
     #[test]
@@ -881,9 +911,9 @@ mod tests {
             "http://user-server:8080/hooks/session-start"
         );
 
-        // Second group is vibe's hook
+        // Second group is vibe's hook (command type)
         let vibe_hooks_in_group = session_groups[1].get("hooks").unwrap().as_array().unwrap();
-        assert!(vibe_hooks_in_group[0].get("url").unwrap().as_str().unwrap().contains("localhost"));
+        assert!(vibe_hooks_in_group[0].get("command").unwrap().as_str().unwrap().contains("vibe-island-hooks"));
 
         // Other Vibe Island hooks should be added
         assert!(hooks.contains_key("PreToolUse"));
@@ -929,12 +959,12 @@ mod tests {
             "http://user-server:8080/hooks/session-start"
         );
 
-        // Second is vibe's (updated)
+        // Second is vibe's (updated to command type)
         let second = &session_groups[1];
         assert!(second
             .get("hooks").unwrap().as_array().unwrap()[0]
-            .get("url").unwrap().as_str().unwrap()
-            .contains("/hooks/session-start"));
+            .get("command").unwrap().as_str().unwrap()
+            .contains("vibe-island-hooks"));
     }
 
     #[test]
@@ -1050,10 +1080,78 @@ mod tests {
             settings_path: Some("/path/to/settings.json".to_string()),
             configured_hooks: vec!["SessionStart".to_string()],
             missing_hooks: vec![],
+            manifest_present: true,
+            manifest_installed_at: Some(1700000000),
+            manifest_app_version: Some("1.1.0".to_string()),
+            hook_details: vec![("SessionStart".to_string(), HookDetailStatus::Installed)],
         };
 
         let json = serde_json::to_string(&status).unwrap();
         assert!(json.contains("configured"));
-        assert!(json.contains("settingsPath")); // camelCase renaming works
+        assert!(json.contains("settingsPath"));
+        assert!(json.contains("manifestPresent"));
+        assert!(json.contains("hookDetails"));
+    }
+
+    #[test]
+    fn test_compute_hook_details_all_installed() {
+        let settings = generate_hook_config();
+        let (configured, details) = compute_hook_details(&settings);
+        assert_eq!(configured.len(), REQUIRED_HOOKS.len());
+        for (_, status) in &details {
+            assert!(matches!(status, HookDetailStatus::Installed));
+        }
+    }
+
+    #[test]
+    fn test_compute_hook_details_mixed() {
+        let settings = serde_json::json!({
+            "hooks": {
+                "SessionStart": [
+                    {
+                        "hooks": [{
+                            "type": "http",
+                            "url": "http://user-server:8080/hooks/start"
+                        }]
+                    }
+                ]
+            }
+        });
+        let (configured, details) = compute_hook_details(&settings);
+        assert_eq!(configured.len(), 1);
+        assert!(matches!(details[0].1, HookDetailStatus::External));
+        let missing_count = details.iter().filter(|(_, s)| matches!(s, HookDetailStatus::Missing)).count();
+        assert_eq!(missing_count, REQUIRED_HOOKS.len() - 1);
+    }
+
+    #[test]
+    fn test_remove_vibe_hooks_filtered_only_targets_specified() {
+        let mut settings = serde_json::json!({
+            "hooks": {
+                "SessionStart": [
+                    {
+                        "hooks": [{
+                            "type": "http",
+                            "url": "http://localhost:7878/hooks/session-start"
+                        }]
+                    }
+                ],
+                "PreToolUse": [
+                    {
+                        "hooks": [{
+                            "type": "http",
+                            "url": "http://localhost:7878/hooks/pre-tool-use"
+                        }]
+                    }
+                ]
+            }
+        });
+
+        // Only remove SessionStart, leave PreToolUse
+        remove_vibe_hooks_filtered(&mut settings, &["SessionStart".to_string()]);
+
+        let hooks = settings.get("hooks").unwrap().as_object().unwrap();
+        assert!(!hooks.contains_key("SessionStart"));
+        assert!(hooks.contains_key("PreToolUse"));
     }
 }

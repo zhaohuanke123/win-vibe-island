@@ -67,7 +67,7 @@ async function restoreSessions() {
         label: item.label || "Restored",
         title: item.title as string | undefined,
         cwd: (item.cwd as string) || "",
-        state: "done",
+        state: "completed",
         pid: item.pid as number | undefined,
         createdAt: item.createdAt || Date.now(),
         lastActivity: item.lastActivity || Date.now(),

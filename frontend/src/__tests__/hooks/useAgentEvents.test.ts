@@ -200,7 +200,7 @@ describe('useAgentEvents', () => {
         handler({
           payload: {
             session_id: 'new-session',
-            state: 'thinking',
+            state: 'running',
           },
         })
       })
@@ -208,7 +208,32 @@ describe('useAgentEvents', () => {
       const sessions = useSessionsStore.getState().sessions
       expect(sessions).toHaveLength(1)
       expect(sessions[0].id).toBe('new-session')
-      expect(sessions[0].state).toBe('thinking')
+      expect(sessions[0].state).toBe('running')
+    })
+
+    it('should map legacy thinking state to running', async () => {
+      useSessionsStore.getState().addSession(createSession({
+        id: 'session-1',
+      }))
+
+      renderHook(() => useAgentEvents())
+
+      await vi.waitFor(() => {
+        expect(eventHandlers.has('state_change')).toBe(true)
+      })
+
+      const handler = eventHandlers.get('state_change')!
+
+      act(() => {
+        handler({
+          payload: {
+            session_id: 'session-1',
+            state: 'thinking',
+          },
+        })
+      })
+
+      expect(useSessionsStore.getState().sessions[0].state).toBe('running')
     })
 
     it('should update toolName and filePath when provided', async () => {
@@ -228,7 +253,7 @@ describe('useAgentEvents', () => {
         handler({
           payload: {
             session_id: 'session-1',
-            state: 'thinking',
+            state: 'running',
             tool_name: 'Read',
             tool_input: { file_path: '/test.ts' },
           },
@@ -240,7 +265,7 @@ describe('useAgentEvents', () => {
       expect(session.filePath).toBe('/test.ts')
     })
 
-    it('should update lastError on error state', async () => {
+    it('should update lastError on completed state with message', async () => {
       useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
       }))
@@ -257,7 +282,7 @@ describe('useAgentEvents', () => {
         handler({
           payload: {
             session_id: 'session-1',
-            state: 'error',
+            state: 'completed',
             message: 'Something went wrong',
           },
         })
@@ -268,7 +293,7 @@ describe('useAgentEvents', () => {
   })
 
   describe('tool_use event', () => {
-    it('should set thinking state and current tool', async () => {
+    it('should set running state and current tool', async () => {
       useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
         state: 'idle',
@@ -293,7 +318,7 @@ describe('useAgentEvents', () => {
       })
 
       const session = useSessionsStore.getState().sessions[0]
-      expect(session.state).toBe('thinking')
+      expect(session.state).toBe('running')
       expect(session.toolName).toBe('Write')
       expect(session.filePath).toBe('/new-file.ts')
       expect(session.currentTool?.name).toBe('Write')
@@ -304,7 +329,7 @@ describe('useAgentEvents', () => {
     it('should add tool execution to history', async () => {
       useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
-        state: 'thinking',
+        state: 'running',
         currentTool: {
           name: 'Read',
           input: { file_path: '/test.ts' },
@@ -340,7 +365,7 @@ describe('useAgentEvents', () => {
     it('should clear current tool after completion', async () => {
       useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
-        state: 'thinking',
+        state: 'running',
         currentTool: {
           name: 'Read',
           input: {},
@@ -376,7 +401,7 @@ describe('useAgentEvents', () => {
     it('should add failed tool execution to history', async () => {
       useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
-        state: 'thinking',
+        state: 'running',
       }))
 
       renderHook(() => useAgentEvents())
@@ -407,7 +432,7 @@ describe('useAgentEvents', () => {
   })
 
   describe('permission_request event', () => {
-    it('should set approval state and add to pending queue', async () => {
+    it('should set waitingForApproval state and add to pending queue', async () => {
       useSessionsStore.getState().addSession(createSession({
         id: 'session-1',
         label: 'Test Project',
@@ -436,7 +461,7 @@ describe('useAgentEvents', () => {
       })
 
       const state = useSessionsStore.getState()
-      expect(state.sessions[0].state).toBe('approval')
+      expect(state.sessions[0].state).toBe('waitingForApproval')
       expect(state.pendingApprovals).toHaveLength(1)
       expect(state.pendingApprovals[0].toolUseId).toBe('tool-123')
       expect(state.pendingApprovals[0].toolInput).toEqual({ command: 'rm -rf /' })

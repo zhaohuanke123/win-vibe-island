@@ -96,9 +96,9 @@ pub fn load_sessions() -> Result<String, String> {
                 .unwrap_or(false)
         })
         .map(|mut s| {
-            // Reset state to done for restored sessions
+            // Reset state to completed for restored sessions
             if let Some(obj) = s.as_object_mut() {
-                obj.insert("state".to_string(), serde_json::Value::String("done".to_string()));
+                obj.insert("state".to_string(), serde_json::Value::String("completed".to_string()));
             }
             s
         })

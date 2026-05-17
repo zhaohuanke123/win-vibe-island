@@ -52,13 +52,18 @@ impl ClaudeCodeAdapter {
 
     /// Convert a SessionStart hook to AgentEvent
     pub fn to_session_started(payload: &serde_json::Value) -> AgentEvent {
+        Self::to_session_started_with_agent(payload, AgentTool::ClaudeCode)
+    }
+
+    /// Convert a SessionStart hook with explicit agent type
+    pub fn to_session_started_with_agent(payload: &serde_json::Value, agent: AgentTool) -> AgentEvent {
         let session_id = Self::extract_session_id(payload);
         let title = Self::extract_label(payload);
 
         AgentEvent::SessionStarted(SessionStartedPayload {
             session_id,
             title,
-            agent: AgentTool::ClaudeCode,
+            agent,
             cwd: Self::get_str(payload, "cwd"),
             model: Self::get_str(payload, "model"),
             origin: Some(SessionOrigin::Hook),
@@ -85,7 +90,7 @@ impl ClaudeCodeAdapter {
         })
     }
 
-    /// Convert a PreToolUse hook to ActivityUpdated (thinking phase)
+    /// Convert a PreToolUse hook to ActivityUpdated (running phase)
     pub fn to_thinking_updated(payload: &serde_json::Value) -> AgentEvent {
         let session_id = Self::extract_session_id(payload);
         let tool_name = Self::get_str(payload, "tool_name");
@@ -93,7 +98,7 @@ impl ClaudeCodeAdapter {
         AgentEvent::ActivityUpdated(ActivityUpdatedPayload {
             session_id,
             summary: format!("Running {}", tool_name.as_deref().unwrap_or("tool")),
-            phase: SessionPhase::Thinking,
+            phase: SessionPhase::Running,
             tool_name,
             tool_input: payload.get("tool_input").cloned(),
             timestamp: Self::now_ms(),
@@ -191,11 +196,18 @@ impl ClaudeCodeAdapter {
     /// Convert a Notification hook to ActivityUpdated
     pub fn to_notification_updated(payload: &serde_json::Value) -> AgentEvent {
         let session_id = Self::extract_session_id(payload);
+        let notification_type = Self::get_str(payload, "notification_type");
+
+        let phase = match notification_type.as_deref() {
+            Some("permission_prompt") => SessionPhase::WaitingForApproval,
+            Some("idle_prompt") => SessionPhase::Running,
+            _ => SessionPhase::Running,
+        };
 
         AgentEvent::ActivityUpdated(ActivityUpdatedPayload {
             session_id,
             summary: Self::get_str(payload, "message").unwrap_or_else(|| "Needs attention".into()),
-            phase: SessionPhase::RequiresAttention,
+            phase,
             tool_name: None,
             tool_input: None,
             timestamp: Self::now_ms(),
