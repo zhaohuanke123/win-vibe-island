@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../frontend/dist",
     "devUrl": "http://localhost:5187",
-    "beforeDevCommand": "npm --prefix /mnt/c/Users/zhk02/Desktop/win-vibe-island/frontend run dev",
-    "beforeBuildCommand": "npm --prefix ../frontend run build"
+    "beforeDevCommand": "npm --prefix frontend run dev",
+    "beforeBuildCommand": "npm --prefix frontend run build"
   },
   "app": {
     "windows": [
