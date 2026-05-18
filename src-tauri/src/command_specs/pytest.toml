@@ -1,0 +1,23 @@
+[command]
+name = "pytest"
+description = "Run Python tests."
+
+[[command.options]]
+short = "-k"
+long = ""
+description = "保留文件 / 千字节"
+
+[[command.options]]
+short = "-x"
+long = "--exitfirst"
+description = "可执行权限 / 提取模式"
+
+[[command.options]]
+short = "-m"
+long = ""
+description = "指定模式 / 消息"
+
+[[command.options]]
+short = "-v"
+long = "--verbose"
+description = "显示详细信息（verbose）"

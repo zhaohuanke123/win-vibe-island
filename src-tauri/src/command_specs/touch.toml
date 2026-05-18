@@ -1,0 +1,31 @@
+[command]
+name = "touch"
+description = "Create files and set access/modification times."
+
+[[command.subcommands]]
+name = "\"\""
+description = "Set the timestamp by parsing a string:"
+
+[[command.subcommands]]
+name = "}"
+description = "Create multiple files with an increasing number:"
+
+[[command.options]]
+short = "-c"
+long = "--no-create"
+description = "指定命令 / 创建模式"
+
+[[command.options]]
+short = "-t"
+long = ""
+description = "指定类型 / 标签"
+
+[[command.options]]
+short = "-r"
+long = "--reference"
+description = "递归操作"
+
+[[command.options]]
+short = "-d"
+long = "--date"
+description = "调试模式 / 指定目录"

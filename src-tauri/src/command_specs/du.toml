@@ -1,0 +1,26 @@
+[command]
+name = "du"
+description = "Disk usage: estimate and summarize file and directory space usage."
+
+[[command.subcommands]]
+name = "*.jpg"
+description = "List the human-readable size of all `"
+
+[[command.subcommands]]
+name = ".[^.]*"
+description = "List all files and directories (including hidden ones) above a certain threshold size (useful for investigating what is actually taking up the space):"
+
+[[command.options]]
+short = "-h"
+long = "--human-readable"
+description = "显示帮助信息"
+
+[[command.options]]
+short = "-d"
+long = "--max-depth"
+description = "调试模式 / 指定目录"
+
+[[command.options]]
+short = "-t"
+long = "--threshold"
+description = "指定类型 / 标签"

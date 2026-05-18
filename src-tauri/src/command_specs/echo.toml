@@ -1,0 +1,21 @@
+[command]
+name = "echo"
+description = "Print given arguments."
+
+[[command.subcommands]]
+name = "\"\""
+description = "Print a text message"
+
+[[command.subcommands]]
+name = "$?"
+description = "Print the exit status of the last executed command (Note: In Windows Command Prompt and PowerShell the equivalent commands are `echo %errorlevel%` and `$lastexitcode` respectively):"
+
+[[command.options]]
+short = "-n"
+long = ""
+description = "不实际执行（试运行）"
+
+[[command.options]]
+short = "-e"
+long = ""
+description = "表达式模式"

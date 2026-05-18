@@ -1,0 +1,47 @@
+[command]
+name = "rclone"
+description = "Copy, synchronize, or move files and directories to and from many cloud services."
+
+[[command.subcommands]]
+name = "config"
+description = "Launch an interactive menu to setup rclone:"
+
+[[command.subcommands]]
+name = "lsf"
+description = "List contents of a directory on an rclone remote:"
+
+[[command.subcommands]]
+name = "copy"
+description = "Copy a file or directory from the local machine to the remote destination:"
+
+[[command.subcommands]]
+name = "sync"
+description = "Mirror a specific file or directory (Note: Unlike copy"
+
+[[command.subcommands]]
+name = "delete"
+description = "Delete a remote file or directory (Note: `--dry-run` means test"
+
+[[command.subcommands]]
+name = "mount"
+description = "Mount rclone remote (experimental):"
+
+[[command.options]]
+short = "-i"
+long = "--interactive"
+description = "交互模式"
+
+[[command.options]]
+short = ""
+long = "--max-age"
+description = "max age"
+
+[[command.options]]
+short = "-n"
+long = "--dry-run"
+description = "不实际执行（试运行）"
+
+[[command.options]]
+short = "-u"
+long = "--update"
+description = "指定用户"

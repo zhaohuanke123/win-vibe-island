@@ -1,0 +1,8 @@
+[command]
+name = "umount"
+description = "Unlink a filesystem from its mount point, making it no longer accessible."
+
+[[command.options]]
+short = "-a"
+long = ""
+description = "包含所有（包括隐藏项）"

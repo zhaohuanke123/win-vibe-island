@@ -1,0 +1,40 @@
+[command]
+name = "awk"
+description = "A versatile programming language for working on files."
+
+[[command.subcommands]]
+name = "'{print"
+description = "Print the fifth column (a"
+
+[[command.subcommands]]
+name = "'//"
+description = "Print the second column of the lines containing \"foo\" in a space-separated file:"
+
+[[command.subcommands]]
+name = "','"
+description = "Print the last column of each line in a file"
+
+[[command.subcommands]]
+name = "'{s+=$1}"
+description = "Sum the values in the first column of a file and print the total:"
+
+[[command.subcommands]]
+name = "'NR%3==1'"
+description = "Print every third line starting from the first line:"
+
+[[command.subcommands]]
+name = "'{if"
+description = "Print different values based on conditions:"
+
+[[command.subcommands]]
+name = "'($10"
+description = "Print all the lines which the 10th column value is between a min and a max:"
+
+[[command.subcommands]]
+name = "'BEGIN"
+description = "Print table of users with UID >=1000 with header and formatted output"
+
+[[command.options]]
+short = "-F"
+long = ""
+description = "指定配置文件 / 强制"

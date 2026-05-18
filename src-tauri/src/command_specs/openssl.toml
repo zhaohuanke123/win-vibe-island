@@ -1,0 +1,72 @@
+[command]
+name = "openssl"
+description = "OpenSSL cryptographic toolkit."
+
+[[command.subcommands]]
+name = "genpkey"
+description = "Generate a private key and encrypt the output file using AES-256:"
+
+[[command.subcommands]]
+name = "rsa"
+description = "Generate the corresponding public key from the private key `private"
+
+[[command.subcommands]]
+name = "req"
+description = "Generate a self-signed certificate valid for a specified number of days (365):"
+
+[[command.subcommands]]
+name = "x509"
+description = "Convert a certificate to `"
+
+[[command.subcommands]]
+name = "help"
+description = "Display help:"
+
+[[command.subcommands]]
+name = "version"
+description = "Display version:"
+
+[[command.options]]
+short = "-o"
+long = ""
+description = "指定输出"
+
+[[command.options]]
+short = "-u"
+long = ""
+description = "指定用户"
+
+[[command.options]]
+short = "-t"
+long = ""
+description = "指定类型 / 标签"
+
+[[command.options]]
+short = "-i"
+long = ""
+description = "交互模式"
+
+[[command.options]]
+short = "-n"
+long = ""
+description = "不实际执行（试运行）"
+
+[[command.options]]
+short = "-e"
+long = ""
+description = "表达式模式"
+
+[[command.options]]
+short = "-w"
+long = ""
+description = "匹配整个单词"
+
+[[command.options]]
+short = "-k"
+long = ""
+description = "保留文件 / 千字节"
+
+[[command.options]]
+short = "-y"
+long = ""
+description = "自动确认 yes"

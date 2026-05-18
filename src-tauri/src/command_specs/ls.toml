@@ -1,0 +1,22 @@
+[command]
+name = "ls"
+description = "List directory contents."
+
+[[command.subcommands]]
+name = "*/"
+description = "Only list directories:"
+
+[[command.options]]
+short = "-a"
+long = "--all"
+description = "包含所有（包括隐藏项）"
+
+[[command.options]]
+short = "-F"
+long = "--classify"
+description = "指定配置文件 / 强制"
+
+[[command.options]]
+short = "-d"
+long = "--directory"
+description = "调试模式 / 指定目录"

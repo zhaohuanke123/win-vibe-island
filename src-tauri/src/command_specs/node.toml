@@ -1,0 +1,36 @@
+[command]
+name = "node"
+description = "Server-side JavaScript platform (Node.js)."
+
+[[command.subcommands]]
+name = "\"\""
+description = "Evaluate JavaScript code by passing it as an argument:"
+
+[[command.subcommands]]
+name = "\"process.versions\""
+description = "Evaluate and print the result"
+
+[[command.options]]
+short = ""
+long = "--watch"
+description = "watch"
+
+[[command.options]]
+short = "-e"
+long = "--eval"
+description = "表达式模式"
+
+[[command.options]]
+short = "-p"
+long = "--print"
+description = "指定端口或路径"
+
+[[command.options]]
+short = ""
+long = "--no-lazy"
+description = "no lazy"
+
+[[command.options]]
+short = ""
+long = "--inspect-brk"
+description = "inspect brk"

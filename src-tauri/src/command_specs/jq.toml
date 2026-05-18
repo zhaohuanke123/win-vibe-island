@@ -1,0 +1,16 @@
+[command]
+name = "jq"
+description = "A JSON processor that uses a domain-specific language (DSL)."
+
+[[command.subcommands]]
+name = "'.'"
+description = "Execute a specific expression only using the `jq` binary (print a colored and formatted JSON output):"
+
+[[command.subcommands]]
+name = "jq"
+description = "Execute a specific script:"
+
+[[command.options]]
+short = "-f"
+long = "--from-file"
+description = "强制执行，不提示确认"

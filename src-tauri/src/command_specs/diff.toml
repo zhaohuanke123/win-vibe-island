@@ -1,0 +1,52 @@
+[command]
+name = "diff"
+description = "Compare files and directories."
+
+[[command.subcommands]]
+name = ">"
+description = "Create a patch file for Git from the differences of two text files"
+
+[[command.options]]
+short = "-w"
+long = "--ignore-all-space"
+description = "匹配整个单词"
+
+[[command.options]]
+short = "-y"
+long = "--side-by-side"
+description = "自动确认 yes"
+
+[[command.options]]
+short = "-u"
+long = "--unified"
+description = "指定用户"
+
+[[command.options]]
+short = "-r"
+long = "--recursive"
+description = "递归操作"
+
+[[command.options]]
+short = "-q"
+long = "--brief"
+description = "静默模式"
+
+[[command.options]]
+short = "-a"
+long = "--text"
+description = "包含所有（包括隐藏项）"
+
+[[command.options]]
+short = "-N"
+long = "--new-file"
+description = "行号"
+
+[[command.options]]
+short = "-d"
+long = "--minimal"
+description = "调试模式 / 指定目录"
+
+[[command.options]]
+short = ""
+long = "--color"
+description = "彩色输出"

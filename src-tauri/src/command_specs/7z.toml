@@ -1,0 +1,35 @@
+[command]
+name = "7z"
+description = "File archiver with a high compression ratio."
+
+[[command.subcommands]]
+name = "a"
+description = "[a]dd a file or directory to a new or existing archive:"
+
+[[command.subcommands]]
+name = "x"
+description = "E[x]tract an archive preserving the original directory structure:"
+
+[[command.subcommands]]
+name = "l"
+description = "[l]ist the contents of an archive:"
+
+[[command.options]]
+short = "-p"
+long = ""
+description = "指定端口或路径"
+
+[[command.options]]
+short = "-o"
+long = ""
+description = "指定输出"
+
+[[command.options]]
+short = "-s"
+long = ""
+description = "静默模式 / 脚本模式"
+
+[[command.options]]
+short = "-t"
+long = ""
+description = "指定类型 / 标签"

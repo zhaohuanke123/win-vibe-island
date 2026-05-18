@@ -1,0 +1,8 @@
+# Global risk patterns applied to all commands
+# Pattern field is a regex matched against individual arguments
+
+[[patterns]]
+pattern = "^--force$"
+risk = "medium"
+message = "强制执行选项"
+applies_to = "*"

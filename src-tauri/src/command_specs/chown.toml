@@ -1,0 +1,9 @@
+[command]
+name = "chown"
+description = "修改文件所有者"
+
+[[command.options]]
+short = "-R"
+long = "--recursive"
+description = "递归修改所有者"
+risk = "medium"

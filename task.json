@@ -1777,6 +1777,49 @@
         "frontend/src/components/GroupedRows.tsx",
         "frontend/src/components/Overlay.tsx"
       ]
+    },
+    {
+      "id": 68,
+      "title": "声明式命令注册表 — 重构 command_analyzer.rs",
+      "description": "将手写的 8 个 explain_xxx_arg() 函数替换为 TOML 声明式命令规格系统。通用解释器从 TOML 配置读取命令参数定义，全局风险模式表提供跨命令风险检测。",
+      "steps": [
+        "创建 docs/command-registry-design.md 设计文档",
+        "添加 toml + regex 依赖到 Cargo.toml",
+        "定义 CommandSpec 数据结构（CommandSpecFile/CommandDef/SubcommandDef/OptionDef/RiskPatternDef）",
+        "创建 9 个 TOML 规格文件（rm/git/package/download/chmod/chown/find/mv/cp）",
+        "创建全局风险模式文件 _risk_patterns.toml",
+        "实现 CommandRegistry + OnceLock 单例 + include_str! 编译时嵌入",
+        "实现通用解释器 explain_arg_from_spec() 替代 8 个手写函数",
+        "实现数据驱动的风险检测（spec risk_patterns + global patterns）",
+        "保留复合风险检测器（rm -rf、git reset --hard 等跨参数组合）",
+        "现有 26 个测试全部通过 + 3 个新测试",
+        "更新 architecture.md 目录结构"
+      ],
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [],
+      "requirement_ref": "docs/command-registry-design.md",
+      "design_ref": "docs/command-registry-design.md",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "src-tauri/src/command_analyzer.rs",
+        "src-tauri/src/command_specs/rm.toml",
+        "src-tauri/src/command_specs/git.toml",
+        "src-tauri/src/command_specs/package.toml",
+        "src-tauri/src/command_specs/download.toml",
+        "src-tauri/src/command_specs/chmod.toml",
+        "src-tauri/src/command_specs/chown.toml",
+        "src-tauri/src/command_specs/find.toml",
+        "src-tauri/src/command_specs/mv.toml",
+        "src-tauri/src/command_specs/cp.toml",
+        "src-tauri/src/command_specs/_risk_patterns.toml",
+        "src-tauri/Cargo.toml",
+        "docs/command-registry-design.md",
+        "architecture.md"
+      ]
     }
   ]
 }

@@ -1,0 +1,21 @@
+[command]
+name = "tr"
+description = "Translate characters: run replacements based on single characters and character sets."
+
+[[command.subcommands]]
+name = "<"
+description = "Replace all occurrences of a character in a file"
+
+[[command.subcommands]]
+name = "|"
+description = "Replace all occurrences of a character from another command's output:"
+
+[[command.options]]
+short = "-d"
+long = "--delete"
+description = "调试模式 / 指定目录"
+
+[[command.options]]
+short = "-s"
+long = "--squeeze-repeats"
+description = "静默模式 / 脚本模式"

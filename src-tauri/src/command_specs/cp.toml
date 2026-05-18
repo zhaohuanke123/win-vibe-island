@@ -1,0 +1,23 @@
+[command]
+name = "cp"
+description = "复制文件"
+
+[[command.options]]
+short = "-r"
+long = "--recursive"
+description = "递归复制目录"
+
+[[command.options]]
+short = "-R"
+description = "递归复制目录"
+
+[[command.options]]
+short = "-f"
+long = "--force"
+description = "强制覆盖已存在的文件"
+risk = "medium"
+
+[[command.options]]
+short = "-i"
+long = "--interactive"
+description = "覆盖前逐个确认"

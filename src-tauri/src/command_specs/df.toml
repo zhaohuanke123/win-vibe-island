@@ -1,0 +1,13 @@
+[command]
+name = "df"
+description = "Display an overview of the filesystem disk space usage."
+
+[[command.options]]
+short = "-k"
+long = ""
+description = "保留文件 / 千字节"
+
+[[command.options]]
+short = "-P"
+long = ""
+description = "Perl 正则表达式 / 保留权限"

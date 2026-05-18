@@ -1,0 +1,32 @@
+[command]
+name = "gzip"
+description = "Compress/uncompress files with `gzip` compression (LZ77)."
+
+[[command.subcommands]]
+name = ">"
+description = "Compress a file"
+
+[[command.options]]
+short = "-d"
+long = "--decompress"
+description = "调试模式 / 指定目录"
+
+[[command.options]]
+short = "-v"
+long = "--verbose"
+description = "显示详细信息（verbose）"
+
+[[command.options]]
+short = "-k"
+long = "--keep"
+description = "保留文件 / 千字节"
+
+[[command.options]]
+short = "-c"
+long = "--stdout"
+description = "指定命令 / 创建模式"
+
+[[command.options]]
+short = "-l"
+long = "--list"
+description = "长格式输出"

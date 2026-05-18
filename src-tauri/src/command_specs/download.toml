@@ -1,0 +1,45 @@
+[command]
+name = "curl"
+description = "命令行 HTTP 客户端"
+aliases = ["wget"]
+
+[[command.options]]
+short = "-f"
+long = "--fail"
+description = "HTTP 错误时静默失败"
+
+[[command.options]]
+short = "-s"
+long = "--silent"
+description = "静默模式"
+
+[[command.options]]
+short = "-S"
+long = "--show-error"
+description = "静默模式下仍显示错误"
+
+[[command.options]]
+short = "-L"
+long = "--location"
+description = "跟随重定向"
+
+[[command.options]]
+short = "-q"
+description = "静默模式（wget）"
+
+[[command.options]]
+short = "-O"
+long = "--remote-name"
+description = "将输出写入文件"
+
+[[command.options]]
+long = "-fsSL"
+description = "静默模式，跟随重定向，显示错误"
+
+[[command.options]]
+long = "-sSL"
+description = "静默模式，跟随重定向，显示错误"
+
+[[command.options]]
+long = "-qO-"
+description = "静默模式，输出到 stdout"

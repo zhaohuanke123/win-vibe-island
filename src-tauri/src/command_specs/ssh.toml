@@ -1,0 +1,55 @@
+[command]
+name = "ssh"
+description = "Secure Shell is a protocol used to securely log onto remote systems."
+
+[[command.subcommands]]
+name = "@"
+description = "Connect to a remote server:"
+
+[[command.subcommands]]
+name = "@10.0.0.1"
+description = "Connect to a remote server with IP `10"
+
+[[command.subcommands]]
+name = "::"
+description = "SSH tunneling: Forward a specific port (`localhost:9999` to `example"
+
+[[command.options]]
+short = "-i"
+long = ""
+description = "交互模式"
+
+[[command.options]]
+short = "-p"
+long = ""
+description = "指定端口或路径"
+
+[[command.options]]
+short = "-t"
+long = ""
+description = "指定类型 / 标签"
+
+[[command.options]]
+short = "-D"
+long = ""
+description = "定义宏 / 调试"
+
+[[command.options]]
+short = "-L"
+long = ""
+description = "跟随重定向"
+
+[[command.options]]
+short = "-N"
+long = ""
+description = "行号"
+
+[[command.options]]
+short = "-T"
+long = ""
+description = "测试 / 超时"
+
+[[command.options]]
+short = "-J"
+long = ""
+description = "xz 压缩"

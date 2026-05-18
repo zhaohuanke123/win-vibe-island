@@ -1,0 +1,26 @@
+[command]
+name = "rm"
+description = "删除文件或目录"
+risk_base = "medium"
+
+[[command.options]]
+short = "-r"
+long = "--recursive"
+description = "递归删除目录及其内容"
+risk = "high"
+
+[[command.options]]
+short = "-f"
+long = "--force"
+description = "强制删除，不提示确认"
+risk = "medium"
+
+[[command.options]]
+short = "-i"
+long = "--interactive"
+description = "交互模式，删除前逐个确认"
+
+[[command.risk_patterns]]
+pattern = "^/$|^\\*$|^\\.$"
+risk = "high"
+message = "危险目标路径，影响范围极大"

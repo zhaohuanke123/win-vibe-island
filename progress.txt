@@ -6,6 +6,62 @@ and any relevant notes.
 
 ---
 
+## [2026-05-18] - Task #68: 声明式命令注册表 — 重构 command_analyzer.rs
+
+### Documentation Gate:
+- Requirement ref: docs/command-registry-design.md
+- Design ref: docs/command-registry-design.md
+- 调研 10 个方向后确定：方向 1（声明式注册表）为主路线，方向 10（模式匹配风险）为通用兜底
+
+### What was done:
+
+**设计文档：**
+- 创建 `docs/command-registry-design.md`：定义 TOML 规格格式、数据来源补充链、通用解释器架构
+- 更新 `architecture.md`：添加 command_specs/ 目录描述
+
+**TOML 规格文件（9 个命令 + 1 个全局风险模式）：**
+- `rm.toml` / `git.toml` / `package.toml` / `download.toml` / `chmod.toml` / `chown.toml` / `find.toml` / `mv.toml` / `cp.toml`
+- `_risk_patterns.toml` — 全局跨命令风险模式
+
+**核心重构（command_analyzer.rs）：**
+- 新增 CommandSpec 数据结构（CommandSpecFile/CommandDef/SubcommandDef/OptionDef/RiskPatternDef）
+- 实现 CommandRegistry：OnceLock 单例，include_str! 编译时嵌入 TOML，启动时解析
+- 实现 explain_arg_from_spec()：通用解释器替代 8 个手写 explain_xxx_arg() 函数
+- 删除所有手写 explain_rm_arg/explain_git_arg/... 函数
+- 保留复合风险检测器（rm -rf 组合、git reset --hard 等）
+- 全局风险模式 detect_global_risks() 对所有命令生效
+
+**新增依赖：** toml = "0.8", regex = "1"
+
+### Testing:
+- `cargo check` — 编译通过（仅预存 warnings）
+- `cargo test command_analyzer` — 29/29 通过（26 个原有 + 3 个新增）
+  - test_specs_load_successfully — 验证所有 TOML 加载
+  - test_spec_arg_matching — 验证通用解释器
+  - test_unknown_command_arg — 未注册命令兜底
+
+### Files created:
+- docs/command-registry-design.md
+- src-tauri/src/command_specs/rm.toml
+- src-tauri/src/command_specs/git.toml
+- src-tauri/src/command_specs/package.toml
+- src-tauri/src/command_specs/download.toml
+- src-tauri/src/command_specs/chmod.toml
+- src-tauri/src/command_specs/chown.toml
+- src-tauri/src/command_specs/find.toml
+- src-tauri/src/command_specs/mv.toml
+- src-tauri/src/command_specs/cp.toml
+- src-tauri/src/command_specs/_risk_patterns.toml
+
+### Files modified:
+- src-tauri/src/command_analyzer.rs（核心重构）
+- src-tauri/Cargo.toml（toml + regex）
+- architecture.md（目录结构）
+
+### Status: completed ✅
+
+---
+
 ## [2026-05-17] - Task #67: Session 标题策略 — 三段式标题读取与显示
 
 ### Documentation Gate:

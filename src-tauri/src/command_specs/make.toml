@@ -1,0 +1,36 @@
+[command]
+name = "make"
+description = "Task runner for targets described in Makefile."
+
+[[command.subcommands]]
+name = "4"
+description = "Call a specific target"
+
+[[command.subcommands]]
+name = "="
+description = "Override a variable defined in the Makefile:"
+
+[[command.options]]
+short = "-j"
+long = "--jobs"
+description = "bzip2 压缩"
+
+[[command.options]]
+short = "-f"
+long = "--file"
+description = "强制执行，不提示确认"
+
+[[command.options]]
+short = "-C"
+long = "--directory"
+description = "指定目录 / 继续断点"
+
+[[command.options]]
+short = "-B"
+long = "--always-make"
+description = "批处理 / 后台"
+
+[[command.options]]
+short = "-e"
+long = "--environment-overrides"
+description = "表达式模式"

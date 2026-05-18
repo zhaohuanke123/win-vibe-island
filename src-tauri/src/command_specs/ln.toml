@@ -1,0 +1,12 @@
+[command]
+name = "ln"
+description = "Create links to files and directories."
+
+[[command.subcommands]]
+name = "/"
+description = "Create a symbolic link to a file or directory:"
+
+[[command.options]]
+short = "-s"
+long = "--symbolic"
+description = "静默模式 / 脚本模式"

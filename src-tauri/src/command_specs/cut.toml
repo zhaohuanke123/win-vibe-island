@@ -1,0 +1,40 @@
+[command]
+name = "cut"
+description = "Cut out fields from `stdin` or files."
+
+[[command.subcommands]]
+name = "cut"
+description = "Print the fifth character on each line:"
+
+[[command.subcommands]]
+name = "5-10"
+description = "Print the fifth to tenth character of each line of the specified file:"
+
+[[command.subcommands]]
+name = "2,6"
+description = "Split each line in a file by a delimiter into fields and print fields two and six (default delimiter is `TAB`):"
+
+[[command.options]]
+short = "-c"
+long = "--characters"
+description = "指定命令 / 创建模式"
+
+[[command.options]]
+short = "-f"
+long = "--fields"
+description = "强制执行，不提示确认"
+
+[[command.options]]
+short = "-d"
+long = "--delimiter"
+description = "调试模式 / 指定目录"
+
+[[command.options]]
+short = "-s"
+long = "--only-delimited"
+description = "静默模式 / 脚本模式"
+
+[[command.options]]
+short = "-z"
+long = "--zero-terminated"
+description = "gzip 压缩"

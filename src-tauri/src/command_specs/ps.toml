@@ -1,0 +1,48 @@
+[command]
+name = "ps"
+description = "Information about running processes."
+
+[[command.subcommands]]
+name = "aux"
+description = "List all running processes:"
+
+[[command.subcommands]]
+name = "auxww"
+description = "List all running processes including the full command string:"
+
+[[command.subcommands]]
+name = "$(id"
+description = "List all processes of the current user in extra full format:"
+
+[[command.subcommands]]
+name = "ppid="
+description = "Get the parent PID of a process:"
+
+[[command.subcommands]]
+name = "size"
+description = "Sort processes by memory consumption:"
+
+[[command.options]]
+short = "-u"
+long = "--user"
+description = "指定用户"
+
+[[command.options]]
+short = "-F"
+long = ""
+description = "指定配置文件 / 强制"
+
+[[command.options]]
+short = "-o"
+long = "--format"
+description = "指定输出"
+
+[[command.options]]
+short = "-p"
+long = "--pid"
+description = "指定端口或路径"
+
+[[command.options]]
+short = ""
+long = "--sort"
+description = "排序"

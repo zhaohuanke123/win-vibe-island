@@ -1,0 +1,8 @@
+[command]
+name = "head"
+description = "Output the first part of files."
+
+[[command.options]]
+short = "-n"
+long = ""
+description = "不实际执行（试运行）"

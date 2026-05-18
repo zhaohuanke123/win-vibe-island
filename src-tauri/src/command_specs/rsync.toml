@@ -1,0 +1,50 @@
+[command]
+name = "rsync"
+description = "Transfer files either to or from a remote host (but not between two remote hosts), by default using SSH."
+
+[[command.subcommands]]
+name = "/"
+description = "Transfer directory contents"
+
+[[command.subcommands]]
+name = "rsync://:"
+description = "Transfer a directory from a remote host running `rsyncd` and delete files on the destination that do not exist on the source:"
+
+[[command.subcommands]]
+name = "'ssh"
+description = "Transfer a file over SSH using a different port than the default (22) and show global progress:"
+
+[[command.options]]
+short = "-a"
+long = "--archive"
+description = "包含所有（包括隐藏项）"
+
+[[command.options]]
+short = "-r"
+long = "--recursive"
+description = "递归操作"
+
+[[command.options]]
+short = ""
+long = "--fsync"
+description = "fsync"
+
+[[command.options]]
+short = ""
+long = "--delete"
+description = "删除匹配项"
+
+[[command.options]]
+short = "-e"
+long = "--rsh"
+description = "表达式模式"
+
+[[command.options]]
+short = "-p"
+long = ""
+description = "指定端口或路径"
+
+[[command.options]]
+short = ""
+long = "--info"
+description = "info"

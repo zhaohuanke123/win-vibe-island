@@ -1,0 +1,61 @@
+[command]
+name = "git"
+description = "Git 版本控制系统"
+
+[[command.subcommands]]
+name = "reset"
+description = "重置当前 HEAD 到指定状态"
+risk = "medium"
+
+[[command.subcommands.options]]
+long = "--hard"
+description = "强制重置工作区和暂存区，未提交修改将丢失"
+risk = "high"
+
+[[command.subcommands.options]]
+long = "--soft"
+description = "仅重置 HEAD，保留工作区和暂存区修改"
+
+[[command.subcommands.options]]
+long = "--mixed"
+description = "重置暂存区，保留工作区修改"
+
+[[command.subcommands]]
+name = "clean"
+description = "清理未被跟踪的文件"
+risk = "high"
+
+[[command.subcommands.options]]
+short = "-f"
+long = "--force"
+description = "强制执行"
+risk = "medium"
+
+[[command.subcommands.options]]
+short = "-d"
+description = "包含未跟踪的目录"
+
+[[command.subcommands]]
+name = "checkout"
+description = "切换分支或恢复文件"
+risk = "medium"
+
+[[command.subcommands]]
+name = "restore"
+description = "恢复工作区或暂存区文件"
+risk = "medium"
+
+[[command.subcommands.options]]
+long = "--staged"
+description = "操作暂存区而非工作区"
+risk = "medium"
+
+[[command.options]]
+short = "-C"
+long = ""
+description = "指定 Git 仓库路径"
+takes_value = true
+
+[[command.options]]
+long = "--"
+description = "分隔符，后续参数为文件路径"

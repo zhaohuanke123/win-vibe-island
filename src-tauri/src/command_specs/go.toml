@@ -1,0 +1,32 @@
+[command]
+name = "go"
+description = "Manage Go source code."
+
+[[command.subcommands]]
+name = "get"
+description = "Download and install a package"
+
+[[command.subcommands]]
+name = "run"
+description = "Compile and run a source file (it has to contain a `main` package):"
+
+[[command.subcommands]]
+name = "build"
+description = "Compile a source file into a named executable:"
+
+[[command.subcommands]]
+name = "test"
+description = "Execute all test cases of the current package (files have to end with `_test"
+
+[[command.subcommands]]
+name = "install"
+description = "Compile and install the current package:"
+
+[[command.subcommands]]
+name = "mod"
+description = "Initialize a new module in the current directory:"
+
+[[command.options]]
+short = "-o"
+long = ""
+description = "指定输出"

@@ -1,0 +1,32 @@
+[command]
+name = "unzip"
+description = "Extract files/directories from Zip archives."
+
+[[command.subcommands]]
+name = ".zip"
+description = "List the contents of a specific archive without extracting them:"
+
+[[command.options]]
+short = "-d"
+long = ""
+description = "调试模式 / 指定目录"
+
+[[command.options]]
+short = "-c"
+long = ""
+description = "指定命令 / 创建模式"
+
+[[command.options]]
+short = "-O"
+long = ""
+description = "远程文件名保存"
+
+[[command.options]]
+short = "-l"
+long = ""
+description = "长格式输出"
+
+[[command.options]]
+short = "-j"
+long = ""
+description = "bzip2 压缩"

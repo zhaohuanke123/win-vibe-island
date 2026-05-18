@@ -1,0 +1,42 @@
+[command]
+name = "xargs"
+description = "Execute a command with piped arguments coming from another command, a file, etc."
+
+[[command.subcommands]]
+name = "xargs"
+description = "Run a command using the input data as arguments:"
+
+[[command.options]]
+short = "-c"
+long = ""
+description = "指定命令 / 创建模式"
+
+[[command.options]]
+short = "-n"
+long = "--max-args"
+description = "不实际执行（试运行）"
+
+[[command.options]]
+short = "-P"
+long = "--max-procs"
+description = "Perl 正则表达式 / 保留权限"
+
+[[command.options]]
+short = "-I"
+long = ""
+description = "指定输入 / 忽略大小写"
+
+[[command.options]]
+short = "-p"
+long = "--interactive"
+description = "指定端口或路径"
+
+[[command.options]]
+short = "-a"
+long = "--arg-file"
+description = "包含所有（包括隐藏项）"
+
+[[command.options]]
+short = "-o"
+long = "--open-tty"
+description = "指定输出"

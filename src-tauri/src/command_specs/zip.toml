@@ -1,0 +1,18 @@
+[command]
+name = "zip"
+description = "Package and compress (archive) files into a Zip archive."
+
+[[command.options]]
+short = "-r"
+long = "--recurse-paths"
+description = "递归操作"
+
+[[command.options]]
+short = "-d"
+long = "--delete"
+description = "调试模式 / 指定目录"
+
+[[command.options]]
+short = "-x"
+long = "--exclude"
+description = "可执行权限 / 提取模式"

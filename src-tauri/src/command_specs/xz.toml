@@ -1,0 +1,27 @@
+[command]
+name = "xz"
+description = "Compress or decompress XZ and LZMA files."
+
+[[command.subcommands]]
+name = "lzma"
+description = "Compress a file using lzma:"
+
+[[command.options]]
+short = "-d"
+long = "--decompress"
+description = "调试模式 / 指定目录"
+
+[[command.options]]
+short = "-F"
+long = "--format"
+description = "指定配置文件 / 强制"
+
+[[command.options]]
+short = "-c"
+long = "--stdout"
+description = "指定命令 / 创建模式"
+
+[[command.options]]
+short = "-k"
+long = "--keep"
+description = "保留文件 / 千字节"

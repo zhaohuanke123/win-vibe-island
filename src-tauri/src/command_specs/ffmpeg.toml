@@ -1,0 +1,86 @@
+[command]
+name = "ffmpeg"
+description = "Video conversion tool."
+
+[[command.subcommands]]
+name = "44100"
+description = "Transcode a FLAC file to Red Book CD format (44100kHz"
+
+[[command.subcommands]]
+name = "'scale=-1:1000'"
+description = "Save a video as GIF"
+
+[[command.subcommands]]
+name = "image2"
+description = "Combine numbered images (`frame_1"
+
+[[command.subcommands]]
+name = "copy"
+description = "Trim a video from a given start time mm:ss to an end time mm2:ss2 (omit the -to flag to trim till the end):"
+
+[[command.subcommands]]
+name = ".avi"
+description = "Convert AVI video to MP4"
+
+[[command.subcommands]]
+name = ".mkv"
+description = "Remux MKV video to MP4 without re-encoding audio or video streams:"
+
+[[command.subcommands]]
+name = ".mp4"
+description = "Convert MP4 video to VP9 codec"
+
+[[command.options]]
+short = "-i"
+long = ""
+description = "交互模式"
+
+[[command.options]]
+short = "-v"
+long = ""
+description = "显示详细信息（verbose）"
+
+[[command.options]]
+short = "-n"
+long = ""
+description = "不实际执行（试运行）"
+
+[[command.options]]
+short = "-a"
+long = ""
+description = "包含所有（包括隐藏项）"
+
+[[command.options]]
+short = "-r"
+long = ""
+description = "递归操作"
+
+[[command.options]]
+short = "-f"
+long = ""
+description = "强制执行，不提示确认"
+
+[[command.options]]
+short = "-s"
+long = ""
+description = "静默模式 / 脚本模式"
+
+[[command.options]]
+short = "-t"
+long = ""
+description = "指定类型 / 标签"
+
+[[command.options]]
+short = "-o"
+long = ""
+description = "指定输出"
+
+[[command.options]]
+short = "-c"
+long = ""
+description = "指定命令 / 创建模式"
+
+[[command.options]]
+short = "-b"
+long = ""
+description = "批处理模式 / 字节"

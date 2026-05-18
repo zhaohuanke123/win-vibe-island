@@ -1,0 +1,32 @@
+[command]
+name = "deno"
+description = "A secure runtime for JavaScript, TypeScript, and WebAssembly."
+
+[[command.subcommands]]
+name = "init"
+description = "Start a new project named sample and test it:"
+
+[[command.subcommands]]
+name = "run"
+description = "Run a file securely"
+
+[[command.subcommands]]
+name = "task"
+description = "List and run tasks from `deno"
+
+[[command.subcommands]]
+name = "install"
+description = "Install dependencies listed in `deno"
+
+[[command.subcommands]]
+name = "check"
+description = "Check types"
+
+[[command.subcommands]]
+name = "compile"
+description = "Compile the script"
+
+[[command.options]]
+short = ""
+long = "--fix"
+description = "fix"

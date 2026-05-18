@@ -1,0 +1,28 @@
+[command]
+name = "bzip2"
+description = "A block-sorting file compressor."
+
+[[command.options]]
+short = "-d"
+long = "--decompress"
+description = "调试模式 / 指定目录"
+
+[[command.options]]
+short = "-t"
+long = "--test"
+description = "指定类型 / 标签"
+
+[[command.options]]
+short = "-v"
+long = "--verbose"
+description = "显示详细信息（verbose）"
+
+[[command.options]]
+short = "-f"
+long = "--force"
+description = "强制执行，不提示确认"
+
+[[command.options]]
+short = "-h"
+long = "--help"
+description = "显示帮助信息"

@@ -1,0 +1,16 @@
+[command]
+name = "cat"
+description = "Print and concatenate files."
+
+[[command.subcommands]]
+name = ">"
+description = "Concatenate several files into an output file:"
+
+[[command.subcommands]]
+name = ">>"
+description = "Append several files to an output file:"
+
+[[command.options]]
+short = "-u"
+long = ""
+description = "指定用户"

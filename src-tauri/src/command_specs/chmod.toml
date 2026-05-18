@@ -1,0 +1,17 @@
+[command]
+name = "chmod"
+description = "修改文件权限"
+
+[[command.options]]
+short = "-R"
+long = "--recursive"
+description = "递归修改权限"
+
+[[command.risk_patterns]]
+pattern = "^777$|^a\\+rwx$"
+risk = "medium"
+message = "设置所有用户可读写执行，权限过于宽松"
+
+[[command.risk_patterns]]
+pattern = "^\\+x$"
+message = "添加可执行权限"

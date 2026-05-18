@@ -1,0 +1,35 @@
+[command]
+name = "scp"
+description = "Secure copy."
+
+[[command.subcommands]]
+name = ":"
+description = "Copy a local file to a remote host:"
+
+[[command.subcommands]]
+name = "@:"
+description = "Use a specific username when connecting to the remote host:"
+
+[[command.subcommands]]
+name = "@"
+description = "Use a specific proxy when connecting to the remote host:"
+
+[[command.options]]
+short = "-P"
+long = ""
+description = "Perl 正则表达式 / 保留权限"
+
+[[command.options]]
+short = "-r"
+long = ""
+description = "递归操作"
+
+[[command.options]]
+short = "-i"
+long = ""
+description = "交互模式"
+
+[[command.options]]
+short = "-J"
+long = ""
+description = "xz 压缩"

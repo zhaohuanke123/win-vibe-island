@@ -1,0 +1,36 @@
+[command]
+name = "kubectl"
+description = "Run commands against Kubernetes clusters."
+
+[[command.subcommands]]
+name = "get"
+description = "List information about a resource with more details:"
+
+[[command.subcommands]]
+name = "label"
+description = "Update specified pod with the label `unhealthy` and the value `true`:"
+
+[[command.subcommands]]
+name = "top"
+description = "Display resource (CPU/Memory/Storage) usage of nodes or pods:"
+
+[[command.subcommands]]
+name = "cluster-info"
+description = "Print the address of the master and cluster services:"
+
+[[command.subcommands]]
+name = "explain"
+description = "Display an explanation of a specific field:"
+
+[[command.subcommands]]
+name = "logs"
+description = "Print the logs for a container in a pod or specified resource:"
+
+[[command.subcommands]]
+name = "exec"
+description = "Run command in an existing pod:"
+
+[[command.options]]
+short = "-o"
+long = "--output"
+description = "指定输出"

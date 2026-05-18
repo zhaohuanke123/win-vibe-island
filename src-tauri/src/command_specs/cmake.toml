@@ -1,0 +1,47 @@
+[command]
+name = "cmake"
+description = "Cross-platform build automation system, that generates recipes for native build systems."
+
+[[command.subcommands]]
+name = "CMAKE_BUILD_TYPE=Release"
+description = "Generate a build recipe"
+
+[[command.options]]
+short = ""
+long = "--build"
+description = "build"
+
+[[command.options]]
+short = ""
+long = "--install"
+description = "安装模式"
+
+[[command.options]]
+short = ""
+long = "--strip"
+description = "strip"
+
+[[command.options]]
+short = "-D"
+long = ""
+description = "定义宏 / 调试"
+
+[[command.options]]
+short = "-G"
+long = ""
+description = "G"
+
+[[command.options]]
+short = ""
+long = "--prefix"
+description = "prefix"
+
+[[command.options]]
+short = "-t"
+long = "--target"
+description = "指定类型 / 标签"
+
+[[command.options]]
+short = "-h"
+long = "--help"
+description = "显示帮助信息"

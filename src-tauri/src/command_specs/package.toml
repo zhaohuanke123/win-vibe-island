@@ -1,0 +1,34 @@
+[command]
+name = "npm"
+description = "Node.js 包管理器"
+aliases = ["pnpm", "yarn"]
+
+[[command.subcommands]]
+name = "install"
+description = "安装项目依赖"
+risk = "low"
+
+[[command.subcommands]]
+name = "i"
+description = "安装项目依赖"
+risk = "low"
+
+[[command.subcommands]]
+name = "add"
+description = "安装项目依赖"
+risk = "low"
+
+[[command.options]]
+short = "-g"
+long = "--global"
+description = "全局安装，修改全局环境"
+risk = "medium"
+
+[[command.options]]
+short = "-D"
+long = "--save-dev"
+description = "安装为开发依赖"
+
+[[command.options]]
+long = "--dev"
+description = "安装为开发依赖"

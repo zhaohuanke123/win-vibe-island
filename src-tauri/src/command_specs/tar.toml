@@ -1,0 +1,37 @@
+[command]
+name = "tar"
+description = "Archiving utility."
+
+[[command.subcommands]]
+name = "cf"
+description = "[c]reate an archive and write it to a [f]ile:"
+
+[[command.subcommands]]
+name = "czf"
+description = "[c]reate a g[z]ipped archive and write it to a [f]ile:"
+
+[[command.subcommands]]
+name = "xvf"
+description = "E[x]tract a (compressed) archive [f]ile into the current directory [v]erbosely:"
+
+[[command.subcommands]]
+name = "xf"
+description = "E[x]tract a (compressed) archive [f]ile into the target directory:"
+
+[[command.subcommands]]
+name = "caf"
+description = "[c]reate a compressed archive and write it to a [f]ile"
+
+[[command.subcommands]]
+name = "tvf"
+description = "Lis[t] the contents of a tar [f]ile [v]erbosely:"
+
+[[command.options]]
+short = "-C"
+long = "--directory"
+description = "指定目录 / 继续断点"
+
+[[command.options]]
+short = ""
+long = "--wildcards"
+description = "wildcards"

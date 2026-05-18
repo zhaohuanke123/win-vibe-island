@@ -1,0 +1,42 @@
+[command]
+name = "sort"
+description = "Sort lines of text files."
+
+[[command.subcommands]]
+name = ":"
+description = "Sort `/etc/passwd` by the 3rd field onward of each line numerically"
+
+[[command.options]]
+short = "-r"
+long = "--reverse"
+description = "递归操作"
+
+[[command.options]]
+short = "-f"
+long = "--ignore-case"
+description = "强制执行，不提示确认"
+
+[[command.options]]
+short = "-n"
+long = "--numeric-sort"
+description = "不实际执行（试运行）"
+
+[[command.options]]
+short = "-t"
+long = "--field-separator"
+description = "指定类型 / 标签"
+
+[[command.options]]
+short = "-k"
+long = "--key"
+description = "保留文件 / 千字节"
+
+[[command.options]]
+short = "-u"
+long = "--unique"
+description = "指定用户"
+
+[[command.options]]
+short = "-o"
+long = "--output"
+description = "指定输出"

@@ -1,0 +1,17 @@
+[command]
+name = "sed"
+description = "Edit text in a scriptable manner."
+
+[[command.subcommands]]
+name = "sed"
+description = "Replace all `apple` (basic `regex`) occurrences with `mango` (basic `regex`) in all input lines and print the result to `stdout`:"
+
+[[command.options]]
+short = "-f"
+long = ""
+description = "强制执行，不提示确认"
+
+[[command.options]]
+short = "-n"
+long = ""
+description = "不实际执行（试运行）"

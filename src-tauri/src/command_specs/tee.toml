@@ -1,0 +1,17 @@
+[command]
+name = "tee"
+description = "Read from `stdin` and write to `stdout` and files (or commands)."
+
+[[command.subcommands]]
+name = "\"example\""
+description = "Copy `stdin` to each file"
+
+[[command.options]]
+short = "-a"
+long = "--append"
+description = "包含所有（包括隐藏项）"
+
+[[command.options]]
+short = "-c"
+long = "--bytes"
+description = "指定命令 / 创建模式"

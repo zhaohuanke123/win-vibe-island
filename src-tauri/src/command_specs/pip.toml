@@ -1,0 +1,38 @@
+[command]
+name = "pip"
+description = "Python package manager."
+
+[[command.subcommands]]
+name = "install"
+description = "Install a package (see `pip install` for more install examples):"
+
+[[command.subcommands]]
+name = "uninstall"
+description = "Uninstall a package:"
+
+[[command.subcommands]]
+name = "freeze"
+description = "Save installed packages to file:"
+
+[[command.subcommands]]
+name = "list"
+description = "List installed packages:"
+
+[[command.subcommands]]
+name = "show"
+description = "Show installed package info:"
+
+[[command.options]]
+short = ""
+long = "--user"
+description = "指定用户"
+
+[[command.options]]
+short = "-U"
+long = "--upgrade"
+description = "U"
+
+[[command.options]]
+short = "-r"
+long = "--requirement"
+description = "递归操作"

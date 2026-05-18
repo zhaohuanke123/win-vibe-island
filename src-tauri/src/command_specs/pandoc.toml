@@ -1,0 +1,51 @@
+[command]
+name = "pandoc"
+description = "Convert documents between various formats."
+
+[[command.subcommands]]
+name = "pandoc"
+description = "Convert the output from another command to PDF"
+
+[[command.subcommands]]
+name = "html"
+description = "Convert a remote HTML file to markdown and print the result to `stdout`:"
+
+[[command.options]]
+short = "-o"
+long = "--output"
+description = "指定输出"
+
+[[command.options]]
+short = "-f"
+long = "--from"
+description = "强制执行，不提示确认"
+
+[[command.options]]
+short = ""
+long = "--pdf-engine"
+description = "pdf engine"
+
+[[command.options]]
+short = "-s"
+long = "--standalone"
+description = "静默模式 / 脚本模式"
+
+[[command.options]]
+short = "-t"
+long = "--to"
+description = "指定类型 / 标签"
+
+[[command.options]]
+short = "-L"
+long = "--lua-filter"
+description = "跟随重定向"
+
+[[command.options]]
+short = ""
+long = "--list-input-formats"
+description = "list input formats"
+
+[[command.options]]
+short = ""
+long = "--list-output-formats"
+description = "list output formats"

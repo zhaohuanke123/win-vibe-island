@@ -1,0 +1,17 @@
+[command]
+name = "mkdir"
+description = "Create directories and set their permissions."
+
+[[command.subcommands]]
+name = "}"
+description = "Create multiple nested directories recursively:"
+
+[[command.options]]
+short = "-p"
+long = "--parents"
+description = "指定端口或路径"
+
+[[command.options]]
+short = "-m"
+long = "--mode"
+description = "指定模式 / 消息"

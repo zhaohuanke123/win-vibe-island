@@ -1,0 +1,27 @@
+[command]
+name = "tail"
+description = "Display the last part of a file."
+
+[[command.subcommands]]
+name = "+"
+description = "Print a file from a specific line number:"
+
+[[command.options]]
+short = "-n"
+long = "--lines"
+description = "不实际执行（试运行）"
+
+[[command.options]]
+short = "-c"
+long = "--bytes"
+description = "指定命令 / 创建模式"
+
+[[command.options]]
+short = "-f"
+long = "--follow"
+description = "强制执行，不提示确认"
+
+[[command.options]]
+short = "-s"
+long = "--sleep-interval"
+description = "静默模式 / 脚本模式"

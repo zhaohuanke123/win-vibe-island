@@ -1,0 +1,35 @@
+[command]
+name = "grep"
+description = "Find patterns in files using `regex`es."
+
+[[command.subcommands]]
+name = "\"\""
+description = "Search for a pattern within files:"
+
+[[command.subcommands]]
+name = "3"
+description = "Print 3 lines of [C]ontext around"
+
+[[command.subcommands]]
+name = "|"
+description = "Read data from `stdin` and do not print lines that match a pattern:"
+
+[[command.options]]
+short = "-F"
+long = "--fixed-strings"
+description = "指定配置文件 / 强制"
+
+[[command.options]]
+short = ""
+long = "--color"
+description = "彩色输出"
+
+[[command.options]]
+short = "-o"
+long = "--only-matching"
+description = "指定输出"
+
+[[command.options]]
+short = "-v"
+long = "--invert-match"
+description = "显示详细信息（verbose）"

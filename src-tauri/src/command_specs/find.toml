@@ -1,0 +1,24 @@
+[command]
+name = "find"
+description = "搜索文件"
+
+[[command.options]]
+long = "-name"
+description = "按文件名匹配"
+takes_value = true
+
+[[command.options]]
+long = "-type"
+description = "按文件类型筛选"
+takes_value = true
+
+[[command.options]]
+long = "-delete"
+description = "删除匹配的文件"
+risk = "high"
+
+[[command.options]]
+long = "-exec"
+description = "对匹配文件执行命令"
+takes_value = true
+risk = "medium"

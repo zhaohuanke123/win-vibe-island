@@ -1,0 +1,22 @@
+[command]
+name = "patch"
+description = "Patch a file (or files) with a diff file."
+
+[[command.subcommands]]
+name = "<"
+description = "Apply a patch using a diff file (filenames must be included in the diff file):"
+
+[[command.options]]
+short = "-o"
+long = "--output"
+description = "指定输出"
+
+[[command.options]]
+short = "-p"
+long = "--strip"
+description = "指定端口或路径"
+
+[[command.options]]
+short = "-R"
+long = "--reverse"
+description = "递归操作"

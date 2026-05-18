@@ -1,0 +1,32 @@
+[command]
+name = "uniq"
+description = "Output the unique lines from an input or file."
+
+[[command.subcommands]]
+name = "|"
+description = "Display each line once:"
+
+[[command.options]]
+short = "-u"
+long = "--unique"
+description = "指定用户"
+
+[[command.options]]
+short = "-d"
+long = "--repeated"
+description = "调试模式 / 指定目录"
+
+[[command.options]]
+short = "-c"
+long = "--count"
+description = "指定命令 / 创建模式"
+
+[[command.options]]
+short = "-w"
+long = "--check-chars"
+description = "匹配整个单词"
+
+[[command.options]]
+short = "-s"
+long = "--skip-chars"
+description = "静默模式 / 脚本模式"

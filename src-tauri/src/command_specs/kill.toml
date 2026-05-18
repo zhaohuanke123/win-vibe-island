@@ -1,0 +1,8 @@
+[command]
+name = "kill"
+description = "Send a signal to a process, usually related to stopping the process."
+
+[[command.options]]
+short = "-l"
+long = ""
+description = "长格式输出"

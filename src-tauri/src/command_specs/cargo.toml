@@ -1,0 +1,49 @@
+[command]
+name = "cargo"
+description = "Manage Rust projects and their module dependencies (crates)."
+
+[[command.subcommands]]
+name = "search"
+description = "Search for crates:"
+
+[[command.subcommands]]
+name = "install"
+description = "Install a binary crate:"
+
+[[command.subcommands]]
+name = "init"
+description = "Create a new binary or library Rust project in the specified directory (or the current working directory by default):"
+
+[[command.subcommands]]
+name = "add"
+description = "Add a dependency to `Cargo"
+
+[[command.subcommands]]
+name = "b"
+description = "Build the Rust project in the current directory using the release profile:"
+
+[[command.subcommands]]
+name = "build"
+description = "Build the Rust project in the current directory using the release profile:"
+
+[[command.subcommands]]
+name = "r"
+description = "Run the built binary (will build it if it's not already built):"
+
+[[command.subcommands]]
+name = "run"
+description = "Run the built binary (will build it if it's not already built):"
+
+[[command.subcommands]]
+name = "+nightly"
+description = "Build the Rust project in the current directory using the nightly compiler (requires `rustup`):"
+
+[[command.options]]
+short = ""
+long = "--list"
+description = "列表模式"
+
+[[command.options]]
+short = "-r"
+long = "--release"
+description = "递归操作"

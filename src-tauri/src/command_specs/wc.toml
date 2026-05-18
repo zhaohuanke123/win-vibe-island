@@ -1,0 +1,32 @@
+[command]
+name = "wc"
+description = "Count lines, words, and bytes."
+
+[[command.subcommands]]
+name = "wc"
+description = "Count all lines"
+
+[[command.options]]
+short = "-l"
+long = "--lines"
+description = "长格式输出"
+
+[[command.options]]
+short = "-w"
+long = "--words"
+description = "匹配整个单词"
+
+[[command.options]]
+short = "-c"
+long = "--bytes"
+description = "指定命令 / 创建模式"
+
+[[command.options]]
+short = "-m"
+long = "--chars"
+description = "指定模式 / 消息"
+
+[[command.options]]
+short = "-L"
+long = "--max-line-length"
+description = "跟随重定向"
