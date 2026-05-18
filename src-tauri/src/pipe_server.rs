@@ -370,13 +370,12 @@ async fn write_pipe_response(
     };
 
     let stdout_payload = if event_name == "PreToolUse" {
-        // PreToolUse returns a flat permissionDecision string
-        serde_json::json!({
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": decision.behavior,
-            }
-        })
+        let mut obj = serde_json::json!({"decision": decision.behavior});
+        if let Some(ref msg) = decision.message {
+            obj.as_object_mut().unwrap()
+                .insert("reason".to_string(), serde_json::Value::String(msg.clone()));
+        }
+        obj
     } else {
         // PermissionRequest returns a decision object
         if let Some(ref updated_input) = decision.updated_input {
@@ -701,6 +700,18 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
             let action = format_tool_action(&tool_name, &tool_input);
             let diff = extract_diff_data(&tool_name, &tool_input);
 
+            let questions = if approval_type == approval_types::QUESTION {
+                extract_questions(&tool_input)
+            } else {
+                None
+            };
+
+            let plan_content = if approval_type == approval_types::PLAN {
+                tool_input.get("plan").and_then(|v| v.as_str()).map(|s| s.to_string())
+            } else {
+                None
+            };
+
             let _ = app.emit(
                 "permission_request",
                 &serde_json::json!({
@@ -712,6 +723,8 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
                     "action": action,
                     "risk_level": risk_level,
                     "diff": diff,
+                    "questions": questions,
+                    "plan_content": plan_content,
                     "permission_suggestions": payload.get("permission_suggestions"),
                 }),
             );
@@ -867,6 +880,47 @@ fn extract_diff_data(tool_name: &str, tool_input: &serde_json::Value) -> Option<
             }
         }
         _ => None,
+    }
+}
+
+fn extract_questions(tool_input: &serde_json::Value) -> Option<Vec<serde_json::Value>> {
+    let questions_array = tool_input.get("questions").and_then(|v| v.as_array())?;
+
+    let questions: Vec<serde_json::Value> = questions_array
+        .iter()
+        .map(|q| {
+            let question = q.get("question").and_then(|v| v.as_str()).unwrap_or("");
+            let header = q.get("header").and_then(|v| v.as_str()).unwrap_or("");
+            let multi_select = q.get("multiSelect").and_then(|v| v.as_bool()).unwrap_or(false);
+
+            let options = q.get("options")
+                .and_then(|v| v.as_array())
+                .map(|opts| {
+                    opts.iter()
+                        .map(|opt| {
+                            serde_json::json!({
+                                "label": opt.get("label").and_then(|v| v.as_str()).unwrap_or(""),
+                                "description": opt.get("description").and_then(|v| v.as_str()),
+                                "preview": opt.get("preview").and_then(|v| v.as_str()),
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+
+            serde_json::json!({
+                "question": question,
+                "header": header,
+                "multiSelect": multi_select,
+                "options": options,
+            })
+        })
+        .collect();
+
+    if questions.is_empty() {
+        None
+    } else {
+        Some(questions)
     }
 }
 
