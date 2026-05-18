@@ -105,7 +105,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 11px 16px;
+  padding: 11px 12px 11px 16px;
   cursor: pointer;
   border-radius: 6px;
   min-width: 0;
@@ -308,7 +308,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 0 16px 11px 26px;
+  padding: 0 12px 11px 26px;
   min-width: 0;
   overflow: hidden;
   animation: session-row__detail-in 200ms ease-in-out;

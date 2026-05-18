@@ -169,24 +169,25 @@ export const SessionRow = memo(function SessionRow({
                   ? { color: phaseColorHex }
                   : undefined
               }
+              title={displayLabel}
             >
               {displayLabel}
             </span>
             {branch && !isCompact && (
               <>
                 <span className="session-row__sep">·</span>
-                <span className="session-row__branch">{branch}</span>
+                <span className="session-row__branch" title={branch}>{branch}</span>
               </>
             )}
             {msg && (
               <>
                 <span className="session-row__sep">·</span>
-                <span className="session-row__msg">{msg}</span>
+                <span className="session-row__msg" title={msg}>{msg}</span>
               </>
             )}
           </span>
           {!isCompact && session.lastPrompt && !hasTitle && (
-            <span className="session-row__you">
+            <span className="session-row__you" title={session.lastPrompt}>
               <span className="session-row__you-label">You:</span> {session.lastPrompt}
             </span>
           )}
@@ -280,7 +281,7 @@ export const SessionRow = memo(function SessionRow({
                 {session.currentTool.name}
               </span>
               {session.filePath && (
-                <span className="session-row__detail-file">
+                <span className="session-row__detail-file" title={session.filePath}>
                   {session.filePath}
                 </span>
               )}

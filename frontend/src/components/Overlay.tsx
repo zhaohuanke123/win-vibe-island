@@ -481,8 +481,7 @@ export function Overlay() {
                       <div className="oi-list-controls" style={{
                         display: "flex",
                         gap: "6px",
-                        padding: "6px 10px",
-                        borderBottom: "1px solid var(--line)",
+                        padding: "4px 12px",
                       }}>
                         <select
                           className="oi-select"
@@ -536,7 +535,7 @@ export function Overlay() {
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
-                      padding: "6px 10px",
+                      padding: "6px 12px",
                       borderTop: "1px solid var(--line)",
                       fontSize: "10.5px",
                       color: "var(--ink-soft)",

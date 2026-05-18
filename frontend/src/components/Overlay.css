@@ -88,6 +88,7 @@
   border-radius: 0 0 22px 22px;
   contain: layout paint;
   overflow: hidden;
+  padding-right: 2px;
   transform-origin: top center;
   will-change: transform;
 }
