@@ -45,6 +45,7 @@
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--border);
   border-radius: 4px;
+  overflow: hidden;
 }
 
 .cmd-analysis__cmd {
@@ -81,6 +82,10 @@
   font-size: 10px;
   color: var(--ink-soft);
   flex-shrink: 0;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cmd-analysis__arg-meaning {
@@ -88,6 +93,9 @@
   color: var(--ink-mute);
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cmd-analysis__arg-badge {

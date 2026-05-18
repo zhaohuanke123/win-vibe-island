@@ -1,4 +1,5 @@
 use serde::Serialize;
+use tree_sitter::{Language, Node, Parser};
 
 // --- Data structures ---
 
@@ -56,10 +57,28 @@ pub fn analyze_command(raw: &str) -> CommandAnalysis {
         };
     }
 
-    let (segments, has_sudo) = tokenize(trimmed);
+    let segments = parse_bash_to_segments(trimmed);
+
+    let mut any_sudo = false;
     let commands: Vec<CommandNode> = segments
-        .iter()
-        .map(|tokens| parse_segment(tokens))
+        .into_iter()
+        .filter_map(|tokens| {
+            if tokens.is_empty() {
+                return None;
+            }
+            let (tokens, has_sudo) = strip_sudo(&tokens);
+            if has_sudo {
+                any_sudo = true;
+            }
+            if tokens.is_empty() {
+                return None;
+            }
+            let command = &tokens[0];
+            let args = expand_known_flags(command, &tokens[1..]);
+            let mut full = vec![command.clone()];
+            full.extend(args);
+            Some(parse_segment(&full))
+        })
         .collect();
 
     let mut risks = Vec::new();
@@ -68,7 +87,7 @@ pub fn analyze_command(raw: &str) -> CommandAnalysis {
     }
     risks.extend(detect_chain_risks(&commands));
 
-    if has_sudo {
+    if any_sudo {
         apply_sudo_risk(&mut risks);
     }
 
@@ -82,95 +101,143 @@ pub fn analyze_command(raw: &str) -> CommandAnalysis {
     }
 }
 
-// --- Tokenizer internals ---
+// --- Tree-sitter parsing ---
 
-fn split_segments(raw: &str) -> Vec<String> {
-    // Split by pipe, &&, ||, ; while preserving quoted strings
+fn parse_bash_to_segments(source: &str) -> Vec<Vec<String>> {
+    let language = Language::from(tree_sitter_bash::LANGUAGE);
+    let mut parser = Parser::new();
+    if parser.set_language(&language).is_err() {
+        return fallback_shlex(source);
+    }
+
+    let tree = match parser.parse(source, None) {
+        Some(t) => t,
+        None => return fallback_shlex(source),
+    };
+
+    let root = tree.root_node();
     let mut segments = Vec::new();
-    let mut current = String::new();
-    let mut in_single = false;
-    let mut in_double = false;
-    let chars: Vec<char> = raw.chars().collect();
-    let mut i = 0;
+    collect_segments(&root, source, &mut segments);
 
-    while i < chars.len() {
-        let c = chars[i];
-
-        if c == '\'' && !in_double {
-            in_single = !in_single;
-            current.push(c);
-        } else if c == '"' && !in_single {
-            in_double = !in_double;
-            current.push(c);
-        } else if !in_single && !in_double {
-            if c == '|' {
-                // Check for ||
-                if i + 1 < chars.len() && chars[i + 1] == '|' {
-                    segments.push(current.trim().to_string());
-                    current.clear();
-                    i += 2;
-                    continue;
-                }
-                // Single | is pipe
-                segments.push(current.trim().to_string());
-                current.clear();
-            } else if c == '&' {
-                // Check for &&
-                if i + 1 < chars.len() && chars[i + 1] == '&' {
-                    segments.push(current.trim().to_string());
-                    current.clear();
-                    i += 2;
-                    continue;
-                }
-                current.push(c);
-            } else if c == ';' {
-                segments.push(current.trim().to_string());
-                current.clear();
-            } else {
-                current.push(c);
-            }
-        } else {
-            current.push(c);
-        }
-        i += 1;
+    if segments.is_empty() {
+        fallback_shlex(source)
+    } else {
+        segments
     }
-
-    let last = current.trim().to_string();
-    if !last.is_empty() {
-        segments.push(last);
-    }
-
-    segments.retain(|s| !s.is_empty());
-    segments
 }
 
-fn split_tokens(segment: &str) -> Vec<String> {
-    let mut tokens = Vec::new();
-    let mut current = String::new();
-    let mut in_single = false;
-    let mut in_double = false;
+fn fallback_shlex(source: &str) -> Vec<Vec<String>> {
+    match shlex::split(source) {
+        Some(tokens) if !tokens.is_empty() => vec![tokens],
+        _ => vec![],
+    }
+}
 
-    for c in segment.chars() {
-        if c == '\'' && !in_double {
-            in_single = !in_single;
-            current.push(c);
-        } else if c == '"' && !in_single {
-            in_double = !in_double;
-            current.push(c);
-        } else if (c == ' ' || c == '\t') && !in_single && !in_double {
-            if !current.is_empty() {
-                tokens.push(current.clone());
-                current.clear();
+fn collect_segments(node: &Node, source: &str, segments: &mut Vec<Vec<String>>) {
+    let kind = node.kind();
+    match kind {
+        "program" => {
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                if child.is_named() {
+                    collect_segments(&child, source, segments);
+                }
             }
-        } else {
-            current.push(c);
+        }
+        "pipeline" => {
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                if child.is_named() && child.kind() != "|&" {
+                    collect_segments(&child, source, segments);
+                }
+            }
+        }
+        "list" => {
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                if child.is_named() {
+                    collect_segments(&child, source, segments);
+                }
+            }
+        }
+        "redirected_statement" => {
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                let ck = child.kind();
+                if ck == "command" || ck == "subshell" || ck == "pipeline" || ck == "list" {
+                    collect_segments(&child, source, segments);
+                }
+            }
+        }
+        "subshell" | "compound_statement" => {
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                if child.is_named() {
+                    collect_segments(&child, source, segments);
+                }
+            }
+        }
+        "command" => {
+            let tokens = extract_command_tokens(node, source);
+            if !tokens.is_empty() {
+                segments.push(tokens);
+            }
+        }
+        "negated_command" => {
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                if child.kind() == "command" {
+                    let tokens = extract_command_tokens(&child, source);
+                    if !tokens.is_empty() {
+                        segments.push(tokens);
+                    }
+                }
+            }
+        }
+        "if_statement" | "while_statement" | "for_statement" | "case_statement"
+        | "c_style_for_statement" | "function_definition" | "declaration_command" => {
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                if child.is_named() {
+                    collect_segments(&child, source, segments);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn extract_command_tokens(node: &Node, source: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut cursor = node.walk();
+
+    for child in node.children(&mut cursor) {
+        if !child.is_named() {
+            continue;
+        }
+        let kind = child.kind();
+        match kind {
+            "command_name" => {
+                if let Ok(text) = child.utf8_text(source.as_bytes()) {
+                    tokens.push(text.to_string());
+                }
+            }
+            "word" | "string" | "raw_string" | "simple_expansion" | "expansion"
+            | "command_substitution" | "concatenation" | "ansi_c_string"
+            | "process_substitution" | "variable_assignment" | "variable_name"
+            | "number" | "test_operator" => {
+                if let Ok(text) = child.utf8_text(source.as_bytes()) {
+                    tokens.push(text.to_string());
+                }
+            }
+            _ => {}
         }
     }
-    if !current.is_empty() {
-        tokens.push(current);
-    }
+
     tokens
 }
+
+// --- Token processing ---
 
 fn strip_sudo(tokens: &[String]) -> (Vec<String>, bool) {
     if tokens.first().map(|s| s.as_str()) == Some("sudo") {
@@ -180,7 +247,6 @@ fn strip_sudo(tokens: &[String]) -> (Vec<String>, bool) {
     }
 }
 
-/// Commands whose combined short flags should be expanded (e.g., -rf -> -r, -f).
 const EXPAND_FLAGS_COMMANDS: &[&str] = &["rm", "git"];
 
 fn expand_known_flags(command: &str, args: &[String]) -> Vec<String> {
@@ -191,41 +257,15 @@ fn expand_known_flags(command: &str, args: &[String]) -> Vec<String> {
     let mut expanded = Vec::new();
     for arg in args {
         if arg.starts_with('-') && !arg.starts_with("--") && arg.len() > 2 {
-            // Combined short flags like -rf, -fd
             let flags: String = arg[1..].chars().filter(|c| c.is_ascii_alphabetic()).collect();
             for flag in flags.chars() {
                 expanded.push(format!("-{flag}"));
             }
-            // Preserve any non-alpha suffix (shouldn't happen for these commands, but safe)
         } else {
             expanded.push(arg.clone());
         }
     }
     expanded
-}
-
-fn tokenize(raw: &str) -> (Vec<Vec<String>>, bool) {
-    let segments = split_segments(raw);
-    let mut any_sudo = false;
-    let mut result = Vec::new();
-
-    for seg in &segments {
-        let tokens = split_tokens(seg);
-        let (tokens, has_sudo) = strip_sudo(&tokens);
-        if has_sudo {
-            any_sudo = true;
-        }
-        if tokens.is_empty() {
-            continue;
-        }
-        let command = &tokens[0];
-        let args = expand_known_flags(command, &tokens[1..]);
-        let mut full = vec![command.clone()];
-        full.extend(args);
-        result.push(full);
-    }
-
-    (result, any_sudo)
 }
 
 // --- Segment parser ---
@@ -264,11 +304,69 @@ fn explain_arg(command: &str, arg: &str) -> ArgNode {
         "find" => explain_find_arg(arg),
         "mv" => explain_mv_arg(arg),
         "cp" => explain_cp_arg(arg),
-        _ => ArgNode {
+        "sleep" => explain_sleep_arg(arg),
+        "tail" => explain_tail_arg(arg),
+        "head" => explain_head_arg(arg),
+        "cat" | "less" | "more" => explain_reader_arg(arg),
+        "grep" | "rg" => explain_grep_arg(arg),
+        "awk" => explain_awk_arg(arg),
+        "sed" => explain_sed_arg(arg),
+        "ls" => explain_ls_arg(arg),
+        "cd" => explain_cd_arg(arg),
+        "mkdir" => explain_mkdir_arg(arg),
+        "echo" => explain_echo_arg(arg),
+        "docker" => explain_docker_arg(arg),
+        _ => explain_generic_arg(command, arg),
+    }
+}
+
+fn explain_generic_arg(command: &str, arg: &str) -> ArgNode {
+    if arg.starts_with("--") {
+        return ArgNode {
             text: arg.to_string(),
-            meaning: "未识别参数".to_string(),
+            meaning: format!("{command} 长选项"),
             risk_level: None,
-        },
+        };
+    }
+    if arg.starts_with('-') && arg.len() > 1 {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: format!("{command} 选项"),
+            risk_level: None,
+        };
+    }
+    if arg.starts_with('/') || arg.starts_with("./") || arg.starts_with("~/") || arg.starts_with("..\\") || arg.starts_with("../") || arg.contains('\\') || arg.contains('/') {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "文件路径".to_string(),
+            risk_level: None,
+        };
+    }
+    if arg.starts_with("http://") || arg.starts_with("https://") {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "URL".to_string(),
+            risk_level: None,
+        };
+    }
+    if arg.starts_with('$') {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "变量或命令替换".to_string(),
+            risk_level: None,
+        };
+    }
+    if arg.chars().all(|c| c.is_ascii_digit()) {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "数值参数".to_string(),
+            risk_level: None,
+        };
+    }
+    ArgNode {
+        text: arg.to_string(),
+        meaning: format!("{command} 参数"),
+        risk_level: None,
     }
 }
 
@@ -557,6 +655,352 @@ fn explain_cp_arg(arg: &str) -> ArgNode {
     }
 }
 
+fn explain_sleep_arg(arg: &str) -> ArgNode {
+    if arg.chars().all(|c| c.is_ascii_digit() || c == '.') {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "等待时间（秒）".to_string(),
+            risk_level: None,
+        };
+    }
+    if arg.starts_with('-') {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "sleep 选项".to_string(),
+            risk_level: None,
+        };
+    }
+    ArgNode {
+        text: arg.to_string(),
+        meaning: "等待时间".to_string(),
+        risk_level: None,
+    }
+}
+
+fn explain_tail_arg(arg: &str) -> ArgNode {
+    if arg == "-f" {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "实时追踪文件变化".to_string(),
+            risk_level: None,
+        };
+    }
+    if arg == "-n" {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "指定显示行数".to_string(),
+            risk_level: None,
+        };
+    }
+    if arg.starts_with('-') && arg[1..].chars().all(|c| c.is_ascii_digit()) {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "显示末尾 N 行".to_string(),
+            risk_level: None,
+        };
+    }
+    if arg.starts_with('-') {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "tail 选项".to_string(),
+            risk_level: None,
+        };
+    }
+    ArgNode {
+        text: arg.to_string(),
+        meaning: "文件路径".to_string(),
+        risk_level: None,
+    }
+}
+
+fn explain_head_arg(arg: &str) -> ArgNode {
+    if arg == "-n" {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "指定显示行数".to_string(),
+            risk_level: None,
+        };
+    }
+    if arg.starts_with('-') && arg[1..].chars().all(|c| c.is_ascii_digit()) {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "显示开头 N 行".to_string(),
+            risk_level: None,
+        };
+    }
+    if arg.starts_with('-') {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "head 选项".to_string(),
+            risk_level: None,
+        };
+    }
+    ArgNode {
+        text: arg.to_string(),
+        meaning: "文件路径".to_string(),
+        risk_level: None,
+    }
+}
+
+fn explain_reader_arg(arg: &str) -> ArgNode {
+    if arg.starts_with('-') {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "查看器选项".to_string(),
+            risk_level: None,
+        };
+    }
+    ArgNode {
+        text: arg.to_string(),
+        meaning: "文件路径".to_string(),
+        risk_level: None,
+    }
+}
+
+fn explain_grep_arg(arg: &str) -> ArgNode {
+    match arg {
+        "-r" | "-R" => ArgNode {
+            text: arg.to_string(),
+            meaning: "递归搜索目录".to_string(),
+            risk_level: None,
+        },
+        "-i" => ArgNode {
+            text: arg.to_string(),
+            meaning: "忽略大小写".to_string(),
+            risk_level: None,
+        },
+        "-n" => ArgNode {
+            text: arg.to_string(),
+            meaning: "显示行号".to_string(),
+            risk_level: None,
+        },
+        "-l" => ArgNode {
+            text: arg.to_string(),
+            meaning: "只输出文件名".to_string(),
+            risk_level: None,
+        },
+        "-e" => ArgNode {
+            text: arg.to_string(),
+            meaning: "指定匹配模式".to_string(),
+            risk_level: None,
+        },
+        _ if arg.starts_with('-') => ArgNode {
+            text: arg.to_string(),
+            meaning: "grep 选项".to_string(),
+            risk_level: None,
+        },
+        _ => ArgNode {
+            text: arg.to_string(),
+            meaning: "搜索模式或文件路径".to_string(),
+            risk_level: None,
+        },
+    }
+}
+
+fn explain_awk_arg(arg: &str) -> ArgNode {
+    if arg == "-F" {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "指定字段分隔符".to_string(),
+            risk_level: None,
+        };
+    }
+    if arg.starts_with('-') {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "awk 选项".to_string(),
+            risk_level: None,
+        };
+    }
+    ArgNode {
+        text: arg.to_string(),
+        meaning: "awk 程序脚本".to_string(),
+        risk_level: None,
+    }
+}
+
+fn explain_sed_arg(arg: &str) -> ArgNode {
+    if arg == "-i" {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "直接修改文件（就地编辑）".to_string(),
+            risk_level: Some(RiskLevel::Medium),
+        };
+    }
+    if arg == "-e" {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "指定编辑命令".to_string(),
+            risk_level: None,
+        };
+    }
+    if arg.starts_with('-') {
+        return ArgNode {
+            text: arg.to_string(),
+            meaning: "sed 选项".to_string(),
+            risk_level: None,
+        };
+    }
+    ArgNode {
+        text: arg.to_string(),
+        meaning: "sed 表达式或文件路径".to_string(),
+        risk_level: None,
+    }
+}
+
+fn explain_ls_arg(arg: &str) -> ArgNode {
+    match arg {
+        "-l" => ArgNode {
+            text: arg.to_string(),
+            meaning: "长格式列表".to_string(),
+            risk_level: None,
+        },
+        "-a" => ArgNode {
+            text: arg.to_string(),
+            meaning: "显示隐藏文件".to_string(),
+            risk_level: None,
+        },
+        "-la" | "-al" => ArgNode {
+            text: arg.to_string(),
+            meaning: "长格式列表（含隐藏文件）".to_string(),
+            risk_level: None,
+        },
+        "-R" => ArgNode {
+            text: arg.to_string(),
+            meaning: "递归列出子目录".to_string(),
+            risk_level: None,
+        },
+        _ if arg.starts_with('-') => ArgNode {
+            text: arg.to_string(),
+            meaning: "ls 选项".to_string(),
+            risk_level: None,
+        },
+        _ => ArgNode {
+            text: arg.to_string(),
+            meaning: "目录路径".to_string(),
+            risk_level: None,
+        },
+    }
+}
+
+fn explain_cd_arg(arg: &str) -> ArgNode {
+    ArgNode {
+        text: arg.to_string(),
+        meaning: "目标目录".to_string(),
+        risk_level: None,
+    }
+}
+
+fn explain_mkdir_arg(arg: &str) -> ArgNode {
+    match arg {
+        "-p" => ArgNode {
+            text: arg.to_string(),
+            meaning: "递归创建父目录".to_string(),
+            risk_level: None,
+        },
+        _ if arg.starts_with('-') => ArgNode {
+            text: arg.to_string(),
+            meaning: "mkdir 选项".to_string(),
+            risk_level: None,
+        },
+        _ => ArgNode {
+            text: arg.to_string(),
+            meaning: "目录路径".to_string(),
+            risk_level: None,
+        },
+    }
+}
+
+fn explain_echo_arg(arg: &str) -> ArgNode {
+    match arg {
+        "-n" => ArgNode {
+            text: arg.to_string(),
+            meaning: "不输出末尾换行".to_string(),
+            risk_level: None,
+        },
+        "-e" => ArgNode {
+            text: arg.to_string(),
+            meaning: "启用转义字符解析".to_string(),
+            risk_level: None,
+        },
+        _ if arg.starts_with('-') => ArgNode {
+            text: arg.to_string(),
+            meaning: "echo 选项".to_string(),
+            risk_level: None,
+        },
+        _ => ArgNode {
+            text: arg.to_string(),
+            meaning: "输出内容".to_string(),
+            risk_level: None,
+        },
+    }
+}
+
+fn explain_docker_arg(arg: &str) -> ArgNode {
+    match arg {
+        "run" => ArgNode {
+            text: arg.to_string(),
+            meaning: "运行容器".to_string(),
+            risk_level: Some(RiskLevel::Low),
+        },
+        "build" => ArgNode {
+            text: arg.to_string(),
+            meaning: "构建镜像".to_string(),
+            risk_level: Some(RiskLevel::Low),
+        },
+        "exec" => ArgNode {
+            text: arg.to_string(),
+            meaning: "在容器内执行命令".to_string(),
+            risk_level: Some(RiskLevel::Medium),
+        },
+        "rm" | "rmi" => ArgNode {
+            text: arg.to_string(),
+            meaning: "删除容器或镜像".to_string(),
+            risk_level: Some(RiskLevel::Medium),
+        },
+        "stop" | "kill" => ArgNode {
+            text: arg.to_string(),
+            meaning: "停止或终止容器".to_string(),
+            risk_level: Some(RiskLevel::Medium),
+        },
+        "-it" => ArgNode {
+            text: arg.to_string(),
+            meaning: "交互式终端".to_string(),
+            risk_level: None,
+        },
+        "-d" => ArgNode {
+            text: arg.to_string(),
+            meaning: "后台运行".to_string(),
+            risk_level: None,
+        },
+        "-v" => ArgNode {
+            text: arg.to_string(),
+            meaning: "挂载卷".to_string(),
+            risk_level: None,
+        },
+        "-p" => ArgNode {
+            text: arg.to_string(),
+            meaning: "端口映射".to_string(),
+            risk_level: None,
+        },
+        "--rm" => ArgNode {
+            text: arg.to_string(),
+            meaning: "容器退出后自动删除".to_string(),
+            risk_level: None,
+        },
+        _ if arg.starts_with('-') => ArgNode {
+            text: arg.to_string(),
+            meaning: "Docker 选项".to_string(),
+            risk_level: None,
+        },
+        _ => ArgNode {
+            text: arg.to_string(),
+            meaning: "Docker 参数".to_string(),
+            risk_level: None,
+        },
+    }
+}
+
 // --- Risk detection ---
 
 fn detect_node_risks(node: &CommandNode) -> Vec<RiskItem> {
@@ -690,7 +1134,6 @@ fn detect_chain_risks(commands: &[CommandNode]) -> Vec<RiskItem> {
         return risks;
     }
 
-    // Check for download-to-shell pipe patterns
     for i in 0..commands.len() - 1 {
         let left = &commands[i];
         let right = &commands[i + 1];
@@ -796,7 +1239,6 @@ mod tests {
         assert_eq!(result.commands.len(), 1);
         let cmd = &result.commands[0];
         assert_eq!(cmd.command, "rm");
-        // -rf should be expanded to -r, -f
         assert_eq!(cmd.args.len(), 3);
         assert_eq!(cmd.args[0].text, "-r");
         assert_eq!(cmd.args[1].text, "-f");
@@ -838,7 +1280,6 @@ mod tests {
             .collect();
         assert!(!high_risks.is_empty());
         assert!(high_risks[0].message.contains("sudo"));
-        // Should also have a separate sudo Medium risk
         let sudo_risks: Vec<_> = result
             .risks
             .iter()
@@ -862,7 +1303,6 @@ mod tests {
     #[test]
     fn test_git_clean_fd() {
         let result = analyze_command("git clean -fd");
-        // args: clean (subcommand), -f, -d (expanded from -fd)
         assert_eq!(result.commands[0].args.len(), 3);
         assert_eq!(result.commands[0].args[0].text, "clean");
         assert_eq!(result.commands[0].args[1].text, "-f");
@@ -965,21 +1405,45 @@ mod tests {
     }
 
     #[test]
-    fn test_split_segments() {
-        let segments = split_segments("a | b && c");
-        assert_eq!(segments, vec!["a", "b", "c"]);
+    fn test_command_substitution() {
+        let result = analyze_command("echo $(cat file.txt)");
+        assert_eq!(result.commands.len(), 1);
+        assert_eq!(result.commands[0].command, "echo");
     }
 
     #[test]
-    fn test_split_segments_semicolon() {
-        let segments = split_segments("a; b; c");
-        assert_eq!(segments, vec!["a", "b", "c"]);
+    fn test_redirection() {
+        let result = analyze_command("cmd > out.txt 2>&1");
+        assert_eq!(result.commands.len(), 1);
+        assert_eq!(result.commands[0].command, "cmd");
     }
 
     #[test]
-    fn test_split_segments_or() {
-        let segments = split_segments("a || b");
-        assert_eq!(segments, vec!["a", "b"]);
+    fn test_subshell() {
+        let result = analyze_command("(cd /tmp && ls)");
+        assert!(result.commands.len() >= 2);
+    }
+
+    #[test]
+    fn test_complex_pipeline() {
+        let result = analyze_command("cat file | grep pattern | awk '{print $1}'");
+        assert_eq!(result.commands.len(), 3);
+        assert_eq!(result.commands[0].command, "cat");
+        assert_eq!(result.commands[1].command, "grep");
+        assert_eq!(result.commands[2].command, "awk");
+    }
+
+    #[test]
+    fn test_mixed_operators() {
+        let result = analyze_command("cd /tmp && ls || echo failed");
+        assert_eq!(result.commands.len(), 3);
+    }
+
+    #[test]
+    fn test_nested_quotes() {
+        let result = analyze_command("echo \"hello 'world'\"");
+        assert_eq!(result.commands.len(), 1);
+        assert_eq!(result.commands[0].command, "echo");
     }
 
     #[test]
@@ -1003,5 +1467,17 @@ mod tests {
     fn test_git_with_global_flag() {
         let result = analyze_command("git -C repo reset --hard HEAD");
         assert!(result.risks.iter().any(|r| r.level == RiskLevel::High));
+    }
+
+    #[test]
+    fn test_semicolons() {
+        let result = analyze_command("echo a; echo b");
+        assert_eq!(result.commands.len(), 2);
+    }
+
+    #[test]
+    fn test_or_operator() {
+        let result = analyze_command("true || echo fallback");
+        assert_eq!(result.commands.len(), 2);
     }
 }
