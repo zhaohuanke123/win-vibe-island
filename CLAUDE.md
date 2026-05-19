@@ -28,7 +28,7 @@ Rust + TypeScript，注释使用中文。
 | 动画、弹簧参数、stiffness、damping、窗口尺寸同步、StatusDot、BarsGlyph | animation | 动画系统参数和窗口同步 |
 | 状态机、状态转换、AgentState、TRANSITION_MATRIX、风险等级 | state-machine | 7 种状态和转换矩阵 |
 | Hook 配置、Claude Code 集成、hook 不工作、session_start 没触发 | hook-integration | Hook 配置和故障排查 |
-| 测试、npm test、cargo test、data-testid、Test Bridge | testing | 测试策略和工具 |
+| 测试、npm test、cargo test、data-testid、Test Bridge、测试 hook、curl hook | testing | 测试策略和工具 |
 | 事件流、数据流、adapter、session_state、pipe_server | session-flow | Agent 事件处理链路 |
 | 新增 IPC、添加 invoke、加个命令、前后端通信 | tauri-command | 新增 Tauri 命令流程 |
 | 新增 emit、后端通知前端、添加事件监听 | tauri-event | 新增 Tauri 事件流程 |

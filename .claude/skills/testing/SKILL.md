@@ -34,23 +34,63 @@ cd frontend && npm run dev
 
 无需 Tauri，浏览器中测试 UI。通过 Test Bridge API 模拟后端事件。
 
-### Layer 2：Tauri Hook 测试
+### Layer 2：Tauri Hook 测试（测试 Hook 端到端）
+
+完整链路：curl → hook_server.rs → app.emit → 前端 → 窗口尺寸变化。
 
 ```bash
+# 1. 启动 Tauri dev（debug 构建，包含测试命令）
 cd src-tauri && cargo tauri dev
+# 等待控制台输出 "Hook server started on port 7878"
 ```
 
-完整 Tauri 应用 + 真实 Hook Server。使用 Rust 测试命令模拟事件。
+然后用 curl 发送真实 hook payload：
 
-### Layer 3：Rust Test Commands
+```bash
+# 测试会话开始
+curl -X POST http://localhost:7878/hooks/session-start \
+  -H "Content-Type: application/json" \
+  -d '{"session_id":"test-1","cwd":"D:\\project","source":"test"}'
 
-Debug 构建中提供的 IPC 测试命令：
-- `simulate_session_start` — 模拟会话开始
-- `simulate_state_change` — 模拟状态变更
-- `simulate_permission_request` — 模拟审批请求
-- `simulate_session_end` — 模拟会话结束
-- `test_reset_sessions` — 重置所有会话
-- `get_window_geometry` — 获取窗口几何信息
+# 测试状态变更（模拟 Agent 开始思考）
+curl -X POST http://localhost:7878/hooks/pre-tool-use \
+  -H "Content-Type: application/json" \
+  -d '{"session_id":"test-1","tool_name":"Read","tool_input":{"file_path":"test.ts"}}'
+
+# 测试审批请求（会阻塞等待 approve/reject，120s 超时）
+curl --max-time 10 -X POST http://localhost:7878/hooks/permission-request \
+  -H "Content-Type: application/json" \
+  -d '{"session_id":"test-1","tool_use_id":"tool-1","tool_name":"Bash","tool_input":{"command":"npm test"}}'
+
+# 测试会话结束
+curl -X POST http://localhost:7878/hooks/stop \
+  -H "Content-Type: application/json" \
+  -d '{"session_id":"test-1","reason":"end"}'
+```
+
+验证点：
+- Overlay 窗口显示对应状态（idle→running→thinking→streaming→done）
+- Approval panel 展开显示审批请求
+- 窗口尺寸正确变化（compact 52px → approval 720px）
+
+也可运行自动化回归脚本：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tests/scripts/hook/run-overlay-height-regression.ps1
+```
+
+### Layer 3：Rust Test Commands（Tauri WebView 内调用）
+
+Debug 构建中提供的 IPC 测试命令，在 WebView 控制台中调用：
+
+```javascript
+await invoke("simulate_session_start", { sessionId: "test-1", label: "Test" });
+await invoke("simulate_state_change", { sessionId: "test-1", state: "running" });
+await invoke("simulate_permission_request", { sessionId: "test-1", toolUseId: "t1", toolName: "Bash" });
+await invoke("simulate_session_end", { sessionId: "test-1" });
+await invoke("test_reset_sessions");  // 清空所有测试状态
+await invoke("get_window_geometry");  // 查看窗口尺寸
+```
 
 ## Test Bridge API
 
