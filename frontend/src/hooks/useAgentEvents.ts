@@ -165,6 +165,10 @@ export function useAgentEvents() {
     const unlisteners: UnlistenFn[] = [];
 
     const setupListeners = async () => {
+    if (typeof window === 'undefined' || !window.__TAURI_INTERNALS__) {
+      console.warn("Tauri API not found. Running in browser mode. Event listeners disabled.");
+      return;
+    }
       // Listen for session_start events (from SessionStart hook)
       const unlistenStart = await listen<SessionStartEvent>("session_start", (event) => {
         const { session_id, label, cwd, pid, agent_type, detected_agent, jump_target } = event.payload;

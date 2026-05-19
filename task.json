@@ -1346,7 +1346,9 @@
       ],
       "status": "completed",
       "priority": "critical",
-      "dependencies": [51],
+      "dependencies": [
+        51
+      ],
       "requirement_ref": "docs/v8-migration-plan.md#A2",
       "design_ref": "docs/v8-migration-plan.md#A2",
       "docs_updated": true,
@@ -1377,7 +1379,9 @@
       ],
       "status": "completed",
       "priority": "critical",
-      "dependencies": [51],
+      "dependencies": [
+        51
+      ],
       "requirement_ref": "docs/v8-migration-plan.md#A3",
       "design_ref": "docs/v8-migration-plan.md#A3",
       "docs_updated": true,
@@ -1404,7 +1408,9 @@
       ],
       "status": "completed",
       "priority": "critical",
-      "dependencies": [53],
+      "dependencies": [
+        53
+      ],
       "requirement_ref": "docs/v8-migration-plan.md#B1",
       "design_ref": "docs/v8-migration-plan.md#B1",
       "docs_updated": true,
@@ -1430,7 +1436,9 @@
       ],
       "status": "completed",
       "priority": "critical",
-      "dependencies": [54],
+      "dependencies": [
+        54
+      ],
       "requirement_ref": "docs/v8-migration-plan.md#B2",
       "design_ref": "docs/v8-migration-plan.md#B2",
       "docs_updated": true,
@@ -1460,7 +1468,9 @@
       ],
       "status": "completed",
       "priority": "high",
-      "dependencies": [54],
+      "dependencies": [
+        54
+      ],
       "requirement_ref": "docs/v8-migration-plan.md#B3",
       "design_ref": "docs/v8-migration-plan.md#B3",
       "docs_updated": true,
@@ -1488,7 +1498,11 @@
       ],
       "status": "completed",
       "priority": "high",
-      "dependencies": [52, 53, 56],
+      "dependencies": [
+        52,
+        53,
+        56
+      ],
       "requirement_ref": "docs/v8-migration-plan.md#C1",
       "design_ref": "docs/v8-migration-plan.md#C1",
       "docs_updated": true,
@@ -1517,7 +1531,10 @@
       ],
       "status": "completed",
       "priority": "high",
-      "dependencies": [52, 57],
+      "dependencies": [
+        52,
+        57
+      ],
       "requirement_ref": "docs/v8-migration-plan.md#C2",
       "design_ref": "docs/v8-migration-plan.md#C2",
       "docs_updated": true,
@@ -1542,7 +1559,10 @@
       ],
       "status": "completed",
       "priority": "high",
-      "dependencies": [55, 58],
+      "dependencies": [
+        55,
+        58
+      ],
       "requirement_ref": "docs/v8-migration-plan.md#C3",
       "design_ref": "docs/v8-migration-plan.md#C3",
       "docs_updated": true,
@@ -1571,7 +1591,9 @@
       ],
       "status": "completed",
       "priority": "high",
-      "dependencies": [57],
+      "dependencies": [
+        57
+      ],
       "requirement_ref": "docs/v8-migration-plan.md#D1",
       "design_ref": "docs/v8-migration-plan.md#D1",
       "docs_updated": true,
@@ -1598,7 +1620,9 @@
       ],
       "status": "completed",
       "priority": "medium",
-      "dependencies": [55],
+      "dependencies": [
+        55
+      ],
       "requirement_ref": "docs/v8-migration-plan.md#E1",
       "design_ref": "docs/v8-migration-plan.md#E1",
       "docs_updated": true,
@@ -1625,7 +1649,9 @@
       ],
       "status": "completed",
       "priority": "medium",
-      "dependencies": [55],
+      "dependencies": [
+        55
+      ],
       "requirement_ref": "docs/v8-migration-plan.md#E2",
       "design_ref": "docs/v8-migration-plan.md#E2",
       "docs_updated": true,
@@ -1652,7 +1678,9 @@
       ],
       "status": "completed",
       "priority": "low",
-      "dependencies": [57],
+      "dependencies": [
+        57
+      ],
       "requirement_ref": "docs/v8-migration-plan.md#F1",
       "design_ref": "docs/v8-migration-plan.md#F1",
       "docs_updated": true,
@@ -1677,7 +1705,9 @@
       ],
       "status": "completed",
       "priority": "low",
-      "dependencies": [57],
+      "dependencies": [
+        57
+      ],
       "requirement_ref": "docs/v8-migration-plan.md#F2",
       "design_ref": "docs/v8-migration-plan.md#F2",
       "docs_updated": true,
@@ -1703,7 +1733,9 @@
       ],
       "status": "completed",
       "priority": "low",
-      "dependencies": [57],
+      "dependencies": [
+        57
+      ],
       "requirement_ref": "docs/v8-migration-plan.md#F3",
       "design_ref": "docs/v8-migration-plan.md#F3",
       "docs_updated": true,
@@ -1734,7 +1766,10 @@
       ],
       "status": "completed",
       "priority": "low",
-      "dependencies": [59, 60],
+      "dependencies": [
+        59,
+        60
+      ],
       "requirement_ref": "docs/v8-migration-plan.md#G1",
       "design_ref": "docs/v8-migration-plan.md#G1",
       "docs_updated": true,
@@ -1820,6 +1855,30 @@
         "docs/command-registry-design.md",
         "architecture.md"
       ]
+    },
+    {
+      "id": 69,
+      "title": "Bugfix: DiffViewer scrollbar padding and bottom fade clipping",
+      "description": "当在 Approval 弹出大体积文件及过长代码行审批（如 30 行+ 的 Diff）时，代码框底部区域受到主容器 Footer 固定容器叠加干扰被轻微裁切；且自定义代码内的滚动条 padding 不足以完全避让右侧边缘，导致交互阻滞。",
+      "status": "pending",
+      "type": "bug",
+      "requirement_ref": "docs/architecture/states-and-flows.md 5.1 Overlay"
+    },
+    {
+      "id": 70,
+      "title": "Bugfix: AskUserQuestion Preview property missing or misaligned",
+      "description": "在进行 'Question Layout Test' 并传递了带有代码 preview 配置参数的选项 ('XState') 时，页面虽成功渲染了单选与长文本选项组，但被指定含有 preview: '```typescript...```' 选项却完全没有渲染出副卡片或者代码结构（如 screenshot-04 所示只显示了 Label）。",
+      "status": "pending",
+      "type": "bug",
+      "requirement_ref": "frontend/src/store/sessions.ts (QuestionOption interface)"
+    },
+    {
+      "id": 71,
+      "title": "Feature: Integrate VibeTestBridge Playwright automation suite into repo",
+      "description": "既然我们已修补了非 Tauri 环境保护并证实 __VIBE_TEST_BRIDGE__ 的健壮性，应利用其构造系统的视觉回归自动化组（Coverage included: Thinking mode, Diff overflow and AskUserQuestion rendering）。",
+      "status": "pending",
+      "type": "feature",
+      "requirement_ref": "docs/testing/testing.md: Layer 2 & Bridge"
     }
   ]
 }
