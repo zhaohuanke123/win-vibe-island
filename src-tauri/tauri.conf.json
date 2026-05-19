@@ -52,6 +52,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": [
+      "vibe-island-hooks.exe"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -65,8 +68,8 @@
       },
       "nsis": {
         "installMode": "currentUser",
-        "languages": ["en-US", "zh-CN"],
-        "displayLanguageSelector": true
+        "languages": ["English"],
+        "displayLanguageSelector": false
       }
     }
   }
