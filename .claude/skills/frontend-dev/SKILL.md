@@ -67,6 +67,20 @@ frontend/src/
 4. 如涉及动画参数，参考 [[animation]] skill
 5. 如涉及状态变化，参考 [[state-machine]] skill
 
+## UI 配置变更（需双向同步）
+
+修改 UI 尺寸、颜色、动画参数时，必须同时改两个文件的默认值：
+
+| 改什么 | Rust 文件 | 前端文件 |
+|--------|----------|---------|
+| 状态颜色 | `src-tauri/src/config/types.rs` → `StateColors` | `frontend/src/store/config.ts` → `DEFAULT_CONFIG.ui.stateColors` |
+| 弹簧参数 | 同上 → `SpringConfig` | 同上 → `spring` |
+| 动画时长 | 同上 → `AnimationConfig` | 同上 → `animation` |
+| UI 尺寸 | 同上 → `UiDimensions` | 同上 → `dimensions` |
+| Overlay 尺寸 | 同上 → `OverlayConfigDefaults` | 同上 → `overlay` |
+
+改完后运行 `cargo check && npm run build` 验证。
+
 ## 样式规范
 
 - CSS 文件与组件同目录

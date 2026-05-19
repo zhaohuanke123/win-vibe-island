@@ -9,7 +9,17 @@
 3. **Overlay 样式**：原生 overlay 创建时必须保留 `WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE`。
 4. **主窗口透明**：Tauri 主窗口保持 `transparent: true`、`decorations: false`、`alwaysOnTop: true`。
 5. **Hook 非破坏性**：自动配置 hooks 时不得覆盖用户已有的非 Vibe Island hook。
-6. **配置治理**：前端 UI 配置（`ui.dimensions.*`、`ui.stateColors`、`ui.animation.*`）在 Rust 和前端都有默认值。修改时两边都改，改完通过 `cargo check && npm run build` 验证一致性。
+6. **配置治理**：以下配置在 Rust 和前端都有默认值，修改时两边都改：
+
+| 配置类别 | Rust 文件 | 前端文件 | 同步项 |
+|----------|----------|---------|--------|
+| 状态颜色 | `src-tauri/src/config/types.rs` → `StateColors` | `frontend/src/store/config.ts` → `DEFAULT_CONFIG.ui.stateColors` | idle/running/approval/error/done |
+| 弹簧参数 | `types.rs` → `SpringConfig` | `config.ts` → `DEFAULT_CONFIG.ui.animation.spring` | expand/collapse/transition/micro |
+| 动画时长 | `types.rs` → `AnimationConfig` | `config.ts` → `DEFAULT_CONFIG.ui.animation` | thinking/running/streaming/approval duration |
+| UI 尺寸 | `types.rs` → `UiDimensions` | `config.ts` → `DEFAULT_CONFIG.ui.dimensions` | barHeight/padding/gap/statusDotSize |
+| Overlay 尺寸 | `types.rs` → `OverlayConfigDefaults` | `config.ts` → `DEFAULT_CONFIG.overlay` | compactWidth/expandedWidth/各种radius |
+
+验证：`cargo check && npm run build`
 7. **审批关联**：审批响应必须通过 `tool_use_id` 匹配 pending approval，不能只按 session 匹配。
 
 ## 禁止事项
