@@ -34,6 +34,7 @@ Rust + TypeScript，注释使用中文。
 | 新增 emit、后端通知前端、添加事件监听 | tauri-event | 新增 Tauri 事件流程 |
 | 命令解析、command spec、TOML 规格、扩展注册表 | command-spec | Bash 命令解析规格 |
 | overlay 问题、悬浮窗、点击穿透、DPI、窗口调试 | overlay-debug | Overlay 调试辅助 |
+| 改UI、加个组件、调样式、改布局、前端开发、CSS | frontend-dev | 前端组件开发和样式 |
 | Documentation Gate、文档门禁、先看什么文件、工作流程 | doc-gate | Gate 流程和文件导航 |
 
 ### 只读执行模式
