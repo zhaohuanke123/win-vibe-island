@@ -16,6 +16,7 @@
 
 | 文档 | 说明 |
 |------|------|
+| [command-registry-design.md](command-registry-design.md) | 声明式命令注册表设计（TOML 规格 + tldr-pages 工具链） |
 | [architecture/state-machine.md](architecture/state-machine.md) | 状态转换矩阵定义与维护规则 |
 | [architecture/states-and-flows.md](architecture/states-and-flows.md) | Agent 状态与 UI 流程 |
 | [architecture/animation-design.md](architecture/animation-design.md) | 动画系统方案与参数 |

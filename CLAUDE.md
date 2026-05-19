@@ -66,6 +66,7 @@ Memory 只能提醒 agent 读取本文件，不能替代项目状态文件。
 || [docs/testing/testing.md](docs/testing/testing.md) | 测试策略与 API 文档 | 测试时 |
 || [docs/architecture/animation-design.md](docs/architecture/animation-design.md) | 动画系统方案与参数 | 调动画时 |
 || [docs/architecture/states-and-flows.md](docs/architecture/states-and-flows.md) | Agent 状态与 UI 流程 | 需要确认状态行为时 |
+|| [docs/command-registry-design.md](docs/command-registry-design.md) | 声明式命令注册表设计 | 扩展命令解析时 |
 || [docs/README.md](docs/README.md) | 文档索引 | 首次阅读文档时 |
 
 ---
@@ -99,7 +100,8 @@ Memory 只能提醒 agent 读取本文件，不能替代项目状态文件。
 │       ├── transcript_discovery.rs ← Transcript 发现
 │       ├── approval_types.rs ← 审批类型
 │       ├── logger.rs      ← 日志模块
-│       ├── command_analyzer.rs ← Bash 命令解析
+│       ├── command_analyzer.rs ← Bash 命令解析（声明式注册表）
+│       ├── command_specs/     ← TOML 命令参数规格（63 个命令，编译时嵌入）
 │       ├── config/        ← 应用配置
 │       ├── adapters/      ← Agent 事件适配器
 │       └── bin/           ← 二进制入口
