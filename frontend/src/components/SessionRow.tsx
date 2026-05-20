@@ -4,6 +4,8 @@ import { StateIndicator } from "./StateIndicator";
 import type { StateIndicatorKind } from "./StateIndicator";
 import { NotifBody } from "./NotifBody";
 import { getAgent, hexA } from "../shared/agents";
+import type { AgentType } from "../shared/agents";
+import { AgentIcon } from "./AgentIcon";
 import { phaseColor, fmtAge, isAttentionPhase, getAttachmentState } from "../shared/phase-colors";
 import type { AttachmentState } from "../shared/phase-colors";
 import type { Session } from "../store/sessions";
@@ -86,6 +88,7 @@ export const SessionRow = memo(function SessionRow({
   const projectName = extractProjectName(session.cwd) || session.label || "";
   const branch = extractBranch(session);
   const agent = getAgent(session.agent ?? "claude");
+  const agentType = (session.agent ?? "claude") as AgentType;
   const phaseColorHex = phaseColor(session.state);
   const age = fmtAge(new Date(session.lastActivity));
   const terminalType = session.jumpTarget?.terminalType;
@@ -199,6 +202,7 @@ export const SessionRow = memo(function SessionRow({
           data-testid="agent-chip"
           style={{ color: agent.color, backgroundColor: hexA(agent.color, 0.13), borderColor: hexA(agent.color, 0.35) }}
         >
+          <AgentIcon agent={agentType} size={12} />
           {agent.cli}
         </span>
 

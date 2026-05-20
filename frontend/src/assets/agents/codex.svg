@@ -1,0 +1,6 @@
+<svg fill="none" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <title>Codex</title>
+  <rect width="24" height="24" rx="5" fill="#4aa3df"/>
+  <path d="M7 8h4l2 4-2 4H7l2-4-2-4z" fill="#fff"/>
+  <path d="M13 8h4l2 4-2 4h-4l2-4-2-4z" fill="#fff" opacity=".7"/>
+</svg>

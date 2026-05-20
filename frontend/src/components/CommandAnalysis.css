@@ -21,17 +21,17 @@
 
 .cmd-analysis__badge--low {
   color: var(--phase-completed);
-  background: rgba(111, 185, 130, 0.12);
+  background: var(--phase-completed-a12);
 }
 
 .cmd-analysis__badge--medium {
   color: var(--phase-answer);
-  background: rgba(255, 213, 138, 0.12);
+  background: var(--phase-answer-a12);
 }
 
 .cmd-analysis__badge--high {
   color: var(--phase-approval);
-  background: rgba(244, 164, 164, 0.12);
+  background: var(--phase-approval-a12);
 }
 
 .cmd-analysis__badge--safe {
@@ -108,12 +108,12 @@
 
 .cmd-analysis__arg-badge--medium {
   color: var(--phase-answer);
-  background: rgba(255, 213, 138, 0.1);
+  background: var(--phase-answer-a10);
 }
 
 .cmd-analysis__arg-badge--high {
   color: var(--phase-approval);
-  background: rgba(244, 164, 164, 0.1);
+  background: var(--phase-approval-a10);
 }
 
 .cmd-analysis__risks {

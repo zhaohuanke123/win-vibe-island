@@ -23,7 +23,9 @@ Thumbs.db
 .env
 .env.local
 
-.claude/
+.claude/*
+!.claude/rules/
+!.claude/skills/
 .agents/
 .playwright-mcp/
 skills-lock.json

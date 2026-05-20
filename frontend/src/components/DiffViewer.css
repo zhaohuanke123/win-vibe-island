@@ -49,11 +49,11 @@
 }
 
 .diff-viewer__line--remove {
-  background: rgba(244, 164, 164, 0.1);
+  background: var(--phase-approval-a10);
 }
 
 .diff-viewer__line--add {
-  background: rgba(111, 185, 130, 0.1);
+  background: var(--phase-completed-a10);
 }
 
 .diff-viewer__line--context {

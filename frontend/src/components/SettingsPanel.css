@@ -57,7 +57,7 @@
 }
 
 .settings-panel__sound-btn--selected {
-  background: rgba(110, 167, 255, 0.2);
+  background: var(--phase-running-a20);
   border-color: rgba(110, 167, 255, 0.35);
   color: var(--paper);
 }
@@ -89,17 +89,17 @@
 }
 
 .settings-panel__hook-badge--ok {
-  background: rgba(111, 185, 130, 0.2);
+  background: var(--phase-completed-a20);
   border: 1px solid rgba(111, 185, 130, 0.35);
 }
 
 .settings-panel__hook-badge--partial {
-  background: rgba(255, 213, 138, 0.2);
+  background: var(--phase-answer-a20);
   border: 1px solid rgba(255, 213, 138, 0.35);
 }
 
 .settings-panel__hook-badge--missing {
-  background: rgba(244, 164, 164, 0.2);
+  background: var(--phase-approval-a20);
   border: 1px solid rgba(244, 164, 164, 0.35);
 }
 
@@ -178,7 +178,7 @@
 }
 
 .settings-panel__hook-btn--danger:hover {
-  background: rgba(244, 164, 164, 0.15);
+  background: var(--phase-approval-a15);
   border-color: rgba(244, 164, 164, 0.35);
   color: var(--phase-approval);
 }

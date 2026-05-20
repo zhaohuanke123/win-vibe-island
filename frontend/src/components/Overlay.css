@@ -213,8 +213,8 @@
 .overlay__error {
   padding: 8px 10px;
   margin: 4px 8px;
-  background: rgba(244, 164, 164, 0.1);
-  border: 1px solid rgba(244, 164, 164, 0.2);
+  background: var(--phase-approval-a10);
+  border: 1px solid var(--phase-approval-a20);
   border-radius: 4px;
   color: var(--phase-approval);
   font-size: 11px;

@@ -85,7 +85,7 @@
 
 /* Active session highlight */
 .session-row--active {
-  background: rgba(110, 167, 255, 0.08);
+  background: var(--phase-running-a08);
 }
 
 /* Attention phases — reference: actionable rows white.opacity(0.06) bg */
@@ -223,7 +223,7 @@
 .session-row__agent-chip {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 4px;
   padding: 3px 8px;
   border-radius: 4px;
   border: 1px solid transparent;
@@ -344,7 +344,7 @@
   font-size: 11px;
   font-family: var(--font-mono);
   color: var(--phase-running);
-  background: rgba(110, 167, 255, 0.1);
+  background: var(--phase-running-a10);
   padding: 1px 6px;
   border-radius: 3px;
 }
@@ -411,7 +411,7 @@
 }
 
 .session-row__detail-btn:hover {
-  background: rgba(110, 167, 255, 0.1);
+  background: var(--phase-running-a10);
   color: var(--phase-running);
   opacity: 0.7;
 }

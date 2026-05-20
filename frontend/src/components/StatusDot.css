@@ -22,13 +22,13 @@
 
 .status-dot--approval {
   background-color: var(--phase-approval);
-  animation: pulse-waiting 1s ease-in-out infinite;
+  animation: pulse-waiting 0.6s ease-in-out infinite;
   box-shadow: 0 0 6px rgba(244, 164, 164, 0.36);
 }
 
 .status-dot--answer {
   background-color: var(--phase-answer);
-  animation: pulse-waiting 1s ease-in-out infinite;
+  animation: pulse-waiting 1.2s ease-in-out infinite;
   box-shadow: 0 0 6px rgba(255, 213, 138, 0.36);
 }
 

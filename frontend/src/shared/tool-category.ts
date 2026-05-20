@@ -22,15 +22,15 @@ export interface CategoryVisual {
 }
 
 const CATEGORY_MAP: Record<ToolCategory, CategoryVisual> = {
-  search:     { icon: "🔍", color: "#22d3ee", label: "Search" },
+  search:     { icon: "🔍", color: "#5db8c8", label: "Search" },
   file_read:  { icon: "📖", color: "#818cf8", label: "Read" },
-  file_write: { icon: "✏️", color: "#60a5fa", label: "Write" },
-  bash:       { icon: "💻", color: "#a78bfa", label: "Bash" },
-  test:       { icon: "🧪", color: "#34d399", label: "Test" },
-  git:        { icon: "📦", color: "#f97316", label: "Git" },
-  plan:       { icon: "📋", color: "#fbbf24", label: "Plan" },
-  lint:       { icon: "✅", color: "#a3e635", label: "Lint" },
-  approval:   { icon: "⏳", color: "#f59e0b", label: "Approval" },
+  file_write: { icon: "✏️", color: "#7ba3d4", label: "Write" },
+  bash:       { icon: "💻", color: "#9580d9", label: "Bash" },
+  test:       { icon: "🧪", color: "#2bb883", label: "Test" },
+  git:        { icon: "📦", color: "#d48a3a", label: "Git" },
+  plan:       { icon: "📋", color: "#d4aa44", label: "Plan" },
+  lint:       { icon: "✅", color: "#8fbf40", label: "Lint" },
+  approval:   { icon: "⏳", color: "#c8a060", label: "Approval" },
   other:      { icon: "❓", color: "#9ca3af", label: "Other" },
 };
 

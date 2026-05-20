@@ -246,7 +246,6 @@ interface ConfigStore {
 
   // Getters (convenience methods)
   getHookServerPort: () => number;
-  getStateColor: (state: string) => string;
   getAnimationDuration: (state: string) => number;
   getSpringConfig: (type: "expand" | "collapse" | "transition" | "micro") => SpringParams;
 }
@@ -315,12 +314,6 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
   },
 
   getHookServerPort: () => get().config.hookServer.port,
-
-  getStateColor: (state) => {
-    const colors = get().config.ui.stateColors;
-    const key = state as keyof StateColors;
-    return colors[key] ?? colors.idle;
-  },
 
   getAnimationDuration: (state) => {
     const anim = get().config.ui.animation;

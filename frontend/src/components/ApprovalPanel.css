@@ -44,7 +44,7 @@
     border-color: rgba(111, 185, 130, 0.4);
   }
   30% {
-    background: rgba(111, 185, 130, 0.12);
+    background: var(--phase-completed-a12);
     border-color: rgba(111, 185, 130, 0.6);
   }
   100% {
@@ -65,7 +65,7 @@
     border-color: rgba(244, 164, 164, 0.4);
   }
   30% {
-    background: rgba(244, 164, 164, 0.12);
+    background: var(--phase-approval-a12);
     border-color: rgba(244, 164, 164, 0.6);
   }
   100% {
@@ -88,9 +88,9 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  background: rgba(255, 213, 138, 0.15);
+  background: var(--phase-approval-a15);
   border-radius: 50%;
-  color: var(--phase-answer);
+  color: var(--phase-approval);
   font-weight: bold;
   font-size: 12px;
 }
@@ -226,17 +226,17 @@
 }
 
 .approval-panel__risk--low {
-  background: rgba(111, 185, 130, 0.15);
+  background: var(--phase-completed-a15);
   color: var(--phase-completed);
 }
 
 .approval-panel__risk--medium {
-  background: rgba(255, 213, 138, 0.15);
+  background: var(--phase-answer-a15);
   color: var(--phase-answer);
 }
 
 .approval-panel__risk--high {
-  background: rgba(244, 164, 164, 0.15);
+  background: var(--phase-approval-a15);
   color: var(--phase-approval);
 }
 
@@ -287,17 +287,17 @@
 
 /* Reference: Warning (Allow) — #D98D26 bg, white fg */
 .approval-panel__btn--approve {
-  background: rgba(217, 141, 38, 1);
+  background: var(--action-approve);
   color: white;
-  border-color: rgba(217, 141, 38, 0.42);
+  border-color: var(--action-approve-border);
 }
 
 .approval-panel__btn--approve:hover:not(:disabled) {
-  background: rgba(217, 141, 38, 0.88);
+  background: var(--action-approve-hover);
 }
 
 .approval-panel__btn--approve:active:not(:disabled) {
-  background: rgba(217, 141, 38, 0.78);
+  background: var(--action-approve-active);
 }
 
 .approval-panel__shortcuts {
@@ -355,7 +355,7 @@
 }
 
 .approval-panel--question .approval-panel__icon {
-  background: rgba(110, 167, 255, 0.15);
+  background: var(--phase-running-a15);
   color: var(--phase-running);
 }
 
@@ -390,7 +390,7 @@
   color: var(--phase-running);
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  background: rgba(110, 167, 255, 0.12);
+  background: var(--phase-running-a12);
   padding: 2px 6px;
   border-radius: 3px;
   width: fit-content;
@@ -483,7 +483,7 @@
 }
 
 .approval-panel__text-input:focus {
-  border-color: rgba(110, 167, 255, 0.4);
+  border-color: var(--phase-running-a40);
 }
 
 .approval-panel__text-input::placeholder {
@@ -500,7 +500,7 @@
 .approval-panel__btn--proceed {
   background: var(--paper);
   color: rgba(0, 0, 0, 0.88);
-  border-color: var(--paper-86, rgba(241, 234, 217, 0.86));
+  border-color: var(--paper-86);
 }
 
 .approval-panel__btn--submit:hover:not(:disabled),
@@ -528,16 +528,16 @@
    ============================================ */
 
 .approval-panel--plan {
-  border-color: rgba(192, 132, 252, 0.25);
+  border-color: var(--accent-plan-a25);
 }
 
 .approval-panel--plan .approval-panel__icon {
-  background: rgba(192, 132, 252, 0.15);
-  color: #c084fc;
+  background: var(--accent-plan-a15);
+  color: var(--accent-plan);
 }
 
 .approval-panel--plan .approval-panel__title {
-  color: #c084fc;
+  color: var(--accent-plan);
 }
 
 .approval-panel__plan-steps {
@@ -553,9 +553,9 @@
   align-items: flex-start;
   gap: 10px;
   padding: 10px 12px;
-  background: rgba(192, 132, 252, 0.06);
+  background: var(--accent-plan-a06);
   border-radius: 6px;
-  border: 1px solid rgba(192, 132, 252, 0.1);
+  border: 1px solid var(--accent-plan-a10);
 }
 
 .approval-panel__plan-step-number {
@@ -564,9 +564,9 @@
   justify-content: center;
   width: 22px;
   height: 22px;
-  background: rgba(192, 132, 252, 0.15);
+  background: var(--accent-plan-a15);
   border-radius: 50%;
-  color: #c084fc;
+  color: var(--accent-plan);
   font-weight: 600;
   font-size: 12px;
   flex-shrink: 0;
@@ -592,7 +592,7 @@
 .approval-panel__plan-content {
   overflow: visible;
   padding: 12px;
-  background: rgba(192, 132, 252, 0.04);
+  background: var(--accent-plan-a04);
   border-radius: 6px;
   margin-bottom: 12px;
   color: var(--paper);
@@ -604,7 +604,7 @@
 .approval-panel__plan-content h2,
 .approval-panel__plan-content h3,
 .approval-panel__plan-content h4 {
-  color: #c084fc;
+  color: var(--accent-plan);
   margin-top: 16px;
   margin-bottom: 8px;
   font-weight: 600;
@@ -652,7 +652,7 @@
 }
 
 .approval-panel__plan-content blockquote {
-  border-left: 3px solid rgba(192, 132, 252, 0.4);
+  border-left: 3px solid var(--accent-plan-a40);
   margin: 8px 0;
   padding-left: 12px;
   color: var(--ink-soft);
