@@ -101,12 +101,12 @@
 }
 
 .notif-body__option:hover {
-  background: rgba(255, 213, 138, 0.08);
+  background: var(--phase-answer-a08);
   border-color: rgba(255, 213, 138, 0.2);
 }
 
 .notif-body__option--selected {
-  background: rgba(255, 213, 138, 0.12);
+  background: var(--phase-answer-a12);
   border-color: rgba(255, 213, 138, 0.35);
 }
 
@@ -206,7 +206,7 @@
 }
 
 .notif-body__btn--danger {
-  background: rgba(244, 164, 164, 0.15);
+  background: var(--phase-approval-a15);
   color: var(--phase-approval);
 }
 
@@ -224,7 +224,7 @@
 }
 
 .notif-body__btn--amber {
-  background: rgba(255, 213, 138, 0.15);
+  background: var(--phase-answer-a15);
   color: var(--phase-answer);
 }
 

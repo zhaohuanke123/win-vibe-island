@@ -1,0 +1,7 @@
+<svg fill="none" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <title>CodeBuddy</title>
+  <rect width="24" height="24" rx="5" fill="#e88a8a"/>
+  <path d="M9 8l-4 4 4 4" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M15 8l4 4-4 4" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="13" y1="7" x2="11" y2="17" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/>
+</svg>

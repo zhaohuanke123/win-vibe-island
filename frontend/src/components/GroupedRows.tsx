@@ -1,7 +1,8 @@
 import { useState, useMemo, useCallback, memo } from "react";
 import { SessionRow } from "./SessionRow";
 import { phasePriority, isAttentionPhase, phaseColor } from "../shared/phase-colors";
-import { getAgent } from "../shared/agents";
+import { getAgent, type AgentType } from "../shared/agents";
+import { AgentIcon } from "./AgentIcon";
 import type { Session, UIPhase } from "../store/sessions";
 import "./GroupedRows.css";
 
@@ -228,7 +229,10 @@ export const GroupedRows = memo(function GroupedRows({
                   <path d="M4 6 l4 4 l4 -4" />
                 </svg>
               </span>
-              {group.color && (
+              {group.color && groupBy === "agent" && group.key !== "__all__" && (
+                <AgentIcon agent={group.key as AgentType} size={14} className={`${headerClass}__icon`} />
+              )}
+              {group.color && groupBy !== "agent" && (
                 <span
                   className={`${headerClass}__dot`}
                   style={{ backgroundColor: group.color }}

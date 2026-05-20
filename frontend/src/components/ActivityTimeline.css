@@ -99,8 +99,8 @@
   margin-bottom: 6px;
   font-size: 11px;
   color: var(--paper);
-  background: rgba(110, 167, 255, 0.08);
-  border: 1px solid rgba(110, 167, 255, 0.15);
+  background: var(--phase-running-a08);
+  border: 1px solid var(--phase-running-a15);
   border-radius: 4px;
 }
 

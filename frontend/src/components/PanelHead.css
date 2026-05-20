@@ -39,13 +39,13 @@
 
 .panel-head__chip--waiting {
   color: var(--phase-approval);
-  background: rgba(244, 164, 164, 0.1);
+  background: var(--phase-approval-a10);
   border: 1px solid rgba(244, 164, 164, 0.18);
 }
 
 .panel-head__chip--running {
   color: var(--phase-running);
-  background: rgba(110, 167, 255, 0.1);
+  background: var(--phase-running-a10);
   border: 1px solid rgba(110, 167, 255, 0.18);
 }
 

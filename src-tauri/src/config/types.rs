@@ -329,29 +329,25 @@ impl Default for UiConfig {
     }
 }
 
-/// State indicator colors
+/// 状态指示器颜色，与前端 UIPhase 1:1 对齐
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StateColors {
     pub idle: String,
-    pub thinking: String,
     pub running: String,
-    pub streaming: String,
-    pub approval: String,
-    pub error: String,
-    pub done: String,
+    pub waiting_for_approval: String,
+    pub waiting_for_answer: String,
+    pub completed: String,
 }
 
 impl Default for StateColors {
     fn default() -> Self {
         Self {
-            idle: "#6b7280".to_string(),
-            thinking: "#a78bfa".to_string(),
-            running: "#3b82f6".to_string(),
-            streaming: "#06b6d4".to_string(),
-            approval: "#f59e0b".to_string(),
-            error: "#ef4444".to_string(),
-            done: "#22c55e".to_string(),
+            idle: "#9a958a".to_string(),
+            running: "#6ea7ff".to_string(),
+            waiting_for_approval: "#f4a4a4".to_string(),
+            waiting_for_answer: "#ffd58a".to_string(),
+            completed: "#6fb982".to_string(),
         }
     }
 }

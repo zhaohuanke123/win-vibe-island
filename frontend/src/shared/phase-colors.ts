@@ -1,6 +1,7 @@
 import type { UIPhase } from "../store/sessions";
+import { useConfigStore } from "../store/config";
 
-const PHASE_COLOR: Record<UIPhase, string> = {
+const FALLBACK: Record<UIPhase, string> = {
   waitingForApproval: '#f4a4a4',
   waitingForAnswer:   '#ffd58a',
   running:            '#6ea7ff',
@@ -9,7 +10,9 @@ const PHASE_COLOR: Record<UIPhase, string> = {
 };
 
 export function phaseColor(phase: UIPhase): string {
-  return PHASE_COLOR[phase] ?? PHASE_COLOR.idle;
+  const colors = useConfigStore.getState().config.ui.stateColors;
+  const key = phase as keyof typeof colors;
+  return colors[key] ?? FALLBACK[phase] ?? FALLBACK.idle;
 }
 
 const PHASE_PRIORITY: Record<UIPhase, number> = {

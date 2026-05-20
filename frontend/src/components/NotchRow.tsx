@@ -2,6 +2,7 @@ import { memo, type ReactNode } from "react";
 import { BarsGlyph } from "./BarsGlyph";
 import type { UIPhase } from "../store/sessions";
 import { getAgent, type AgentType } from "../shared/agents";
+import { AgentIcon } from "./AgentIcon";
 
 interface NotchRowProps {
   phase?: UIPhase;
@@ -31,11 +32,8 @@ export const NotchRow = memo(function NotchRow({
       <span className="notch-row__glyph">
         <BarsGlyph phase={phase ?? "idle"} data-testid="notch-glyph" />
       </span>
-      {agentInfo && (
-        <span
-          className="notch-row__agent-dot"
-          style={{ background: agentInfo.color }}
-        />
+      {agentInfo && agent && (
+        <AgentIcon agent={agent} size={14} className="notch-row__agent-icon" />
       )}
       {label != null ? (
         <span className="notch-row__label">{label}</span>

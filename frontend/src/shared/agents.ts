@@ -14,8 +14,8 @@ const AGENTS: Record<string, AgentInfo> = {
   opencode:  { name: 'OpenCode',    short: 'OC', color: '#ffb547', cli: 'opencode' },
   qoder:     { name: 'Qoder',       short: 'QD', color: '#ff6b9f', cli: 'qoder' },
   qwen:      { name: 'Qwen Code',   short: 'QW', color: '#c084fc', cli: 'qwen' },
-  factory:   { name: 'Factory',     short: 'FA', color: '#6e9fff', cli: 'droid' },
-  codebuddy: { name: 'CodeBuddy',   short: 'CB', color: '#fca5a5', cli: 'codebuddy' },
+  factory:   { name: 'Factory',     short: 'FA', color: '#4a8fd4', cli: 'droid' },
+  codebuddy: { name: 'CodeBuddy',   short: 'CB', color: '#e88a8a', cli: 'codebuddy' },
 };
 
 export type AgentType = keyof typeof AGENTS;

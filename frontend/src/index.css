@@ -19,8 +19,60 @@
   --phase-answer: #ffd58a;        /* waitingForAnswer — warm yellow */
   --phase-running: #6ea7ff;       /* running — blue */
   --phase-completed: #6fb982;     /* completed — green */
-  --phase-idle: rgba(241, 234, 217, 0.35); /* idle — paper at 35% */
-  --phase-waiting-aggregate: #e7a762; /* aggregate waiting — warm orange */
+  --phase-idle: #9a958a;          /* idle — warm gray */
+
+  /* Phase RGB channels — 用于 rgba() 派生 */
+  --phase-approval-rgb: 244, 164, 164;
+  --phase-answer-rgb: 255, 213, 138;
+  --phase-running-rgb: 110, 167, 255;
+  --phase-completed-rgb: 111, 185, 130;
+  --phase-idle-rgb: 154, 149, 138;
+
+  /* Phase alpha variants — 常用透明度 */
+  --phase-running-a04: rgba(110, 167, 255, 0.04);
+  --phase-running-a06: rgba(110, 167, 255, 0.06);
+  --phase-running-a08: rgba(110, 167, 255, 0.08);
+  --phase-running-a10: rgba(110, 167, 255, 0.10);
+  --phase-running-a12: rgba(110, 167, 255, 0.12);
+  --phase-running-a15: rgba(110, 167, 255, 0.15);
+  --phase-running-a20: rgba(110, 167, 255, 0.20);
+
+  --phase-approval-a06: rgba(244, 164, 164, 0.06);
+  --phase-approval-a08: rgba(244, 164, 164, 0.08);
+  --phase-approval-a10: rgba(244, 164, 164, 0.10);
+  --phase-approval-a12: rgba(244, 164, 164, 0.12);
+  --phase-approval-a15: rgba(244, 164, 164, 0.15);
+  --phase-approval-a20: rgba(244, 164, 164, 0.20);
+
+  --phase-answer-a06: rgba(255, 213, 138, 0.06);
+  --phase-answer-a08: rgba(255, 213, 138, 0.08);
+  --phase-answer-a10: rgba(255, 213, 138, 0.10);
+  --phase-answer-a15: rgba(255, 213, 138, 0.15);
+  --phase-answer-a20: rgba(255, 213, 138, 0.20);
+
+  --phase-completed-a06: rgba(111, 185, 130, 0.06);
+  --phase-completed-a08: rgba(111, 185, 130, 0.08);
+  --phase-completed-a10: rgba(111, 185, 130, 0.10);
+  --phase-completed-a12: rgba(111, 185, 130, 0.12);
+  --phase-completed-a15: rgba(111, 185, 130, 0.15);
+  --phase-completed-a20: rgba(111, 185, 130, 0.20);
+
+  --phase-running-a40: rgba(110, 167, 255, 0.40);
+
+  /* Action colors */
+  --action-approve: rgba(217, 141, 38, 1);
+  --action-approve-hover: rgba(217, 141, 38, 0.88);
+  --action-approve-active: rgba(217, 141, 38, 0.78);
+  --action-approve-border: rgba(217, 141, 38, 0.42);
+
+  /* Plan mode accent — 与 Agent 品牌色独立 */
+  --accent-plan: #a78bfa;
+  --accent-plan-a04: rgba(167, 139, 250, 0.04);
+  --accent-plan-a06: rgba(167, 139, 250, 0.06);
+  --accent-plan-a10: rgba(167, 139, 250, 0.10);
+  --accent-plan-a15: rgba(167, 139, 250, 0.15);
+  --accent-plan-a25: rgba(167, 139, 250, 0.25);
+  --accent-plan-a40: rgba(167, 139, 250, 0.40);
 
   /* Reference opacity tokens */
   --white-02: rgba(255, 255, 255, 0.02);
@@ -42,6 +94,7 @@
   --paper-70: rgba(241, 234, 217, 0.70);
   --paper-78: rgba(241, 234, 217, 0.78);
   --paper-85: rgba(241, 234, 217, 0.85);
+  --paper-86: rgba(241, 234, 217, 0.86);
   --paper-88: rgba(241, 234, 217, 0.88);
   --paper-90: rgba(241, 234, 217, 0.90);
   --paper-92: rgba(241, 234, 217, 0.92);

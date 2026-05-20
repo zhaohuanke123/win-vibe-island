@@ -69,17 +69,17 @@
 
 .tool-exec-detail__status[data-status="success"] {
   color: var(--phase-completed);
-  background: rgba(111, 185, 130, 0.12);
+  background: var(--phase-completed-a12);
 }
 
 .tool-exec-detail__status[data-status="failed"] {
   color: var(--phase-approval);
-  background: rgba(244, 164, 164, 0.12);
+  background: var(--phase-approval-a12);
 }
 
 .tool-exec-detail__status[data-status="running"] {
   color: var(--phase-running);
-  background: rgba(110, 167, 255, 0.12);
+  background: var(--phase-running-a12);
 }
 
 .tool-exec-detail__status[data-status="pending"] {
@@ -148,8 +148,8 @@
   padding: 6px 8px;
   font-size: 11px;
   color: var(--phase-approval);
-  background: rgba(244, 164, 164, 0.08);
-  border: 1px solid rgba(244, 164, 164, 0.15);
+  background: var(--phase-approval-a08);
+  border: 1px solid var(--phase-approval-a15);
   border-radius: 4px;
   white-space: pre-wrap;
   word-break: break-word;

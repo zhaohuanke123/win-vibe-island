@@ -30,7 +30,7 @@
 }
 
 .session-context-menu__item--danger:hover {
-  background: rgba(244, 164, 164, 0.1);
+  background: var(--phase-approval-a10);
 }
 
 .session-context-menu__check {
