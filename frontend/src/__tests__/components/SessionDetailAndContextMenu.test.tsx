@@ -70,6 +70,7 @@ const DEFAULT_TEST_CONFIG: AppConfig = {
     alpha: 240,
     compactBorderRadius: 16,
     expandedBorderRadius: 22,
+    snapPosition: "top",
   },
   processWatcher: {
     pollIntervalMs: 5000,

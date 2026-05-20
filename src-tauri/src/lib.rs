@@ -18,6 +18,7 @@ mod logger;
 mod session_store;
 mod session_state;
 mod window_focus;
+mod window_manager;
 mod transcript_discovery;
 
 use tauri::{
@@ -132,17 +133,37 @@ pub fn run() {
                     let screen_width = monitor.size().width as i32;
 
                     // Use the ACTUAL window outer size for centering, not a hardcoded width.
-                    // The Tauri window is created at 420px (from tauri.conf.json), and using
-                    // a mismatched width (e.g. 240) would leave the center 90px off to the right.
-                    // The frontend resizes via update_overlay_size shortly after mount.
                     let window_width = window
                         .outer_size()
                         .map(|s| s.width as i32)
                         .unwrap_or(420);
 
-                    // Center horizontally at top of screen
-                    let x = (screen_width - window_width) / 2;
-                    let _ = window.set_position(Position::Physical(PhysicalPosition { x, y: 8 }));
+                    // Read snap position preference from config
+                    let snap_pos: window_manager::SnapPosition = {
+                        let cfg = config::get_config();
+                        match cfg.overlay.snap_position.as_str() {
+                            "bottom" => window_manager::SnapPosition::Bottom,
+                            _ => window_manager::SnapPosition::Top,
+                        }
+                    };
+
+                    // Use window_manager to calculate snap position
+                    if let Some(result) = window_manager::calculate_snap_position(
+                        window_width,
+                        60, // initial height (compact mode, approximate)
+                        snap_pos,
+                        None,
+                        None,
+                    ) {
+                        let _ = window.set_position(Position::Physical(PhysicalPosition {
+                            x: result.x,
+                            y: result.y,
+                        }));
+                    } else {
+                        // Fallback: center horizontally at top of screen
+                        let x = (screen_width - window_width) / 2;
+                        let _ = window.set_position(Position::Physical(PhysicalPosition { x, y: 8 }));
+                    }
                 }
             }
 
@@ -376,6 +397,8 @@ pub fn run() {
             logger::log_entry,
             commands::discover_transcripts,
             commands::open_control_center,
+            commands::snap_overlay,
+            commands::enumerate_monitors,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

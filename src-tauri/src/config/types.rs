@@ -208,7 +208,13 @@ pub struct OverlayConfigDefaults {
     /// Border radius for expanded mode
     #[serde(default = "default_expanded_radius")]
     pub expanded_border_radius: u32,
+
+    /// Screen edge snap position preference
+    #[serde(default = "default_snap_position")]
+    pub snap_position: String,
 }
+
+fn default_snap_position() -> String { "top".to_string() }
 
 fn default_overlay_x() -> i32 { 100 }
 fn default_overlay_y() -> i32 { 100 }
@@ -238,6 +244,7 @@ impl Default for OverlayConfigDefaults {
             alpha: default_alpha(),
             compact_border_radius: default_compact_radius(),
             expanded_border_radius: default_expanded_radius(),
+            snap_position: default_snap_position(),
         }
     }
 }
@@ -407,10 +414,10 @@ pub struct SpringConfig {
 impl Default for SpringConfig {
     fn default() -> Self {
         Self {
-            expand: SpringParams { stiffness: 200, damping: 22, mass: 0.8 },
-            collapse: SpringParams { stiffness: 280, damping: 26, mass: 0.7 },
-            transition: SpringParams { stiffness: 400, damping: 30, mass: 1.0 },
-            micro: SpringParams { stiffness: 500, damping: 35, mass: 0.8 },
+            expand: SpringParams { stiffness: 300, damping: 30, mass: 0.8 },
+            collapse: SpringParams { stiffness: 300, damping: 30, mass: 0.7 },
+            transition: SpringParams { stiffness: 300, damping: 30, mass: 1.0 },
+            micro: SpringParams { stiffness: 300, damping: 30, mass: 0.8 },
         }
     }
 }

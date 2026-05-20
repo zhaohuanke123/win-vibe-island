@@ -14,6 +14,12 @@
   --border-hover: rgba(255, 255, 255, 0.12);
   --border-focus: rgba(255, 255, 255, 0.16);
 
+  /* Glassmorphism — backdrop blur + subtle border glow */
+  --glass-blur: blur(24px);
+  --glass-bg: rgba(13, 13, 15, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 2px 16px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.04);
+
   /* Phase Colors — 1:1 reference match */
   --phase-approval: #f4a4a4;      /* waitingForApproval — coral red */
   --phase-answer: #ffd58a;        /* waitingForAnswer — warm yellow */
@@ -99,9 +105,9 @@
   --paper-90: rgba(241, 234, 217, 0.90);
   --paper-92: rgba(241, 234, 217, 0.92);
 
-  /* Typography */
-  --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  /* Typography — modern system font stack with Inter, Segoe UI Variable */
+  --font-ui: 'Segoe UI Variable', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
 }
 
 * {

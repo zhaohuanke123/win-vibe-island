@@ -50,6 +50,7 @@ export interface OverlayConfigDefaults {
   alpha: number;
   compactBorderRadius: number;
   expandedBorderRadius: number;
+  snapPosition: "top" | "bottom";
 }
 
 export interface ProcessWatcherConfig {
@@ -190,6 +191,7 @@ const DEFAULT_CONFIG: AppConfig = {
     alpha: 240,
     compactBorderRadius: 16,
     expandedBorderRadius: 22,
+    snapPosition: "top",
   },
   processWatcher: {
     pollIntervalMs: 5000,
@@ -211,10 +213,10 @@ const DEFAULT_CONFIG: AppConfig = {
       waitingForApprovalDurationMs: 600,
       waitingForAnswerDurationMs: 600,
       spring: {
-        expand: { stiffness: 170, damping: 20, mass: 0.8 },
-        collapse: { stiffness: 380, damping: 32, mass: 0.7 },
-        transition: { stiffness: 400, damping: 30, mass: 1.0 },
-        micro: { stiffness: 200, damping: 22, mass: 0.8 },
+        expand: { stiffness: 300, damping: 30, mass: 0.8 },
+        collapse: { stiffness: 300, damping: 30, mass: 0.7 },
+        transition: { stiffness: 300, damping: 30, mass: 1.0 },
+        micro: { stiffness: 300, damping: 30, mass: 0.8 },
       },
     },
     dimensions: {

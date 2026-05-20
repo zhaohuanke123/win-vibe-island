@@ -6,6 +6,7 @@ use crate::pipe_server;
 use crate::process_watcher;
 use crate::session_store;
 use crate::window_focus::{self, FocusResult};
+use crate::window_manager::{self, SnapPosition, SnapResult};
 use crate::agent_event::JumpTarget;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, LogicalSize, Manager, Size, WebviewWindow};
@@ -934,4 +935,55 @@ pub fn open_control_center(app: AppHandle) -> Result<(), String> {
 
     let _ = window.show();
     Ok(())
+}
+
+/// Snap the overlay window to a screen edge.
+/// Uses the current window position to determine which monitor to snap to.
+#[tauri::command]
+pub fn snap_overlay(
+    app: AppHandle,
+    position: String,
+    prefer_monitor_x: Option<i32>,
+    prefer_monitor_y: Option<i32>,
+) -> Result<SnapResult, String> {
+    let snap_pos = match position.as_str() {
+        "top" => SnapPosition::Top,
+        "bottom" => SnapPosition::Bottom,
+        other => return Err(format!("Invalid snap position: {}. Use 'top' or 'bottom'", other)),
+    };
+
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "Main window not found".to_string())?;
+
+    let size = window.outer_size().map_err(|e| e.to_string())?;
+    let logical_width = size.width as i32;
+    let logical_height = size.height as i32;
+
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let phys_width = (logical_width as f64 * scale).round() as i32;
+    let phys_height = (logical_height as f64 * scale).round() as i32;
+
+    let result = window_manager::calculate_snap_position(
+        phys_width,
+        phys_height,
+        snap_pos,
+        prefer_monitor_x,
+        prefer_monitor_y,
+    )
+    .ok_or_else(|| "Could not determine monitor work area".to_string())?;
+
+    // Apply the snap position
+    let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+        x: result.x,
+        y: result.y,
+    }));
+
+    Ok(result)
+}
+
+/// Enumerate all monitors and return their work areas
+#[tauri::command]
+pub fn enumerate_monitors() -> Vec<window_manager::MonitorWorkArea> {
+    window_manager::enumerate_monitors()
 }
