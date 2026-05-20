@@ -73,10 +73,18 @@ pub struct PermissionRequestPayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct QuestionOption {
+    pub label: String,
+    pub description: Option<String>,
+    pub preview: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct QuestionAskedPayload {
     pub session_id: String,
     pub question_text: String,
-    pub options: Option<Vec<String>>,
+    pub options: Option<Vec<QuestionOption>>,
     pub timestamp: i64,
 }
 

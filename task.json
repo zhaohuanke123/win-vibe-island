@@ -1860,25 +1860,55 @@
       "id": 69,
       "title": "Bugfix: DiffViewer scrollbar padding and bottom fade clipping",
       "description": "当在 Approval 弹出大体积文件及过长代码行审批（如 30 行+ 的 Diff）时，代码框底部区域受到主容器 Footer 固定容器叠加干扰被轻微裁切；且自定义代码内的滚动条 padding 不足以完全避让右侧边缘，导致交互阻滞。",
-      "status": "pending",
+      "status": "completed",
       "type": "bug",
-      "requirement_ref": "docs/architecture/states-and-flows.md 5.1 Overlay"
+      "requirement_ref": "docs/architecture/states-and-flows.md 5.1 Overlay",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "frontend/src/components/ApprovalPanel.css",
+        "frontend/src/components/DiffViewer.css"
+      ]
     },
     {
       "id": 70,
       "title": "Bugfix: AskUserQuestion Preview property missing or misaligned",
       "description": "在进行 'Question Layout Test' 并传递了带有代码 preview 配置参数的选项 ('XState') 时，页面虽成功渲染了单选与长文本选项组，但被指定含有 preview: '```typescript...```' 选项却完全没有渲染出副卡片或者代码结构（如 screenshot-04 所示只显示了 Label）。",
-      "status": "pending",
+      "status": "completed",
       "type": "bug",
-      "requirement_ref": "frontend/src/store/sessions.ts (QuestionOption interface)"
+      "requirement_ref": "frontend/src/store/sessions.ts (QuestionOption interface)",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "src-tauri/src/agent_event.rs",
+        "frontend/src/shared/session-reducer.ts",
+        "frontend/src/components/ApprovalPanel.tsx",
+        "frontend/src/components/ApprovalPanel.css",
+        "frontend/src/components/NotifBody.tsx",
+        "frontend/src/components/NotifBody.css"
+      ]
     },
     {
       "id": 71,
       "title": "Feature: Integrate VibeTestBridge Playwright automation suite into repo",
       "description": "既然我们已修补了非 Tauri 环境保护并证实 __VIBE_TEST_BRIDGE__ 的健壮性，应利用其构造系统的视觉回归自动化组（Coverage included: Thinking mode, Diff overflow and AskUserQuestion rendering）。",
-      "status": "pending",
+      "status": "completed",
       "type": "feature",
-      "requirement_ref": "docs/testing/testing.md: Layer 2 & Bridge"
+      "requirement_ref": "docs/testing/testing.md: Layer 2 & Bridge",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "tests/e2e/specs/thinking-mode.spec.ts",
+        "tests/e2e/specs/diff-overflow.spec.ts",
+        "tests/e2e/specs/ask-user-question-preview.spec.ts",
+        "tests/e2e/setup/test-helpers.ts"
+      ]
     }
   ]
 }

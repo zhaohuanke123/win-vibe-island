@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback, useRef, memo } from "react";
-import type { Session, NotifKind } from "../store/sessions";
+import type { Session, NotifKind, QuestionOption } from "../store/sessions";
 import "./NotifBody.css";
+
+/** Strip markdown code fences from preview text */
+function stripCodeFences(text: string): string {
+  return text.replace(/^```[\w]*\n?/, "").replace(/\n?```\s*$/, "");
+}
 
 // ─── Public types ──────────────────────────────────────────────────────────
 
@@ -263,8 +268,11 @@ function NotifJump({ session, standalone, onSubmit, onJump, testId }: NotifJumpP
     ?? session.toolName
     ?? "Question from agent";
 
-  // Extract options if present
-  const options = (session.currentTool?.input?.options as string[] | undefined) ?? [];
+  // Extract structured options (QuestionOption objects) or fall back to plain strings
+  const rawOptions = (session.currentTool?.input?.options ?? []) as Array<string | QuestionOption>;
+  const options: QuestionOption[] = rawOptions.map((o) =>
+    typeof o === "string" ? { label: o } : o
+  );
 
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [freeform, setFreeform] = useState("");
@@ -274,7 +282,7 @@ function NotifJump({ session, standalone, onSubmit, onJump, testId }: NotifJumpP
     if (freeform.trim()) {
       onSubmit?.(freeform.trim());
     } else if (selectedOption !== null) {
-      onSubmit?.(options[selectedOption] ?? String(selectedOption));
+      onSubmit?.(options[selectedOption]?.label ?? String(selectedOption));
     }
   }, [freeform, selectedOption, options, onSubmit]);
 
@@ -332,7 +340,15 @@ function NotifJump({ session, standalone, onSubmit, onJump, testId }: NotifJumpP
               data-testid={`notif-opt-${i + 1}`}
             >
               <span className="notif-body__option-key">{i + 1}</span>
-              <span>{opt}</span>
+              <div className="notif-body__option-content">
+                <span className="notif-body__option-label">{opt.label}</span>
+                {opt.description && (
+                  <span className="notif-body__option-desc">{opt.description}</span>
+                )}
+                {opt.preview && (
+                  <pre className="notif-body__option-preview"><code>{stripCodeFences(opt.preview)}</code></pre>
+                )}
+              </div>
             </div>
           ))}
         </div>

@@ -96,7 +96,7 @@ export interface PermissionRequestPayload {
 export interface QuestionAskedPayload {
   sessionId: string;
   questionText: string;
-  options?: string[];
+  options?: Array<{ label: string; description?: string; preview?: string }>;
   timestamp: number;
 }
 

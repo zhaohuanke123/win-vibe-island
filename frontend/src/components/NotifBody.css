@@ -125,6 +125,44 @@
   flex-shrink: 0;
 }
 
+.notif-body__option-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.notif-body__option-label {
+  color: var(--paper);
+  font-size: 12px;
+}
+
+.notif-body__option-desc {
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
+.notif-body__option-preview {
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  overflow-x: auto;
+  max-height: 100px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 /* ── Reply text (done) ── */
 
 .notif-body__reply {

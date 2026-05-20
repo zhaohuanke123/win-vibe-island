@@ -34,7 +34,7 @@
 }
 
 .diff-viewer__content {
-  padding: 4px 0;
+  padding: 4px 12px 8px 0;
   width: max-content;
   min-width: 100%;
 }
@@ -112,6 +112,7 @@
 /* Scrollbar styling */
 .diff-viewer::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 .diff-viewer::-webkit-scrollbar-track {

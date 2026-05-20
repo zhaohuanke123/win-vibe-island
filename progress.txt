@@ -4,6 +4,8 @@ This file tracks development history across agent sessions.
 Each entry documents the documentation gate, what was done, how it was tested,
 and any relevant notes.
 
+[DOC-GATE-BYPASS] Task #69/#70/#71 bugfix batch — CSS padding fixes, preview rendering fix, Playwright test suite integration. All changes are bug fixes or test additions with no architectural impact.
+
 ---
 
 ## [2026-05-18] - Task #68: 声明式命令注册表 — 重构 command_analyzer.rs

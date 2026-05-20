@@ -10,6 +10,11 @@ import { marked } from "marked";
 import DOMPurify from "dompurify";
 import "./ApprovalPanel.css";
 
+/** Strip markdown code fences (```lang ... ```) from preview content */
+function stripCodeFences(text: string): string {
+  return text.replace(/^```[\w]*\n?/, "").replace(/\n?```\s*$/, "");
+}
+
 interface ApprovalPanelProps {
   request: ApprovalRequest | null;
   onApprovalHandled: () => void;
@@ -300,6 +305,9 @@ function QuestionPanel({ request, onHandled, measurement = false }: { request: A
                     <span className="approval-panel__option-label">{opt.label}</span>
                     {opt.description && (
                       <span className="approval-panel__option-desc">{opt.description}</span>
+                    )}
+                    {opt.preview && (
+                      <pre className="approval-panel__option-preview"><code>{stripCodeFences(opt.preview)}</code></pre>
                     )}
                   </button>
                 ))}
