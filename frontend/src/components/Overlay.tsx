@@ -374,6 +374,66 @@ export function Overlay() {
     setExpanded((value) => !value);
   };
 
+  // ── Drag-to-snap: track drag on the compact bar ──
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const snapDebounceRef = useRef<number | null>(null);
+
+  const handleBarMouseDown = useCallback((e: React.MouseEvent) => {
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+  }, []);
+
+  const handleBarMouseUp = useCallback((e: React.MouseEvent) => {
+    const start = dragStartRef.current;
+    dragStartRef.current = null;
+    if (!start) return;
+
+    // Only snap if the mouse actually moved (>5px), not a click
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+
+    // Debounced snap after drag ends
+    if (snapDebounceRef.current !== null) {
+      window.clearTimeout(snapDebounceRef.current);
+    }
+    snapDebounceRef.current = window.setTimeout(() => {
+      const pos = useConfigStore.getState().config.overlay.snapPosition;
+      invoke("snap_overlay", {
+        position: pos,
+        preferMonitorX: null,
+        preferMonitorY: null,
+      }).catch(() => {});
+    }, 100);
+  }, []);
+
+  // Also listen for mouseup on document (OS-level drag may release outside the bar)
+  useEffect(() => {
+    const handleDocMouseUp = (e: MouseEvent) => {
+      const start = dragStartRef.current;
+      if (!start) return;
+      dragStartRef.current = null;
+
+      const dx = e.clientX - start.x;
+      const dy = e.clientY - start.y;
+      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+
+      if (snapDebounceRef.current !== null) {
+        window.clearTimeout(snapDebounceRef.current);
+      }
+      snapDebounceRef.current = window.setTimeout(() => {
+        const pos = useConfigStore.getState().config.overlay.snapPosition;
+        invoke("snap_overlay", {
+          position: pos,
+          preferMonitorX: null,
+          preferMonitorY: null,
+        }).catch(() => {});
+      }, 100);
+    };
+
+    document.addEventListener("mouseup", handleDocMouseUp);
+    return () => document.removeEventListener("mouseup", handleDocMouseUp);
+  }, []);
+
   // ── Notch row data ──
   const notchPhase = active?.state ?? "idle";
   const notchAgent = active?.agent ?? "claude";
@@ -410,8 +470,15 @@ export function Overlay() {
             />
           )}
 
-          {/* Notch / Compact bar — using v8 NotchRow */}
-          <div className="overlay__bar pill__bar" data-testid="status-bar" onClick={handleBarClick}>
+          {/* Notch / Compact bar — draggable pill with edge snapping */}
+          <div
+            className="overlay__bar pill__bar"
+            data-testid="status-bar"
+            data-tauri-drag-region
+            onClick={handleBarClick}
+            onMouseDown={handleBarMouseDown}
+            onMouseUp={handleBarMouseUp}
+          >
             <NotchRow
               phase={notchPhase}
               agent={notchAgent}
