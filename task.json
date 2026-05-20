@@ -1921,15 +1921,21 @@
         "处理 Windows DPI 缩放改变事件（Scale Factor / DPI Changed）以及多显示器热插拔，确保吸附坐标计算准确",
         "提供吸附偏好设置（Top/Bottom/Notch），并持久化到 config store 中"
       ],
-      "status": "pending",
+      "status": "completed",
       "type": "feature",
       "priority": "high",
       "dependencies": [
         66
       ],
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "src-tauri/src/lib.rs",
         "src-tauri/src/window_manager.rs",
+        "src-tauri/src/commands.rs",
+        "src-tauri/src/config/types.rs",
         "frontend/src/store/config.ts"
       ]
     },
@@ -1943,14 +1949,20 @@
         "调整 NotchRow 和胶囊边框圆角（border-radius: 9999px）与高精度微距边框阴影，确保在 Windows 各种壁纸下均有极佳反差",
         "重构 NotchRow 的内容展示层，精简信息密度，提升小屏下的排版美感"
       ],
-      "status": "pending",
+      "status": "completed",
       "type": "feature",
       "priority": "medium",
       "dependencies": [
         67
       ],
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
         "frontend/src/index.css",
+        "frontend/src/components/Pill.css",
+        "frontend/src/components/NotchRow.css",
         "frontend/src/components/Overlay.tsx",
         "frontend/src/components/SessionRow.tsx"
       ]
@@ -1965,13 +1977,20 @@
         "实现胶囊从 compact (Notch) 到 full overlay (展开面板) 的 Layout Morphing（共享布局动画 layoutId）",
         "添加交互微交互（如 hover 缩放、按压回弹、呼吸状态灯微动画），提升操作质感"
       ],
-      "status": "pending",
+      "status": "completed",
       "type": "feature",
       "priority": "high",
       "dependencies": [
         73
       ],
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
       "files": [
+        "frontend/src/config/animation.ts",
+        "frontend/src/store/config.ts",
+        "src-tauri/src/config/types.rs",
         "frontend/src/components/Overlay.tsx",
         "frontend/src/components/AnimatedNotch.tsx"
       ]
