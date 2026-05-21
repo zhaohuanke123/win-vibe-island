@@ -1,10 +1,11 @@
 ---
 name: overlay-debug
 description: |
-  Overlay 悬浮窗调试辅助。帮助诊断 Win32 窗口显示、点击穿透、动画同步等问题。
+  Overlay 悬浮窗调试辅助。帮助诊断 Win32 窗口显示、点击穿透、拖拽吸附、事件竞争等问题。
   触发条件：
   - overlay 窗口不显示、闪烁、位置异常
   - 点击穿透异常（无法点击或不应穿透时穿透了）
+  - 拖拽后意外展开/收缩面板、拖拽和点击互相干扰
   - 动画卡顿、尺寸不对、DPI 缩放问题
   - "悬浮窗问题"、"overlay bug"、"窗口调试"
   不要触发：与 overlay 无关的 bug、纯前端逻辑问题
@@ -49,6 +50,39 @@ description: |
 - 确认 `apply_window_round_region` 被正确调用
 - 检查 `border_radius` 参数传递是否正确
 - 矮窗口（≤80px）使用 `height / 2` 作为圆角半径
+
+### 6. 拖拽与点击事件竞争
+
+拖拽（mousedown → mousemove → mouseup）和点击（mousedown → mouseup → click）共享 mousedown 起点，容易产生竞争。
+
+**已知陷阱：onClick 和 mouseup 竞争**
+
+在 Tauri WebView2 中，`onClick` 事件在 `mouseup` 之后触发。如果用两个独立处理器分别处理拖拽（mouseup）和点击（onClick），存在以下问题：
+
+- mouseup 中重置拖拽标记 → onClick 看不到标记 → 拖拽松手后误触展开
+- 即使不重置标记，React 合成事件和原生 document 监听器的执行时序不完全可预测
+
+**正确模式：统一在 mouseup 中判断**
+
+```
+mousedown → 记录起点，标记 wasDragged = false
+mousemove → 超过阈值(3px)则 wasDragged = true
+mouseup:
+  - wasDragged = false → 纯点击，执行 toggle 逻辑
+  - wasDragged = true  → 拖拽结束，执行吸附
+```
+
+移除 bar 上的 `onClick`，所有判断集中在 document 的 mouseup 监听器中。toggle 逻辑通过 `useRef` 保存（避免 useEffect `[]` 依赖导致的闭包过期）。
+
+**涉及文件**：`frontend/src/components/Overlay.tsx`
+
+**涉及后端命令**：
+- `start_manual_drag` — 记录拖拽起始鼠标位置和窗口位置
+- `move_overlay_drag` — 每次 mousemove 调用，后端用 SetWindowPos 移动窗口
+- `end_manual_drag` — 设置拖拽结束标志
+- `smart_snap_overlay` — 延迟 50ms 调用，检测窗口是否靠近屏幕边缘并吸附
+
+**注意**：项目使用 CRLF 换行符，Edit 工具可能因 `\r` 字符匹配失败，必要时用 sed 替代。
 
 ## 关键文件
 

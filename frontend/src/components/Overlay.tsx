@@ -360,11 +360,13 @@ export function Overlay() {
     }
   };
 
-  const handleBarClick = () => {
-    if (wasDraggedRef.current) {
-      wasDraggedRef.current = false;
-      return;
-    }
+  // ── Drag-to-snap: 前端 mousemove 驱动 + 后端 SetWindowPos 移动 ──
+  const wasDraggedRef = useRef(false);
+  const dragRafRef = useRef<number>(0);
+  const dragStartScreenRef = useRef<{ x: number; y: number } | null>(null);
+  // 用 ref 保存最新的 toggle 函数，避免 useEffect 闭包过期
+  const toggleRef = useRef<() => void>(() => {});
+  toggleRef.current = () => {
     if (approvalFocusKey) {
       if (isOverlayExpanded) {
         setCollapsedApprovalFocusKey(approvalFocusKey);
@@ -378,18 +380,11 @@ export function Overlay() {
     setExpanded((value) => !value);
   };
 
-  // ── Drag-to-snap: 前端 mousemove 驱动 + 后端 SetWindowPos 移动 ──
-  const wasDraggedRef = useRef(false);
-  const dragRafRef = useRef<number>(0);
-  const dragStartScreenRef = useRef<{ x: number; y: number } | null>(null);
-
   const handleBarMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
     e.preventDefault();
-    // 只记录起始位置，不标记为拖拽
     dragStartScreenRef.current = { x: e.screenX, y: e.screenY };
     wasDraggedRef.current = false;
-    // 传物理像素坐标给后端记录起点
     invoke("start_manual_drag", {
       mouseX: Math.round(e.screenX * window.devicePixelRatio),
       mouseY: Math.round(e.screenY * window.devicePixelRatio),
@@ -401,7 +396,6 @@ export function Overlay() {
       const start = dragStartScreenRef.current;
       if (!start) return;
 
-      // 首次移动：检查是否超过拖拽阈值
       if (!wasDraggedRef.current) {
         const dx = e.screenX - start.x;
         const dy = e.screenY - start.y;
@@ -422,12 +416,14 @@ export function Overlay() {
       if (!dragStartScreenRef.current) return;
       dragStartScreenRef.current = null;
 
-      // 纯点击（没超过阈值），不触发吸附
-      if (!wasDraggedRef.current) return;
+      if (!wasDraggedRef.current) {
+        // 纯点击，切换展开
+        toggleRef.current();
+        return;
+      }
 
+      // 拖拽结束，吸附到边缘
       cancelAnimationFrame(dragRafRef.current);
-      wasDraggedRef.current = false;
-
       invoke("end_manual_drag").catch(() => {});
       window.setTimeout(() => {
         invoke("smart_snap_overlay").catch(() => {});
@@ -483,7 +479,7 @@ export function Overlay() {
           <div
             className="overlay__bar pill__bar"
             data-testid="status-bar"
-            onClick={handleBarClick}
+
             onMouseDown={handleBarMouseDown}
           >
             <NotchRow
