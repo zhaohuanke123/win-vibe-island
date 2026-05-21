@@ -361,6 +361,10 @@ export function Overlay() {
   };
 
   const handleBarClick = () => {
+    if (wasDraggedRef.current) {
+      wasDraggedRef.current = false;
+      return;
+    }
     if (approvalFocusKey) {
       if (isOverlayExpanded) {
         setCollapsedApprovalFocusKey(approvalFocusKey);
@@ -374,64 +378,69 @@ export function Overlay() {
     setExpanded((value) => !value);
   };
 
-  // ── Drag-to-snap: track drag on the compact bar ──
-  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
-  const snapDebounceRef = useRef<number | null>(null);
+  // ── Drag-to-snap: 前端 mousemove 驱动 + 后端 SetWindowPos 移动 ──
+  const wasDraggedRef = useRef(false);
+  const dragRafRef = useRef<number>(0);
+  const dragStartScreenRef = useRef<{ x: number; y: number } | null>(null);
 
   const handleBarMouseDown = useCallback((e: React.MouseEvent) => {
-    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    if (e.button !== 0) return;
+    e.preventDefault();
+    // 只记录起始位置，不标记为拖拽
+    dragStartScreenRef.current = { x: e.screenX, y: e.screenY };
+    wasDraggedRef.current = false;
+    // 传物理像素坐标给后端记录起点
+    invoke("start_manual_drag", {
+      mouseX: Math.round(e.screenX * window.devicePixelRatio),
+      mouseY: Math.round(e.screenY * window.devicePixelRatio),
+    }).catch(() => {});
   }, []);
 
-  const handleBarMouseUp = useCallback((e: React.MouseEvent) => {
-    const start = dragStartRef.current;
-    dragStartRef.current = null;
-    if (!start) return;
-
-    // Only snap if the mouse actually moved (>5px), not a click
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
-    if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
-
-    // Debounced snap after drag ends
-    if (snapDebounceRef.current !== null) {
-      window.clearTimeout(snapDebounceRef.current);
-    }
-    snapDebounceRef.current = window.setTimeout(() => {
-      const pos = useConfigStore.getState().config.overlay.snapPosition;
-      invoke("snap_overlay", {
-        position: pos,
-        preferMonitorX: null,
-        preferMonitorY: null,
-      }).catch(() => {});
-    }, 100);
-  }, []);
-
-  // Also listen for mouseup on document (OS-level drag may release outside the bar)
   useEffect(() => {
-    const handleDocMouseUp = (e: MouseEvent) => {
-      const start = dragStartRef.current;
+    const handleMouseMove = (e: MouseEvent) => {
+      const start = dragStartScreenRef.current;
       if (!start) return;
-      dragStartRef.current = null;
 
-      const dx = e.clientX - start.x;
-      const dy = e.clientY - start.y;
-      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
-
-      if (snapDebounceRef.current !== null) {
-        window.clearTimeout(snapDebounceRef.current);
+      // 首次移动：检查是否超过拖拽阈值
+      if (!wasDraggedRef.current) {
+        const dx = e.screenX - start.x;
+        const dy = e.screenY - start.y;
+        if (Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+        wasDraggedRef.current = true;
       }
-      snapDebounceRef.current = window.setTimeout(() => {
-        const pos = useConfigStore.getState().config.overlay.snapPosition;
-        invoke("snap_overlay", {
-          position: pos,
-          preferMonitorX: null,
-          preferMonitorY: null,
+
+      cancelAnimationFrame(dragRafRef.current);
+      dragRafRef.current = requestAnimationFrame(() => {
+        invoke("move_overlay_drag", {
+          mouseX: Math.round(e.screenX * window.devicePixelRatio),
+          mouseY: Math.round(e.screenY * window.devicePixelRatio),
         }).catch(() => {});
-      }, 100);
+      });
     };
 
-    document.addEventListener("mouseup", handleDocMouseUp);
-    return () => document.removeEventListener("mouseup", handleDocMouseUp);
+    const handleMouseUp = () => {
+      if (!dragStartScreenRef.current) return;
+      dragStartScreenRef.current = null;
+
+      // 纯点击（没超过阈值），不触发吸附
+      if (!wasDraggedRef.current) return;
+
+      cancelAnimationFrame(dragRafRef.current);
+      wasDraggedRef.current = false;
+
+      invoke("end_manual_drag").catch(() => {});
+      window.setTimeout(() => {
+        invoke("smart_snap_overlay").catch(() => {});
+      }, 50);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      cancelAnimationFrame(dragRafRef.current);
+    };
   }, []);
 
   // ── Notch row data ──
@@ -474,10 +483,8 @@ export function Overlay() {
           <div
             className="overlay__bar pill__bar"
             data-testid="status-bar"
-            data-tauri-drag-region
             onClick={handleBarClick}
             onMouseDown={handleBarMouseDown}
-            onMouseUp={handleBarMouseUp}
           >
             <NotchRow
               phase={notchPhase}

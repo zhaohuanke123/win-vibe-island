@@ -9,7 +9,15 @@ use crate::window_focus::{self, FocusResult};
 use crate::window_manager::{self, SnapPosition, SnapResult};
 use crate::agent_event::JumpTarget;
 use serde::Serialize;
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use tauri::{AppHandle, Emitter, LogicalSize, Manager, Size, WebviewWindow};
+
+/// 手动拖拽状态（原子变量，跨命令共享）
+static DRAG_ACTIVE: AtomicBool = AtomicBool::new(false);
+static DRAG_START_MOUSE_X: AtomicI32 = AtomicI32::new(0);
+static DRAG_START_MOUSE_Y: AtomicI32 = AtomicI32::new(0);
+static DRAG_START_WIN_X: AtomicI32 = AtomicI32::new(0);
+static DRAG_START_WIN_Y: AtomicI32 = AtomicI32::new(0);
 
 #[cfg(target_os = "windows")]
 fn apply_window_round_region(window: &WebviewWindow, radius: u32, phys_w: u32, phys_h: u32) -> Result<(), String> {
@@ -563,10 +571,11 @@ pub fn update_overlay_size(
 
     if let Some(x) = target_x {
         use tauri::PhysicalPosition;
+        let current_pos = window.outer_position().map_err(|e| e.to_string())?;
         window
             .set_position(tauri::Position::Physical(PhysicalPosition {
                 x,
-                y: (8.0 * dpi_scale).round() as i32,
+                y: current_pos.y,
             }))
             .map_err(|e| e.to_string())?;
     }
@@ -982,8 +991,121 @@ pub fn snap_overlay(
     Ok(result)
 }
 
+/// 拖拽后智能吸附：根据窗口当前位置自动检测屏幕边缘，支持多显示器。
+/// 靠近边缘（40px 阈值）→ 吸附到该边；否则使用配置的默认 snapPosition。
+#[tauri::command]
+pub fn smart_snap_overlay(app: AppHandle) -> Result<SnapResult, String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "Main window not found".to_string())?;
+
+    let pos = window.outer_position().map_err(|e| e.to_string())?;
+    let size = window.outer_size().map_err(|e| e.to_string())?;
+    let scale = window.scale_factor().unwrap_or(1.0);
+
+    let phys_width = (size.width as f64).round() as i32;
+    let phys_height = (size.height as f64 * scale).round() as i32;
+    let center_x = pos.x + phys_width / 2;
+    let center_y = pos.y + phys_height / 2;
+
+    let detected = window_manager::is_near_edge(pos.y, phys_height, center_x, center_y);
+    // 不在任何边缘附近 → 保持当前位置，不吸附
+    let Some(snap_pos) = detected else {
+        return Ok(SnapResult { x: pos.x, y: pos.y, monitor_index: 0, dpi_scale: scale });
+    };
+
+    let result = window_manager::calculate_snap_position(
+        phys_width,
+        phys_height,
+        snap_pos,
+        Some(center_x),
+        Some(center_y),
+    )
+    .ok_or_else(|| "Could not determine monitor work area".to_string())?;
+
+    let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+        x: result.x,
+        y: result.y,
+    }));
+
+    Ok(result)
+}
+
 /// Enumerate all monitors and return their work areas
 #[tauri::command]
 pub fn enumerate_monitors() -> Vec<window_manager::MonitorWorkArea> {
     window_manager::enumerate_monitors()
+}
+
+// ── 手动拖拽命令 ──────────────────────────────────────────────
+
+/// 开始手动拖拽：前端传入鼠标物理像素坐标，后端记录窗口位置
+#[tauri::command]
+pub fn start_manual_drag(window: WebviewWindow, mouse_x: i32, mouse_y: i32) -> Result<(), String> {
+    // 前端传 screenX * devicePixelRatio，与 move_overlay_drag 的单位一致
+    DRAG_START_MOUSE_X.store(mouse_x, Ordering::SeqCst);
+    DRAG_START_MOUSE_Y.store(mouse_y, Ordering::SeqCst);
+
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
+
+        let hwnd_raw = window.hwnd().map_err(|e| e.to_string())?;
+        let hwnd = HWND(hwnd_raw.0 as *mut _);
+
+        unsafe {
+            let mut rect = std::mem::zeroed();
+            GetWindowRect(hwnd, &mut rect).map_err(|e| e.to_string())?;
+            DRAG_START_WIN_X.store(rect.left, Ordering::SeqCst);
+            DRAG_START_WIN_Y.store(rect.top, Ordering::SeqCst);
+        }
+    }
+    DRAG_ACTIVE.store(true, Ordering::SeqCst);
+    Ok(())
+}
+
+/// 拖拽移动窗口：传入当前鼠标屏幕坐标，计算偏移量移动窗口
+#[tauri::command]
+pub fn move_overlay_drag(app: AppHandle, mouse_x: i32, mouse_y: i32) -> Result<(), String> {
+    if !DRAG_ACTIVE.load(Ordering::SeqCst) {
+        return Ok(());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, SWP_NOSIZE, SWP_NOZORDER, SWP_NOACTIVATE};
+
+        let window = app
+            .get_webview_window("main")
+            .ok_or_else(|| "Main window not found".to_string())?;
+        let hwnd_raw = window.hwnd().map_err(|e| e.to_string())?;
+        let hwnd = HWND(hwnd_raw.0 as *mut _);
+
+        let dx = mouse_x - DRAG_START_MOUSE_X.load(Ordering::SeqCst);
+        let dy = mouse_y - DRAG_START_MOUSE_Y.load(Ordering::SeqCst);
+        let new_x = DRAG_START_WIN_X.load(Ordering::SeqCst) + dx;
+        let new_y = DRAG_START_WIN_Y.load(Ordering::SeqCst) + dy;
+
+        unsafe {
+            let _ = SetWindowPos(
+                hwnd,
+                None,
+                new_x,
+                new_y,
+                0,
+                0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+            );
+        }
+    }
+    Ok(())
+}
+
+/// 结束拖拽
+#[tauri::command]
+pub fn end_manual_drag() -> Result<(), String> {
+    DRAG_ACTIVE.store(false, Ordering::SeqCst);
+    Ok(())
 }

@@ -398,7 +398,11 @@ pub fn run() {
             commands::discover_transcripts,
             commands::open_control_center,
             commands::snap_overlay,
+            commands::smart_snap_overlay,
             commands::enumerate_monitors,
+            commands::start_manual_drag,
+            commands::move_overlay_drag,
+            commands::end_manual_drag,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -135,8 +135,8 @@ pub const SNAP_THRESHOLD: i32 = 40;
 
 #[cfg(target_os = "windows")]
 /// Check if a position is within snap threshold of the top or bottom edge
-pub fn is_near_edge(y: i32, window_height: i32, _monitor_y: i32) -> Option<SnapPosition> {
-    let work = get_monitor_work_area_at(0, y)?;
+pub fn is_near_edge(y: i32, window_height: i32, probe_x: i32, probe_y: i32) -> Option<SnapPosition> {
+    let work = get_monitor_work_area_at(probe_x, probe_y)?;
 
     let scaled_height = (window_height as f64 * work.dpi_scale).round() as i32;
 
@@ -226,7 +226,7 @@ pub fn calculate_snap_position(
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn is_near_edge(_y: i32, _window_height: i32, _monitor_y: i32) -> Option<SnapPosition> {
+pub fn is_near_edge(_y: i32, _window_height: i32, _probe_x: i32, _probe_y: i32) -> Option<SnapPosition> {
     None
 }
 
