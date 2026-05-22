@@ -269,3 +269,72 @@ pub fn merge_sessions(sessions: Vec<AgentSession>) -> usize {
         0
     }
 }
+
+/// 对活跃 sessions 运行一次 JumpTarget 富化（周期性重新解析）
+///
+/// 遍历所有未完成的 session，调用 terminal_jump::resolver::enrich_jump_target
+/// 探测 Windows Terminal tab_id 等精确信息。若获得新信息则通过 apply 更新
+/// 并自动 emit JumpTargetUpdated 事件到前端。
+///
+/// 返回被更新的 session 数量。
+pub fn run_jump_target_enrichment() -> usize {
+    let guard = GLOBAL_SESSION_STATE.lock();
+    let arc = match guard.as_ref() {
+        Some(a) => a.clone(),
+        None => return 0,
+    };
+    drop(guard);
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+
+    // 收集需要富化的 sessions
+    let targets: Vec<(String, JumpTarget)> = {
+        let state = arc.lock();
+        state
+            .sessions()
+            .iter()
+            .filter(|(_, s)| !s.is_completed)
+            .filter_map(|(id, s)| {
+                s.jump_target
+                    .as_ref()
+                    .filter(|jt| jt.terminal_app.is_some()) // 只对已识别终端的 session 做富化
+                    .filter(|jt| jt.terminal_tab_id.is_none()) // 已有精确 tab_id 则跳过
+                    .map(|jt| (id.clone(), jt.clone()))
+            })
+            .collect()
+    };
+
+    if targets.is_empty() {
+        return 0;
+    }
+
+    let mut count = 0;
+    for (session_id, current_jt) in targets {
+        let enriched = crate::terminal_jump::resolver::enrich_jump_target(&current_jt);
+
+        // 检查是否获得了新的有用信息（tab_id 从无到有）
+        let got_new_info = enriched.terminal_tab_id.is_some()
+            && enriched.terminal_tab_id != current_jt.terminal_tab_id;
+
+        if got_new_info {
+            let event = AgentEvent::JumpTargetUpdated(JumpTargetPayload {
+                session_id,
+                jump_target: enriched,
+                timestamp: now,
+            });
+            arc.lock().apply(&event);
+            count += 1;
+        }
+    }
+
+    if count > 0 {
+        log::info!(
+            "[jump-target-enrich] 本轮更新了 {} 个 session 的 JumpTarget",
+            count
+        );
+    }
+    count
+}

@@ -251,16 +251,91 @@ pub enum SessionOrigin {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JumpTarget {
-    /// Type of terminal/IDE
-    pub terminal_type: Option<String>,
-    /// Process ID of the terminal
+    // ── 语义字段（对齐 Open Island）──
+    /// 终端应用名，如 "WindowsTerminal", "VSCode", "Cursor"
+    #[serde(alias = "terminalType")]
+    pub terminal_app: Option<String>,
+    /// 工作区文件夹名（从 CWD 提取）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_name: Option<String>,
+    /// pane/tab 标题（用于标题匹配）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pane_title: Option<String>,
+    /// 完整 CWD 路径
+    #[serde(alias = "workspacePath", default, skip_serializing_if = "Option::is_none")]
+    pub working_directory: Option<String>,
+    /// 终端 session/tab ID（Windows Terminal tab index 等）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terminal_session_id: Option<String>,
+
+    // ── Windows 平台扩展 ──
+    /// 进程 PID（Windows 特有，v1 保留）
     pub pid: Option<u32>,
-    /// Workspace path for IDE jump-back
-    pub workspace_path: Option<String>,
-    /// Window title for matching
-    pub window_title: Option<String>,
-    /// Additional type-specific info
+    /// Windows Terminal tab index（wt.exe focus-tab 用）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terminal_tab_index: Option<u32>,
+    /// Windows Terminal tab ID（wt.exe --target 用，更稳定）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terminal_tab_id: Option<String>,
+
+    // ── 扩展字段（向前兼容）──
+    /// 类型特定元数据
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub extra: Option<serde_json::Value>,
+}
+
+impl JumpTarget {
+    /// 从 v1 风格字段构建 v2 JumpTarget
+    ///
+    /// 用于兼容旧代码仍然使用 `terminal_type` / `workspace_path` / `window_title` 的场景。
+    pub fn from_v1(
+        terminal_type: Option<String>,
+        pid: Option<u32>,
+        workspace_path: Option<String>,
+        window_title: Option<String>,
+        extra: Option<serde_json::Value>,
+    ) -> Self {
+        // 从 workspace_path 提取 workspace_name
+        let workspace_name = workspace_path.as_ref().and_then(|p| {
+            p.rsplit(|c: char| c == '/' || c == '\\')
+                .find(|s| !s.is_empty())
+                .map(String::from)
+        });
+
+        // 从 extra.tabId 提升为一级字段
+        let terminal_tab_id = extra
+            .as_ref()
+            .and_then(|e| e.get("tabId"))
+            .and_then(|v| v.as_str())
+            .map(String::from);
+
+        // 从 extra.terminalPid 合并到 pid
+        let pid = pid.or_else(|| {
+            extra
+                .as_ref()
+                .and_then(|e| e.get("terminalPid"))
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u32)
+        });
+
+        // 规范化 terminal_app 名称
+        let terminal_app = terminal_type.map(|t| match t.as_str() {
+            "windowsTerminal" => "WindowsTerminal".into(),
+            other => other.into(),
+        });
+
+        JumpTarget {
+            terminal_app,
+            workspace_name,
+            pane_title: window_title,
+            working_directory: workspace_path,
+            terminal_session_id: None,
+            pid,
+            terminal_tab_index: None,
+            terminal_tab_id,
+            extra,
+        }
+    }
 }
 
 // ─── Main Enum ───────────────────────────────────────────────────────────────

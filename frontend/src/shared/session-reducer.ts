@@ -140,10 +140,28 @@ export interface ErrorOccurredPayload {
 }
 
 export interface JumpTarget {
-  terminalType?: string;
+  // ── v2 语义字段（对齐 Rust JumpTarget + Open Island）──
+  /** 终端应用名，如 "WindowsTerminal", "VSCode", "Cursor" */
+  terminalApp?: string;
+  /** 工作区文件夹名（从 CWD 提取） */
+  workspaceName?: string;
+  /** pane/tab 标题（用于标题匹配） */
+  paneTitle?: string;
+  /** 完整 CWD 路径 */
+  workingDirectory?: string;
+  /** 终端 session/tab ID（Windows Terminal tab index 等） */
+  terminalSessionId?: string;
+
+  // ── Windows 平台扩展 ──
+  /** 进程 PID（Windows 特有） */
   pid?: number;
-  workspacePath?: string;
-  windowTitle?: string;
+  /** Windows Terminal tab index */
+  terminalTabIndex?: number;
+  /** Windows Terminal tab ID（GUID） */
+  terminalTabId?: string;
+
+  // ── 扩展字段（向前兼容）──
+  /** 类型特定元数据 */
   extra?: Record<string, unknown>;
 }
 

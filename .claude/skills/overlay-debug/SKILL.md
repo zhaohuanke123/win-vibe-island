@@ -43,22 +43,21 @@ description: |
 - 确认 `get_dpi_scale_for_window` 返回正确值
 - 检查 `set_window_size` 是否正确转换为物理像素
 - 确认 WebView2 `RasterizationScale` 配置正确
-- 查看 `lib.rs` 中 DPI 相关初始化代码
+- 查看 `lib.rs` 的 DPI 相关初始化代码
 
 ### 5. 圆角检查
 
 - 确认 `apply_window_round_region` 被正确调用
 - 检查 `border_radius` 参数传递是否正确
-- 矮窗口（≤80px）使用 `height / 2` 作为圆角半径
+- 矮窗口（≤40px）使用 `height / 2` 作为圆角半径
 
 ### 6. 拖拽与点击事件竞争
 
 拖拽（mousedown → mousemove → mouseup）和点击（mousedown → mouseup → click）共享 mousedown 起点，容易产生竞争。
 
-**已知陷阱：onClick 和 mouseup 竞争**
+**已知陷阱：onClick 与 mouseup 竞争**
 
 在 Tauri WebView2 中，`onClick` 事件在 `mouseup` 之后触发。如果用两个独立处理器分别处理拖拽（mouseup）和点击（onClick），存在以下问题：
-
 - mouseup 中重置拖拽标记 → onClick 看不到标记 → 拖拽松手后误触展开
 - 即使不重置标记，React 合成事件和原生 document 监听器的执行时序不完全可预测
 
@@ -66,7 +65,7 @@ description: |
 
 ```
 mousedown → 记录起点，标记 wasDragged = false
-mousemove → 超过阈值(3px)则 wasDragged = true
+mousemove → 超过阈值(3px) → wasDragged = true
 mouseup:
   - wasDragged = false → 纯点击，执行 toggle 逻辑
   - wasDragged = true  → 拖拽结束，执行吸附

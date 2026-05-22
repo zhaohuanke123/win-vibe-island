@@ -214,7 +214,7 @@ export function Overlay() {
       return;
     }
 
-    const terminalName = session.jumpTarget?.terminalType || "Terminal";
+    const terminalName = session.jumpTarget?.terminalApp || "Terminal";
     const sessionLabel = session.title || session.label;
     showJumpToast(terminalName, sessionLabel);
 
