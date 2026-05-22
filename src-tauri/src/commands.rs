@@ -21,13 +21,27 @@ static DRAG_START_WIN_X: AtomicI32 = AtomicI32::new(0);
 static DRAG_START_WIN_Y: AtomicI32 = AtomicI32::new(0);
 
 #[cfg(target_os = "windows")]
-fn apply_window_round_region(window: &WebviewWindow, radius: u32, phys_w: u32, phys_h: u32) -> Result<(), String> {
+fn apply_snap_aware_round_region(
+    window: &WebviewWindow,
+    snap_position: Option<window_manager::SnapPosition>,
+    radius: u32,
+    phys_w: u32,
+    phys_h: u32,
+) -> Result<(), String> {
     use std::sync::atomic::{AtomicU64, Ordering};
     use windows::Win32::Foundation::{BOOL, HWND};
-    use windows::Win32::Graphics::Gdi::{CreateRoundRectRgn, DeleteObject, SetWindowRgn};
+    use windows::Win32::Graphics::Gdi::{
+        CombineRgn, CreateRectRgn, CreateRoundRectRgn, DeleteObject, SetWindowRgn, RGN_OR,
+    };
 
     static LAST_REGION_KEY: AtomicU64 = AtomicU64::new(0);
-    let key = ((phys_w as u64) << 32) | ((phys_h as u64) << 16) | (radius as u64);
+
+    let snap_bits: u64 = match snap_position {
+        None => 0,
+        Some(window_manager::SnapPosition::Top) => 1,
+        Some(window_manager::SnapPosition::Bottom) => 2,
+    };
+    let key = ((phys_w as u64) << 48) | ((phys_h as u64) << 32) | ((radius as u64) << 16) | snap_bits;
     if key == LAST_REGION_KEY.load(Ordering::Relaxed) {
         return Ok(());
     }
@@ -35,19 +49,42 @@ fn apply_window_round_region(window: &WebviewWindow, radius: u32, phys_w: u32, p
     let hwnd_raw = window.hwnd().map_err(|e| e.to_string())?;
     let hwnd = HWND(hwnd_raw.0 as *mut _);
     let scale = window.scale_factor().unwrap_or(1.0);
-    let radius_px = ((radius as f64 * scale).round() as i32).max(1);
+    let r = ((radius as f64 * scale).round() as i32).max(1);
+    let w = phys_w as i32 + 1;
+    let h = phys_h as i32 + 1;
 
     unsafe {
-        let region = CreateRoundRectRgn(
-            0,
-            0,
-            phys_w as i32 + 1,
-            phys_h as i32 + 1,
-            radius_px * 2,
-            radius_px * 2,
-        );
+        let region = match snap_position {
+            None => {
+                // 自由浮动：四角均匀圆角
+                CreateRoundRectRgn(0, 0, w, h, r * 2, r * 2)
+            }
+            Some(window_manager::SnapPosition::Top) => {
+                // 吸附到顶部：顶角扁平，底角圆角
+                // 先创建四角圆角区域，再用顶部矩形条填补顶角
+                let rounded = CreateRoundRectRgn(0, 0, w, h, r * 2, r * 2);
+                let top_strip = CreateRectRgn(0, 0, w, r + 1);
+                let result = CreateRectRgn(0, 0, 0, 0);
+                CombineRgn(result, rounded, top_strip, RGN_OR);
+                let _ = DeleteObject(rounded);
+                let _ = DeleteObject(top_strip);
+                result
+            }
+            Some(window_manager::SnapPosition::Bottom) => {
+                // 吸附到底部：底角扁平，顶角圆角
+                // 先创建四角圆角区域，再用底部矩形条填补底角
+                let rounded = CreateRoundRectRgn(0, 0, w, h, r * 2, r * 2);
+                let bottom_strip = CreateRectRgn(0, h - r - 1, w, h);
+                let result = CreateRectRgn(0, 0, 0, 0);
+                CombineRgn(result, rounded, bottom_strip, RGN_OR);
+                let _ = DeleteObject(rounded);
+                let _ = DeleteObject(bottom_strip);
+                result
+            }
+        };
+
         if region.is_invalid() {
-            return Err("Failed to create rounded window region".to_string());
+            return Err("Failed to create snap-aware rounded region".to_string());
         }
 
         let result = SetWindowRgn(hwnd, region, BOOL(1));
@@ -409,7 +446,8 @@ pub fn set_window_size(
     #[cfg(target_os = "windows")]
     {
         let radius = if height <= 80 { height / 2 } else { 18 };
-        let _ = apply_window_round_region(&window, radius, physical_width, physical_height);
+        let snap = window_manager::current_snap_position();
+        let _ = apply_snap_aware_round_region(&window, snap, radius, physical_width, physical_height);
     }
 
     // Re-center horizontally at top of screen
@@ -489,6 +527,7 @@ pub fn update_overlay_size(
     webview_scale_factor: Option<f64>,
     border_radius: Option<u32>,
     anchor_center: Option<bool>,
+    snap_position: Option<String>,
 ) -> Result<(), String> {
     let dpi_scale = resize_scale_factor(&window, webview_scale_factor)?;
 
@@ -539,7 +578,12 @@ pub fn update_overlay_size(
     #[cfg(target_os = "windows")]
     {
         let radius = border_radius.unwrap_or(if height <= 80 { height / 2 } else { 18 });
-        apply_window_round_region(&window, radius, physical_width, physical_height)?;
+        let snap = snap_position.and_then(|s| match s.as_str() {
+            "top" => Some(window_manager::SnapPosition::Top),
+            "bottom" => Some(window_manager::SnapPosition::Bottom),
+            _ => None,
+        });
+        apply_snap_aware_round_region(&window, snap, radius, physical_width, physical_height)?;
     }
 
     if let Some(x) = target_x {
@@ -952,6 +996,7 @@ pub fn snap_overlay(
         snap_pos,
         prefer_monitor_x,
         prefer_monitor_y,
+        None,
     )
     .ok_or_else(|| "Could not determine monitor work area".to_string())?;
 
@@ -961,6 +1006,17 @@ pub fn snap_overlay(
         y: result.y,
     }));
 
+    // 吸附后重新应用不对称圆角区域
+    #[cfg(target_os = "windows")]
+    {
+        let dpi_scale = window.scale_factor().unwrap_or(1.0);
+        let phys_w = (logical_width as f64 * dpi_scale).round() as u32;
+        let phys_h = (logical_height as f64 * dpi_scale).round() as u32;
+        let radius = if logical_height <= 80 { logical_height as u32 / 2 } else { 18 };
+        let _ = apply_snap_aware_round_region(&window, Some(snap_pos), radius, phys_w, phys_h);
+    }
+
+    window_manager::set_current_snap_position(Some(snap_pos));
     Ok(result)
 }
 
@@ -984,7 +1040,8 @@ pub fn smart_snap_overlay(app: AppHandle) -> Result<SnapResult, String> {
     let detected = window_manager::is_near_edge(pos.y, phys_height, center_x, center_y);
     // 不在任何边缘附近 → 保持当前位置，不吸附
     let Some(snap_pos) = detected else {
-        return Ok(SnapResult { x: pos.x, y: pos.y, monitor_index: 0, dpi_scale: scale });
+        window_manager::set_current_snap_position(None);
+        return Ok(SnapResult { x: pos.x, y: pos.y, monitor_index: 0, dpi_scale: scale, snap_position: None });
     };
 
     let result = window_manager::calculate_snap_position(
@@ -993,14 +1050,28 @@ pub fn smart_snap_overlay(app: AppHandle) -> Result<SnapResult, String> {
         snap_pos,
         Some(center_x),
         Some(center_y),
+        Some(0),
     )
     .ok_or_else(|| "Could not determine monitor work area".to_string())?;
 
+    // 即时定位到吸附位置
     let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
         x: result.x,
         y: result.y,
     }));
 
+    // 吸附后重新应用不对称圆角区域
+    #[cfg(target_os = "windows")]
+    {
+        let dpi_scale = window.scale_factor().unwrap_or(1.0);
+        let phys_h = ((size.height as f64) * dpi_scale).round() as u32;
+        let phys_w = (size.width as f64).round() as u32;
+        let css_height = size.height as u32;
+        let radius = if css_height <= 80 { css_height / 2 } else { 18 };
+        let _ = apply_snap_aware_round_region(&window, Some(snap_pos), radius, phys_w, phys_h);
+    }
+
+    window_manager::set_current_snap_position(Some(snap_pos));
     Ok(result)
 }
 

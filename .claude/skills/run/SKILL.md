@@ -3,7 +3,7 @@ name: run
 description: |
   启动和运行 Vibe Island Tauri 桌面应用。包含开发模式、前端独立模式、生产构建、以及常见问题排查。
   触发条件：
-  - 用户要求运行、启动、启动应用、打开 overlay
+  - 用户要求运行、启动、启动应用、启动项目、打开 overlay
   - "启动 Tauri"、"cargo tauri dev"、"run the app"
   - 需要验证 UI 变更（动画、样式、组件）
   - 需要测试 hook 集成
@@ -15,7 +15,13 @@ description: |
 
 Vibe Island 是 Tauri 2.0 桌面应用（Rust + React），运行方式分三种。
 
-## 方式一：Tauri 完整开发模式
+## 默认启动行为
+
+当用户说"启动"、"启动项目"、"运行"、"run"时，**直接执行 Tauri 完整开发模式**（方式一），同时启动前端和后端。不要只启动前端浏览器模式。
+
+只有当用户**明确说**"只用浏览器"、"前端独立模式"、"不启动 Tauri"、"browser only"等语句时，才使用方式二（仅前端开发服务器）。
+
+## 方式一：Tauri 完整开发模式（默认）
 
 启动完整的 Tauri 应用（带 WebView2 窗口、Hook Server、Pipe Server）：
 

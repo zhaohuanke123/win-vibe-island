@@ -132,6 +132,7 @@ export function Overlay() {
   const [expanded, setExpanded] = useState(false);
   const [collapsedApprovalFocusKey, setCollapsedApprovalFocusKey] = useState<string | null>(null);
   const [viewingSessionId, setViewingSessionId] = useState<string | null>(null);
+  const [snapPosition, setSnapPosition] = useState<"top" | "bottom" | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     session: Session;
     position: { x: number; y: number };
@@ -401,6 +402,7 @@ export function Overlay() {
         const dy = e.screenY - start.y;
         if (Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
         wasDraggedRef.current = true;
+        setSnapPosition(null);
       }
 
       cancelAnimationFrame(dragRafRef.current);
@@ -425,8 +427,13 @@ export function Overlay() {
       // 拖拽结束，吸附到边缘
       cancelAnimationFrame(dragRafRef.current);
       invoke("end_manual_drag").catch(() => {});
-      window.setTimeout(() => {
-        invoke("smart_snap_overlay").catch(() => {});
+      window.setTimeout(async () => {
+        try {
+          const result = await invoke<{ snapPosition: "top" | "bottom" | null }>("smart_snap_overlay");
+          setSnapPosition(result.snapPosition ?? null);
+        } catch {
+          setSnapPosition(null);
+        }
       }, 50);
     };
 
@@ -459,10 +466,11 @@ export function Overlay() {
   return (
     <>
       <AnimatedOverlay
-        className={`overlay overlay--v8 ${isOverlayExpanded ? "overlay--expanded" : "overlay--compact"}${isApprovalFocusMode ? " overlay--approval-mode" : ""}`}
+        className={`overlay overlay--v8 ${isOverlayExpanded ? "overlay--expanded" : "overlay--compact"}${isApprovalFocusMode ? " overlay--approval-mode" : ""}${snapPosition === "top" ? " overlay--snapped-top" : snapPosition === "bottom" ? " overlay--snapped-bottom" : ""}`}
         data-testid="overlay"
         isExpanded={isOverlayExpanded}
         expandedHeight={isOverlayExpanded ? overlayExpandedHeight : undefined}
+        snapPosition={snapPosition}
       >
         <div className="overlay__shell pill" style={{ position: "relative" }}>
           {/* Jump Toast — non-blocking, pointer-events: none */}

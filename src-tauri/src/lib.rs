@@ -155,11 +155,13 @@ pub fn run() {
                         snap_pos,
                         None,
                         None,
+                        None,
                     ) {
                         let _ = window.set_position(Position::Physical(PhysicalPosition {
                             x: result.x,
                             y: result.y,
                         }));
+                        window_manager::set_current_snap_position(Some(snap_pos));
                     } else {
                         // Fallback: center horizontally at top of screen
                         let x = (screen_width - window_width) / 2;

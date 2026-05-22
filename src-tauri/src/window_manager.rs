@@ -49,6 +49,33 @@ pub struct SnapResult {
     pub y: i32,
     pub monitor_index: usize,
     pub dpi_scale: f64,
+    pub snap_position: Option<SnapPosition>,
+}
+
+// ── 吸附状态跟踪 ──
+
+static CURRENT_SNAP: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+const SNAP_NONE: u8 = 0;
+const SNAP_TOP: u8 = 1;
+const SNAP_BOTTOM: u8 = 2;
+
+/// 获取当前吸附方向
+pub fn current_snap_position() -> Option<SnapPosition> {
+    match CURRENT_SNAP.load(std::sync::atomic::Ordering::Relaxed) {
+        SNAP_TOP => Some(SnapPosition::Top),
+        SNAP_BOTTOM => Some(SnapPosition::Bottom),
+        _ => None,
+    }
+}
+
+/// 设置当前吸附方向
+pub fn set_current_snap_position(pos: Option<SnapPosition>) {
+    let val = match pos {
+        Some(SnapPosition::Top) => SNAP_TOP,
+        Some(SnapPosition::Bottom) => SNAP_BOTTOM,
+        None => SNAP_NONE,
+    };
+    CURRENT_SNAP.store(val, std::sync::atomic::Ordering::Relaxed);
 }
 
 // ============================================================================
@@ -99,6 +126,7 @@ pub fn calculate_snap_position(
     position: SnapPosition,
     prefer_monitor_x: Option<i32>,
     prefer_monitor_y: Option<i32>,
+    edge_margin: Option<i32>,
 ) -> Option<SnapResult> {
     // Use preferred monitor position or (0, 0) as fallback
     let probe_x = prefer_monitor_x.unwrap_or(0);
@@ -111,11 +139,12 @@ pub fn calculate_snap_position(
 
     let center_x = work.left + (work.right - work.left - scaled_width) / 2;
 
-    const EDGE_MARGIN: i32 = 4;
+    const DEFAULT_EDGE_MARGIN: i32 = 4;
+    let margin = edge_margin.unwrap_or(DEFAULT_EDGE_MARGIN);
 
     let y = match position {
-        SnapPosition::Top => work.top + EDGE_MARGIN,
-        SnapPosition::Bottom => work.bottom - scaled_height - EDGE_MARGIN,
+        SnapPosition::Top => work.top + margin,
+        SnapPosition::Bottom => work.bottom - scaled_height - margin,
     };
 
     Some(SnapResult {
@@ -123,6 +152,7 @@ pub fn calculate_snap_position(
         y: y.max(work.top).min(work.bottom - scaled_height),
         monitor_index: 0,
         dpi_scale: work.dpi_scale,
+        snap_position: Some(position),
     })
 }
 
@@ -219,6 +249,7 @@ pub fn calculate_snap_position(
     _position: SnapPosition,
     _prefer_monitor_x: Option<i32>,
     _prefer_monitor_y: Option<i32>,
+    _edge_margin: Option<i32>,
 ) -> Option<SnapResult> {
     None
 }

@@ -48,6 +48,22 @@
   border-radius: 22px;
 }
 
+/* 吸附到顶部：顶角扁平 */
+.overlay--snapped-top.overlay--compact .overlay__shell {
+  border-radius: 0 0 16px 16px;
+}
+.overlay--snapped-top.overlay--expanded .overlay__shell {
+  border-radius: 0 0 22px 22px;
+}
+
+/* 吸附到底部：底角扁平 */
+.overlay--snapped-bottom.overlay--compact .overlay__shell {
+  border-radius: 16px 16px 0 0;
+}
+.overlay--snapped-bottom.overlay--expanded .overlay__shell {
+  border-radius: 22px 22px 0 0;
+}
+
 /* Bar is always visible — v8 NotchRow style: 32px height */
 .overlay__bar {
   display: flex;

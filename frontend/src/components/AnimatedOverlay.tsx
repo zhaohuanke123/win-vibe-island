@@ -20,6 +20,7 @@ interface AnimatedOverlayProps {
   pillLabel?: string;
   pillNotchRightSlot?: ReactNode;
   onPillNotchClick?: () => void;
+  snapPosition?: "top" | "bottom" | null;
 }
 
 type AnimatedSize = {
@@ -57,6 +58,7 @@ export function AnimatedOverlay({
   pillLabel,
   pillNotchRightSlot,
   onPillNotchClick,
+  snapPosition,
 }: AnimatedOverlayProps) {
   // Pill mode: delegate rendering to Pill component
   if (pillMode) {
@@ -85,6 +87,20 @@ export function AnimatedOverlay({
     height: expandedHeight ?? OVERLAY_DIMENSIONS.expanded.height,
   };
   const dimensions = isExpanded ? expandedDim : OVERLAY_DIMENSIONS.compact;
+
+  // 吸附感知的 clipPath 和 borderRadius：三层裁剪必须一致
+  const r = dimensions.borderRadius;
+  const snapBorderRadius = snapPosition === "top"
+    ? `0px 0px ${r}px ${r}px`
+    : snapPosition === "bottom"
+      ? `${r}px ${r}px 0px 0px`
+      : `${r}px`;
+  const snapClipPath = snapPosition === "top"
+    ? `inset(0px round 0px 0px ${r}px ${r}px)`
+    : snapPosition === "bottom"
+      ? `inset(0px round ${r}px ${r}px 0px 0px)`
+      : `inset(0px round ${r}px)`;
+
   const latestDimensionsRef = useRef(dimensions);
 
   const wasExpanded = prevExpandedRef.current;
@@ -95,6 +111,7 @@ export function AnimatedOverlay({
       : { duration: 0.15, ease: "easeOut" };
 
   useEffect(() => { prevExpandedRef.current = isExpanded; }, [isExpanded]);
+
   useEffect(() => {
     latestDimensionsRef.current = dimensions;
   }, [dimensions.width, dimensions.height, dimensions.borderRadius]);
@@ -108,6 +125,7 @@ export function AnimatedOverlay({
       webviewScaleFactor: getWebviewScaleFactor(),
       borderRadius: Math.round(borderRadius),
       anchorCenter: true,
+      snapPosition: snapPosition ?? null,
     }).catch(reportResizeError);
   };
 
@@ -150,13 +168,13 @@ export function AnimatedOverlay({
       data-testid={testId}
       style={{
         overflow: "hidden",
+        clipPath: snapClipPath,
       }}
       initial={false}
       animate={{
         width: dimensions.width,
         height: dimensions.height,
-        borderRadius: dimensions.borderRadius,
-        clipPath: `inset(0px round ${dimensions.borderRadius}px)`,
+        borderRadius: snapBorderRadius,
         /* Reference: hover scale 1.028 (2.8% overshoot) */
         scale: isExpanded ? [1, 1.028, 1] : [1, 0.972, 1],
       }}
@@ -167,13 +185,12 @@ export function AnimatedOverlay({
       onUpdate={(latest: AnimatedSize) => {
         const width = toNumber(latest.width);
         const height = toNumber(latest.height);
-        const borderRadius = toNumber(latest.borderRadius) ?? dimensions.borderRadius;
         if (width === null || height === null) return;
 
         const now = Date.now();
         if (now - lastSyncRef.current < SIZE_SYNC_THROTTLE_MS) return;
         lastSyncRef.current = now;
-        syncWindowSize(width, height, borderRadius);
+        syncWindowSize(width, height, r);
       }}
       onAnimationComplete={() => {
         syncFinalWindowSize();
