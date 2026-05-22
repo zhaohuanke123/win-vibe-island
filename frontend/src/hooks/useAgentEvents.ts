@@ -174,10 +174,10 @@ export function useAgentEvents() {
         const { session_id, label, cwd, pid, agent_type, detected_agent, jump_target } = event.payload;
 
         const jumpTarget = jump_target ? {
-          terminalType: jump_target.terminalType,
+          terminalApp: jump_target.terminalType,
           pid: jump_target.pid,
-          workspacePath: jump_target.workspacePath,
-          windowTitle: jump_target.windowTitle,
+          workingDirectory: jump_target.workspacePath,
+          paneTitle: jump_target.windowTitle,
           extra: jump_target.extra,
         } : undefined;
 
@@ -432,12 +432,12 @@ export function useAgentEvents() {
         // Try to match this process to an existing hook-tracked session
         const sessions = useSessionsStore.getState().sessions;
         const agentType = normalizeAgent(process.agent_type);
-        // Match sessions by agent type that lack a proper jumpTarget (no terminalType),
+        // Match sessions by agent type that lack a proper jumpTarget (no terminalApp),
         // or that have no PID at all
         const match = sessions.find(s =>
           s.agent === agentType
           && !s.id.startsWith("process-")
-          && (!s.jumpTarget?.terminalType)
+          && (!s.jumpTarget?.terminalApp)
         );
 
         if (match) {

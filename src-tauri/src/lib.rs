@@ -17,6 +17,7 @@ mod process_watcher;
 mod logger;
 mod session_store;
 mod session_state;
+mod terminal_jump;
 mod window_focus;
 mod window_manager;
 mod transcript_discovery;
@@ -200,6 +201,12 @@ pub fn run() {
             match process_watcher::start_process_watcher(app.handle().clone()) {
                 Ok(()) => log::info!("Process watcher started"),
                 Err(e) => log::error!("Failed to start process watcher: {}", e),
+            }
+
+            // 启动周期性 JumpTarget 重新解析（每 30s 探测 Windows Terminal tab 信息）
+            match process_watcher::start_jump_target_enricher() {
+                Ok(()) => log::info!("JumpTarget enricher started"),
+                Err(e) => log::error!("Failed to start JumpTarget enricher: {}", e),
             }
 
             // Auto-configure Claude Code hooks if needed

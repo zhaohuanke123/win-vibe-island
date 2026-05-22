@@ -37,24 +37,25 @@ struct WindowsTerminalStrategy;
 #[cfg(target_os = "windows")]
 impl FocusStrategy for WindowsTerminalStrategy {
     fn try_focus(&self, target: &JumpTarget) -> Option<FocusResult> {
-        if target.terminal_type.as_deref() != Some("windowsTerminal") {
+        if target.terminal_app.as_deref() != Some("WindowsTerminal") {
             return None;
         }
 
         // Prefer PID-based focus for reliability
-        if let Some(pid) = target.extra.as_ref().and_then(|e| e.get("terminalPid")).and_then(|v| v.as_u64()) {
-            if let Some(hwnd) = find_window_by_pid(pid as u32) {
+        if let Some(pid) = target.pid {
+            if let Some(hwnd) = find_window_by_pid(pid) {
                 return Some(focus_window(hwnd));
             }
         }
 
         // Fallback: wt focus-tab command
-        let tab_id = target.extra.as_ref()
-            .and_then(|e| e.get("tabId"))
-            .and_then(|v| v.as_str());
+        let tab_id = target.terminal_tab_id.as_deref();
+        let tab_index = target.terminal_tab_index;
 
         let args = if let Some(id) = tab_id {
             format!("-w 0 focus-tab --target {}", id)
+        } else if let Some(idx) = tab_index {
+            format!("-w 0 focus-tab --target {}", idx)
         } else {
             "-w 0 focus-tab".to_string()
         };
@@ -78,14 +79,14 @@ struct VsCodeStrategy;
 #[cfg(target_os = "windows")]
 impl FocusStrategy for VsCodeStrategy {
     fn try_focus(&self, target: &JumpTarget) -> Option<FocusResult> {
-        if target.terminal_type.as_deref() != Some("vscode") {
+        if target.terminal_app.as_deref() != Some("VSCode") {
             return None;
         }
 
         // Find any code.exe window whose title contains the workspace folder name.
         // VS Code spawns multiple processes (main, renderer, extension host);
         // the PID we detected may be a background process without a window.
-        if let Some(ref workspace) = target.workspace_path {
+        if let Some(ref workspace) = target.working_directory {
             return Some(focus_by_workspace_with_exe(workspace, "code.exe"));
         }
 
@@ -101,11 +102,11 @@ struct CursorStrategy;
 #[cfg(target_os = "windows")]
 impl FocusStrategy for CursorStrategy {
     fn try_focus(&self, target: &JumpTarget) -> Option<FocusResult> {
-        if target.terminal_type.as_deref() != Some("cursor") {
+        if target.terminal_app.as_deref() != Some("Cursor") {
             return None;
         }
 
-        if let Some(ref workspace) = target.workspace_path {
+        if let Some(ref workspace) = target.working_directory {
             return Some(focus_by_workspace_with_exe(workspace, "cursor.exe"));
         }
 
@@ -390,7 +391,11 @@ pub fn focus_by_workspace(_workspace: &str) -> FocusResult {
 
 /// Detect the terminal type by examining the parent process chain.
 /// Returns a terminal type string and optional extra metadata (including the terminal process PID).
+///
+/// @deprecated 自 v2 起，请使用 terminal_jump::resolver::resolve_from_pid 替代。
+///   旧函数仅做硬编码 if-else 匹配，新 resolver 为注册表驱动，支持 CLI 快照。
 #[cfg(target_os = "windows")]
+#[deprecated(since = "2.0.0", note = "请使用 terminal_jump::resolver::resolve_from_pid 替代")]
 pub fn detect_terminal_type(pid: u32) -> (Option<String>, Option<serde_json::Value>) {
     let parent_pid = get_parent_pid(pid);
 
@@ -527,16 +532,6 @@ fn build_process_name_map() -> std::collections::HashMap<u32, String> {
 #[cfg(not(target_os = "windows"))]
 pub fn find_window_by_pid(_pid: u32) -> Option<()> {
     None
-}
-
-#[cfg(not(target_os = "windows"))]
-#[derive(Debug, Clone, serde::Serialize)]
-pub enum FocusResult {
-    Success,
-    FlashOnly,
-    NotFound,
-    Restored,
-    CommandFailed(String),
 }
 
 #[cfg(not(target_os = "windows"))]

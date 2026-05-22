@@ -1,4 +1,5 @@
 use crate::config::get_config;
+use crate::agent_event::JumpTarget;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -418,25 +419,19 @@ async fn write_pipe_response(
     Ok(())
 }
 
-/// Detect terminal type and build a jump_target JSON value from the hooks envelope PID.
-fn build_jump_target(envelope: &serde_json::Value, cwd: &str) -> Option<serde_json::Value> {
+/// 从 hooks envelope 的 PID 探测终端类型并构建 JumpTarget（V2：使用 terminal_jump::resolver）
+/// 返回 Option<JumpTarget>，可直接序列化到前端事件中。
+fn build_jump_target(envelope: &serde_json::Value, cwd: &str) -> Option<JumpTarget> {
     let hooks_pid = envelope.get("pid").and_then(|v| v.as_u64()).map(|v| v as u32);
 
     #[cfg(target_os = "windows")]
-    let (terminal_type, terminal_extra) = hooks_pid
-        .map(|p| crate::window_focus::detect_terminal_type(p))
-        .unwrap_or((None, None));
+    {
+        hooks_pid.map(|p| crate::terminal_jump::resolver::resolve_from_pid(p, Some(cwd)))
+    }
     #[cfg(not(target_os = "windows"))]
-    let (terminal_type, terminal_extra) = (None, None);
-
-    if terminal_type.is_some() || hooks_pid.is_some() {
-        Some(serde_json::json!({
-            "terminalType": terminal_type,
-            "pid": hooks_pid,
-            "workspacePath": if cwd.is_empty() { None } else { Some(cwd) },
-            "extra": terminal_extra,
-        }))
-    } else {
+    {
+        let _ = hooks_pid;
+        let _ = cwd;
         None
     }
 }

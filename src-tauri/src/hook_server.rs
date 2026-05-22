@@ -1334,31 +1334,18 @@ async fn handle_test_approve(
     Ok(Json(serde_json::json!({ "ok": true })))
 }
 
-/// Detect terminal environment from the current process context.
-/// Uses the window_focus module's process tree detection.
+/// 探测终端环境（V2：使用 terminal_jump::resolver 替代旧的 window_focus::detect_terminal_type）
+/// 从当前进程 PID 出发，通过注册表驱动的进程树探测 + CLI 快照生成精确 JumpTarget。
 fn detect_jump_target(cwd: String) -> JumpTarget {
     #[cfg(target_os = "windows")]
     {
         let pid = std::process::id();
-        let (terminal_type, extra) = crate::window_focus::detect_terminal_type(pid);
-        JumpTarget {
-            terminal_type,
-            pid: Some(pid),
-            workspace_path: Some(cwd),
-            window_title: None,
-            extra,
-        }
+        crate::terminal_jump::resolver::resolve_from_pid(pid, Some(&cwd))
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        JumpTarget {
-            terminal_type: None,
-            pid: None,
-            workspace_path: Some(cwd),
-            window_title: None,
-            extra: None,
-        }
+        crate::terminal_jump::resolver::resolve_from_pid(0, Some(&cwd))
     }
 }
 

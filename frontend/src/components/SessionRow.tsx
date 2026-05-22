@@ -11,7 +11,7 @@ import type { AttachmentState } from "../shared/phase-colors";
 import type { Session } from "../store/sessions";
 import "./SessionRow.css";
 
-type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored" | "CommandFailed";
+type JumpResult = "Success" | "AppActivated" | "NotFound" | "Failed";
 
 /** Extract project name from cwd (last path segment). */
 function extractProjectName(cwd: string): string {
@@ -68,7 +68,7 @@ export const SessionRow = memo(function SessionRow({
     if (session.pid || session.jumpTarget) {
       setJumping(true);
       try {
-        await invoke<FocusResult>("focus_session_window", {
+        await invoke<JumpResult>("focus_session_window", {
           sessionPid: session.pid ?? null,
           jumpTarget: session.jumpTarget ?? null,
         });
@@ -91,7 +91,7 @@ export const SessionRow = memo(function SessionRow({
   const agentType = (session.agent ?? "claude") as AgentType;
   const phaseColorHex = phaseColor(session.state);
   const age = fmtAge(new Date(session.lastActivity));
-  const terminalType = session.jumpTarget?.terminalType;
+  const terminalType = session.jumpTarget?.terminalApp;
 
   const displayLabel = session.title || projectName;
   const hasTitle = !!session.title;

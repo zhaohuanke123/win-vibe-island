@@ -424,3 +424,61 @@ fn update_detected_processes(
         }
     }
 }
+
+// ─── 周期性 JumpTarget 重新解析 ─────────────────────────────────────────────
+
+/// JumpTarget 富化间隔（秒）
+const JUMP_TARGET_ENRICH_INTERVAL_SECS: u64 = 30;
+
+/// 富化定时器运行状态
+static ENRICH_TIMER_RUNNING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// 启动周期性 JumpTarget 重新解析
+///
+/// 每 30 秒对所有活跃 session 运行 enrich_jump_target，探测 Windows Terminal
+/// tab_id 等精确信息。如果获得新信息，自动通过 session_state 更新并 emit 事件。
+pub fn start_jump_target_enricher() -> Result<(), String> {
+    if ENRICH_TIMER_RUNNING.swap(true, Ordering::SeqCst) {
+        return Err("JumpTarget enricher already running".into());
+    }
+
+    log::info!(
+        "[jump-target-enrich] 启动周期性重新解析，间隔 {} 秒",
+        JUMP_TARGET_ENRICH_INTERVAL_SECS
+    );
+
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime for enricher");
+        rt.block_on(async {
+            loop {
+                tokio::time::sleep(tokio::time::Duration::from_secs(
+                    JUMP_TARGET_ENRICH_INTERVAL_SECS,
+                ))
+                .await;
+
+                if !ENRICH_TIMER_RUNNING.load(Ordering::SeqCst) {
+                    log::info!("[jump-target-enrich] 定时器已停止");
+                    break;
+                }
+
+                let updated = crate::session_state::run_jump_target_enrichment();
+                if updated > 0 {
+                    log::debug!(
+                        "[jump-target-enrich] 本轮富化了 {} 个 session",
+                        updated
+                    );
+                }
+            }
+        });
+    });
+
+    Ok(())
+}
+
+/// 停止周期性 JumpTarget 重新解析
+pub fn stop_jump_target_enricher() {
+    let was_running = ENRICH_TIMER_RUNNING.swap(false, Ordering::SeqCst);
+    if was_running {
+        log::info!("[jump-target-enrich] 请求停止定时器");
+    }
+}
