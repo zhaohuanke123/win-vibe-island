@@ -26,11 +26,9 @@ describe('sessionReducer: sessionStarted', () => {
   it('creates new session', () => {
     const result = sessionReducer(makeState(), {
       type: 'sessionStarted',
-      sessionStarted: {
-        sessionId: 's1', title: 'My Project', agent: 'claudeCode',
-        cwd: '/dev/project', timestamp: 2000,
-      },
-    })
+      sessionId: 's1', title: 'My Project', agent: 'claudeCode',
+      cwd: '/dev/project', timestamp: 2000,
+    } as AgentEvent)
     expect(result.sessions).toHaveLength(1)
     expect(result.sessions[0]).toMatchObject({
       id: 's1', label: 'My Project', state: 'idle', cwd: '/dev/project',
@@ -41,11 +39,9 @@ describe('sessionReducer: sessionStarted', () => {
     const state = makeState([makeSession({ id: 's1', label: 'Old' })])
     const result = sessionReducer(state, {
       type: 'sessionStarted',
-      sessionStarted: {
-        sessionId: 's1', title: 'New', agent: 'claudeCode',
-        model: 'opus', timestamp: 3000,
-      },
-    })
+      sessionId: 's1', title: 'New', agent: 'claudeCode',
+      model: 'opus', timestamp: 3000,
+    } as AgentEvent)
     expect(result.sessions).toHaveLength(1)
     expect(result.sessions[0].label).toBe('New')
     expect(result.sessions[0].model).toBe('opus')
@@ -55,11 +51,9 @@ describe('sessionReducer: sessionStarted', () => {
   it('preserves model and source as optional', () => {
     const result = sessionReducer(makeState(), {
       type: 'sessionStarted',
-      sessionStarted: {
-        sessionId: 's1', title: 'T', agent: 'codex', timestamp: 1,
-        model: 'sonnet', origin: 'cli',
-      },
-    })
+      sessionId: 's1', title: 'T', agent: 'codex', timestamp: 1,
+      model: 'sonnet', origin: 'cli',
+    } as AgentEvent)
     expect(result.sessions[0].model).toBe('sonnet')
     expect(result.sessions[0].source).toBe('cli')
   })
@@ -80,10 +74,8 @@ describe('sessionReducer: activityUpdated', () => {
       const state = makeState([makeSession()])
       const result = sessionReducer(state, {
         type: 'activityUpdated',
-        activityUpdated: {
-          sessionId: 's1', summary: 'working', phase, timestamp: 2000,
-        },
-      })
+        sessionId: 's1', summary: 'working', phase, timestamp: 2000,
+      } as AgentEvent)
       expect(result.sessions[0].state).toBe(expectedState)
     })
   })
@@ -92,11 +84,9 @@ describe('sessionReducer: activityUpdated', () => {
     const state = makeState([makeSession()])
     const result = sessionReducer(state, {
       type: 'activityUpdated',
-      activityUpdated: {
-        sessionId: 's1', summary: 'reading', phase: 'running',
-        toolName: 'Read', toolInput: { file_path: '/foo.ts' }, timestamp: 2000,
-      },
-    })
+      sessionId: 's1', summary: 'reading', phase: 'running',
+      toolName: 'Read', toolInput: { file_path: '/foo.ts' }, timestamp: 2000,
+    } as AgentEvent)
     expect(result.sessions[0].toolName).toBe('Read')
     expect(result.sessions[0].filePath).toBe('/foo.ts')
   })
@@ -104,10 +94,8 @@ describe('sessionReducer: activityUpdated', () => {
   it('creates session via ensureSession if missing', () => {
     const result = sessionReducer(makeState(), {
       type: 'activityUpdated',
-      activityUpdated: {
-        sessionId: 'unknown', summary: 'x', phase: 'running', timestamp: 2000,
-      },
-    })
+      sessionId: 'unknown', summary: 'x', phase: 'running', timestamp: 2000,
+    } as AgentEvent)
     expect(result.sessions).toHaveLength(1)
     expect(result.sessions[0].id).toBe('unknown')
   })
@@ -120,11 +108,9 @@ describe('sessionReducer: permissionRequested', () => {
     const state = makeState([makeSession()])
     const result = sessionReducer(state, {
       type: 'permissionRequested',
-      permissionRequested: {
-        sessionId: 's1', toolUseId: 't1', toolName: 'Bash',
-        toolInput: { command: 'ls' }, timestamp: 2000,
-      },
-    })
+      sessionId: 's1', toolUseId: 't1', toolName: 'Bash',
+      toolInput: { command: 'ls' }, timestamp: 2000,
+    } as AgentEvent)
     expect(result.sessions[0].state).toBe('waitingForApproval')
     expect(result.sessions[0].toolName).toBe('Bash')
   })
@@ -137,10 +123,8 @@ describe('sessionReducer: questionAsked', () => {
     const state = makeState([makeSession()])
     const result = sessionReducer(state, {
       type: 'questionAsked',
-      questionAsked: {
-        sessionId: 's1', questionText: 'Which option?', timestamp: 2000,
-      },
-    })
+      sessionId: 's1', questionText: 'Which option?', timestamp: 2000,
+    } as AgentEvent)
     expect(result.sessions[0].state).toBe('waitingForAnswer')
   })
 })
@@ -152,10 +136,8 @@ describe('sessionReducer: sessionCompleted', () => {
     const state = makeState([makeSession({ state: 'running' })])
     const result = sessionReducer(state, {
       type: 'sessionCompleted',
-      sessionCompleted: {
-        sessionId: 's1', summary: 'finished', timestamp: 2000,
-      },
-    })
+      sessionId: 's1', summary: 'finished', timestamp: 2000,
+    } as AgentEvent)
     expect(result.sessions[0].state).toBe('completed')
   })
 
@@ -163,10 +145,8 @@ describe('sessionReducer: sessionCompleted', () => {
     const state = makeState([makeSession()])
     const result = sessionReducer(state, {
       type: 'sessionCompleted',
-      sessionCompleted: {
-        sessionId: 's1', summary: 'stopped', timestamp: 2000, isInterrupt: true,
-      },
-    })
+      sessionId: 's1', summary: 'stopped', timestamp: 2000, isInterrupt: true,
+    } as AgentEvent)
     expect(result.sessions[0].state).toBe('completed')
     expect(result.sessions[0].lastError).toBe('Session interrupted')
   })
@@ -175,10 +155,8 @@ describe('sessionReducer: sessionCompleted', () => {
     const state = makeState([makeSession()])
     const result = sessionReducer(state, {
       type: 'sessionCompleted',
-      sessionCompleted: {
-        sessionId: 's1', summary: 'done', timestamp: 2000,
-      },
-    })
+      sessionId: 's1', summary: 'done', timestamp: 2000,
+    } as AgentEvent)
     expect(result.sessions[0].lastError).toBeUndefined()
   })
 })
@@ -190,11 +168,9 @@ describe('sessionReducer: toolUseStarted', () => {
     const state = makeState([makeSession()])
     const result = sessionReducer(state, {
       type: 'toolUseStarted',
-      toolUseStarted: {
-        sessionId: 's1', toolUseId: 't1', toolName: 'Read',
-        toolInput: { file_path: '/a.ts' }, timestamp: 2000,
-      },
-    })
+      sessionId: 's1', toolUseId: 't1', toolName: 'Read',
+      toolInput: { file_path: '/a.ts' }, timestamp: 2000,
+    } as AgentEvent)
     expect(result.sessions[0].state).toBe('running')
     expect(result.sessions[0].currentTool).toEqual({
       name: 'Read', input: { file_path: '/a.ts' }, startTime: 2000,
@@ -210,11 +186,9 @@ describe('sessionReducer: toolUseCompleted', () => {
     const state = makeState([makeSession({ currentTool: { name: 'Read', input: {}, startTime: 1 } })])
     const result = sessionReducer(state, {
       type: 'toolUseCompleted',
-      toolUseCompleted: {
-        sessionId: 's1', toolUseId: 't1', toolName: 'Read',
-        success: true, durationMs: 100, timestamp: 2000,
-      },
-    })
+      sessionId: 's1', toolUseId: 't1', toolName: 'Read',
+      success: true, durationMs: 100, timestamp: 2000,
+    } as AgentEvent)
     expect(result.sessions[0].toolHistory).toHaveLength(1)
     expect(result.sessions[0].toolHistory[0].status).toBe('success')
     expect(result.sessions[0].currentTool).toBeUndefined()
@@ -224,11 +198,9 @@ describe('sessionReducer: toolUseCompleted', () => {
     const state = makeState([makeSession()])
     const result = sessionReducer(state, {
       type: 'toolUseCompleted',
-      toolUseCompleted: {
-        sessionId: 's1', toolUseId: 't1', toolName: 'Bash',
-        success: false, error: 'exit code 1', timestamp: 2000,
-      },
-    })
+      sessionId: 's1', toolUseId: 't1', toolName: 'Bash',
+      success: false, error: 'exit code 1', timestamp: 2000,
+    } as AgentEvent)
     expect(result.sessions[0].state).toBe('completed')
     expect(result.sessions[0].lastError).toBe('exit code 1')
     expect(result.sessions[0].toolHistory[0].status).toBe('failed')
@@ -241,11 +213,9 @@ describe('sessionReducer: toolUseCompleted', () => {
     const state = makeState([makeSession({ toolHistory })])
     const result = sessionReducer(state, {
       type: 'toolUseCompleted',
-      toolUseCompleted: {
-        sessionId: 's1', toolUseId: 'new', toolName: 'Y',
-        success: true, timestamp: 5000,
-      },
-    })
+      sessionId: 's1', toolUseId: 'new', toolName: 'Y',
+      success: true, timestamp: 5000,
+    } as AgentEvent)
     expect(result.sessions[0].toolHistory).toHaveLength(20)
     expect(result.sessions[0].toolHistory[19].id).toBe('new')
   })
@@ -254,11 +224,9 @@ describe('sessionReducer: toolUseCompleted', () => {
     const state = makeState([makeSession({ toolName: 'Read', filePath: '/x.ts' })])
     const result = sessionReducer(state, {
       type: 'toolUseCompleted',
-      toolUseCompleted: {
-        sessionId: 's1', toolUseId: 't1', toolName: 'Read',
-        success: true, timestamp: 2000,
-      },
-    })
+      sessionId: 's1', toolUseId: 't1', toolName: 'Read',
+      success: true, timestamp: 2000,
+    } as AgentEvent)
     expect(result.sessions[0].toolName).toBeUndefined()
     expect(result.sessions[0].filePath).toBeUndefined()
   })
@@ -271,10 +239,8 @@ describe('sessionReducer: jumpTargetUpdated', () => {
     const state = makeState([makeSession()])
     const result = sessionReducer(state, {
       type: 'jumpTargetUpdated',
-      jumpTargetUpdated: {
-        sessionId: 's1', jumpTarget: { pid: 999 }, timestamp: 2000,
-      },
-    })
+      sessionId: 's1', jumpTarget: { pid: 999 }, timestamp: 2000,
+    } as AgentEvent)
     expect(result.sessions[0].pid).toBe(999)
   })
 })
@@ -286,10 +252,8 @@ describe('sessionReducer: errorOccurred', () => {
     const state = makeState([makeSession({ state: 'running' })])
     const result = sessionReducer(state, {
       type: 'errorOccurred',
-      errorOccurred: {
-        sessionId: 's1', errorType: 'tool', message: 'crashed', timestamp: 2000,
-      },
-    })
+      sessionId: 's1', errorType: 'tool', message: 'crashed', timestamp: 2000,
+    } as AgentEvent)
     expect(result.sessions[0].state).toBe('completed')
     expect(result.sessions[0].lastError).toBe('crashed')
   })
@@ -301,10 +265,8 @@ describe('sessionReducer: ensureSession', () => {
   it('creates minimal session for unknown sessionId', () => {
     const result = sessionReducer(makeState(), {
       type: 'errorOccurred',
-      errorOccurred: {
-        sessionId: 'mystery', errorType: 'x', message: 'y', timestamp: 5000,
-      },
-    })
+      sessionId: 'mystery', errorType: 'x', message: 'y', timestamp: 5000,
+    } as AgentEvent)
     expect(result.sessions).toHaveLength(1)
     expect(result.sessions[0].id).toBe('mystery')
     expect(result.sessions[0].state).toBe('completed')
@@ -313,10 +275,8 @@ describe('sessionReducer: ensureSession', () => {
   it('labelFromId extracts last path segment', () => {
     const result = sessionReducer(makeState(), {
       type: 'sessionStarted',
-      sessionStarted: {
-        sessionId: '/dev/my-project', title: 'ignored', agent: 'unknown', timestamp: 1,
-      },
-    })
+      sessionId: '/dev/my-project', title: 'ignored', agent: 'unknown', timestamp: 1,
+    } as AgentEvent)
     // sessionStarted uses title as label, not labelFromId for existing paths
     expect(result.sessions[0].label).toBe('ignored')
   })
@@ -324,10 +284,8 @@ describe('sessionReducer: ensureSession', () => {
   it('labelFromId generates session prefix for short ids', () => {
     const result = sessionReducer(makeState(), {
       type: 'activityUpdated',
-      activityUpdated: {
-        sessionId: 'abc12345', summary: 'x', phase: 'running', timestamp: 1,
-      },
-    })
+      sessionId: 'abc12345', summary: 'x', phase: 'running', timestamp: 1,
+    } as AgentEvent)
     expect(result.sessions[0].label).toBe('session-abc12345')
   })
 })

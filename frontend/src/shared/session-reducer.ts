@@ -166,17 +166,20 @@ export interface JumpTarget {
 }
 
 // ─── Tagged union (matches Rust #[serde(tag = "type")]) ─────────────────────
+//
+// Rust 使用 #[serde(tag = "type")] 内部标记格式，payload 字段平铺在与 type 同级。
+// 前端类型必须匹配这个平铺结构。
 
 export type AgentEvent =
-  | { type: "sessionStarted"; sessionStarted: SessionStartedPayload }
-  | { type: "activityUpdated"; activityUpdated: ActivityUpdatedPayload }
-  | { type: "permissionRequested"; permissionRequested: PermissionRequestPayload }
-  | { type: "questionAsked"; questionAsked: QuestionAskedPayload }
-  | { type: "sessionCompleted"; sessionCompleted: SessionCompletedPayload }
-  | { type: "toolUseStarted"; toolUseStarted: ToolUseStartedPayload }
-  | { type: "toolUseCompleted"; toolUseCompleted: ToolUseCompletedPayload }
-  | { type: "jumpTargetUpdated"; jumpTargetUpdated: JumpTargetPayload }
-  | { type: "errorOccurred"; errorOccurred: ErrorOccurredPayload };
+  | (SessionStartedPayload & { type: "sessionStarted" })
+  | (ActivityUpdatedPayload & { type: "activityUpdated" })
+  | (PermissionRequestPayload & { type: "permissionRequested" })
+  | (QuestionAskedPayload & { type: "questionAsked" })
+  | (SessionCompletedPayload & { type: "sessionCompleted" })
+  | (ToolUseStartedPayload & { type: "toolUseStarted" })
+  | (ToolUseCompletedPayload & { type: "toolUseCompleted" })
+  | (JumpTargetPayload & { type: "jumpTargetUpdated" })
+  | (ErrorOccurredPayload & { type: "errorOccurred" });
 
 // ─── Phase → UIPhase mapping ─────────────────────────────────────────────
 
@@ -205,23 +208,23 @@ export function sessionReducer(
 ): SessionReducerState {
   switch (event.type) {
     case "sessionStarted":
-      return applySessionStarted(state, event.sessionStarted);
+      return applySessionStarted(state, event);
     case "activityUpdated":
-      return applyActivityUpdated(state, event.activityUpdated);
+      return applyActivityUpdated(state, event);
     case "permissionRequested":
-      return applyPermissionRequested(state, event.permissionRequested);
+      return applyPermissionRequested(state, event);
     case "questionAsked":
-      return applyQuestionAsked(state, event.questionAsked);
+      return applyQuestionAsked(state, event);
     case "sessionCompleted":
-      return applySessionCompleted(state, event.sessionCompleted);
+      return applySessionCompleted(state, event);
     case "toolUseStarted":
-      return applyToolUseStarted(state, event.toolUseStarted);
+      return applyToolUseStarted(state, event);
     case "toolUseCompleted":
-      return applyToolUseCompleted(state, event.toolUseCompleted);
+      return applyToolUseCompleted(state, event);
     case "jumpTargetUpdated":
-      return applyJumpTargetUpdated(state, event.jumpTargetUpdated);
+      return applyJumpTargetUpdated(state, event);
     case "errorOccurred":
-      return applyErrorOccurred(state, event.errorOccurred);
+      return applyErrorOccurred(state, event);
     default:
       return state;
   }

@@ -177,43 +177,14 @@ pub fn enrich_jump_target(target: &JumpTarget) -> JumpTarget {
 }
 
 /// 探测 Windows Terminal 所有 tab
+///
+/// **当前禁用**：`wt.exe` 是 UWP GUI 应用，在非终端上下文中调用时
+/// 会将子命令（如 `list-tabs`）当作要执行的程序，导致弹出错误标签页。
+/// `CREATE_NO_WINDOW` 仅对 console 进程有效，对 `wt.exe` 无效。
+/// Jump terminal 回退到 PID 方式聚焦（v1 行为）。
 #[cfg(target_os = "windows")]
 fn snapshot_windows_terminal() -> Option<Vec<WtTabSnapshot>> {
-    use std::os::windows::process::CommandExt;
-    use std::process::Command;
-
-    let output = Command::new("wt")
-        .args(["list-tabs", "--format", "json"])
-        .creation_flags(0x08000000) // CREATE_NO_WINDOW
-        .output()
-        .ok()?;
-
-    if !output.status.success() {
-        log::debug!("[resolver] wt list-tabs failed: stderr={}",
-            String::from_utf8_lossy(&output.stderr));
-        return None;
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    // wt list-tabs 输出每行一个 JSON 对象（不是数组）
-    stdout
-        .lines()
-        .filter(|line| !line.trim().is_empty())
-        .filter_map(|line| {
-            serde_json::from_str::<serde_json::Value>(line).ok().and_then(|v| {
-                Some(WtTabSnapshot {
-                    tab_id: v.get("id")?.as_str()?.to_string(),
-                    tab_index: v.get("index")?.as_u64()? as u32,
-                    title: v.get("title")?.as_str()?.to_string(),
-                    working_directory: v.get("workingDirectory")
-                        .or_else(|| v.get("workingDirectory"))
-                        .and_then(|v| v.as_str())
-                        .map(String::from),
-                })
-            })
-        })
-        .collect::<Vec<_>>()
-        .into()
+    None
 }
 
 #[cfg(not(target_os = "windows"))]

@@ -407,6 +407,20 @@ async fn handle_session_start(
     let label = get_session_label(&payload);
     let detected_agent = detect_agent_from_payload(&payload);
 
+    // 在 emit 之前先探测终端，复用结果同时用于 session_start 和 agent_event
+    let detected_jump_target = payload.cwd.as_ref().map(|cwd| detect_jump_target(cwd.clone()));
+
+    // 构建 session_start 事件中的 jump_target（v1 字段名，前端已有映射）
+    let jump_target_json = detected_jump_target.as_ref().map(|jt| {
+        serde_json::json!({
+            "terminalType": jt.terminal_app,
+            "pid": jt.pid,
+            "workspacePath": jt.working_directory,
+            "windowTitle": jt.pane_title,
+            "extra": jt.extra,
+        })
+    });
+
     // Emit session_start event to frontend
     let _ = state.app_handle.emit(
         "session_start",
@@ -418,6 +432,7 @@ async fn handle_session_start(
             "model": payload.model,
             "agent_type": payload.agent_type,
             "detected_agent": serde_json::to_string(&detected_agent).unwrap_or_default(),
+            "jump_target": jump_target_json,
         }),
     );
 
@@ -441,9 +456,8 @@ async fn handle_session_start(
     // stores Running on session start; the frontend derives idle from
     // "no active tool and session just created".
 
-    // Detect terminal type and emit JumpTargetUpdated
-    if let Some(ref cwd) = payload.cwd {
-        let jump_target = detect_jump_target(cwd.clone());
+    // 通过 agent_event 路径更新 Rust 端 session state（复用已探测的结果）
+    if let Some(jump_target) = detected_jump_target {
         let jt_event = AgentEvent::JumpTargetUpdated(JumpTargetPayload {
             session_id: session_id.clone(),
             jump_target,
