@@ -106,10 +106,33 @@ pub fn jump_to_session(
     // 2. PID fallback
     if let Some(pid) = session_pid {
         let result = crate::window_focus::focus_window_by_pid(pid).into();
-        log::info!("[jump_to_session] PID fallback result: {:?}", result);
         if !matches!(result, JumpResult::NotFound) {
+            log::info!("[jump_to_session] PID fallback (direct) result: {:?}", result);
             return result;
         }
+
+        // Agent 进程本身无窗口 — 向上走进程树找终端窗口
+        let (terminal_type, extra) = crate::window_focus::detect_terminal_type(pid);
+        if let Some(ref _tt) = terminal_type {
+            let terminal_pid = extra
+                .as_ref()
+                .and_then(|e| e.get("terminalPid"))
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u32);
+
+            if let Some(tpid) = terminal_pid {
+                let result = crate::window_focus::focus_window_by_pid(tpid).into();
+                log::info!(
+                    "[jump_to_session] terminal PID {} fallback result: {:?}",
+                    tpid, result
+                );
+                if !matches!(result, JumpResult::NotFound) {
+                    return result;
+                }
+            }
+        }
+
+        log::info!("[jump_to_session] PID fallback exhausted for pid={}", pid);
     }
 
     // 3. Workspace fallback
