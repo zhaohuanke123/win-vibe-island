@@ -8,7 +8,7 @@
 
 | 文档 | 说明 |
 |------|------|
-| [AGENTS.md](../AGENTS.md) | 项目配置、读取顺序、文件导航、Memory 规则 **（入口）** |
+| [CLAUDE.md](../CLAUDE.md) | 项目配置、读取顺序、文件导航、Memory 规则 **（入口）** |
 | [WORKFLOW.md](../WORKFLOW.md) | 工作流程和 Documentation Gate |
 | [architecture.md](../architecture.md) | 架构约束、启动流程、IPC 命令、路由表、已知边界 |
 
@@ -16,11 +16,18 @@
 
 | 文档 | 说明 |
 |------|------|
-| [command-registry-design.md](command-registry-design.md) | 声明式命令注册表设计（TOML 规格 + tldr-pages 工具链） |
 | [architecture/state-machine.md](architecture/state-machine.md) | 状态转换矩阵定义与维护规则 |
 | [architecture/states-and-flows.md](architecture/states-and-flows.md) | Agent 状态与 UI 流程 |
 | [architecture/animation-design.md](architecture/animation-design.md) | 动画系统方案与参数 |
 | [architecture/diffviewer-spec.md](architecture/diffviewer-spec.md) | DiffViewer 自适应行为规范 |
+| [jump-terminal-v2-design.md](jump-terminal-v2-design.md) | Jump Terminal V2：Resolver/Service 架构 |
+| [command-registry-design.md](command-registry-design.md) | 声明式命令注册表设计（TOML 规格 + 通用解释器） |
+
+## 规范
+
+| 文档 | 说明 |
+|------|------|
+| [LOGGING_CONTRACT.md](../LOGGING_CONTRACT.md) | AI-Native 错误处理规范 |
 
 ## Hook 集成
 

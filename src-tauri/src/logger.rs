@@ -1,3 +1,6 @@
+//! JSONL 日志模块 — Rust 端和前端日志按天写入 `%APPDATA%/com.vibe-island.app/logs/YYYY-MM-DD.jsonl`。
+//! 提供 `log_entry` Tauri 命令供前端写入结构化日志。
+
 use serde::Deserialize;
 use std::fs;
 use std::io::Write;

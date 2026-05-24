@@ -1,3 +1,6 @@
+//! Bash 命令风险分析 — 基于 tree-sitter 解析 Bash 命令，结合声明式 TOML 命令注册表（CommandSpec）进行参数解释和风险检测。
+//! 支持通用解释器和数据驱动的风险模式匹配。
+
 use serde::Serialize;
 use tree_sitter::{Language, Node, Parser};
 

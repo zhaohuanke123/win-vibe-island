@@ -144,7 +144,7 @@ cd src-tauri && cargo test
 
 ## Architecture
 
-See [architecture.md](architecture.md) and [DESIGN.md](DESIGN.md) for current implementation details and constraints.
+See [architecture.md](architecture.md) for current implementation details and constraints.
 
 ## Troubleshooting
 

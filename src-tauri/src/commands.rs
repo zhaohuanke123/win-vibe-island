@@ -1,3 +1,7 @@
+//! Tauri IPC 命令 — 所有前端→后端的 `invoke()` 命令处理函数。
+//! 涵盖 Overlay 窗口、DPI、Hook 服务器、Hook 配置、Named Pipe、进程监控、审批响应、会话持久化、动画同步、窗口吸附、测试模拟等模块。
+//! 所有命令通过 `lib.rs` 的 `generate_handler![]` 注册。
+
 use crate::events::{self, SessionEnd, SessionStart, StateChange};
 use crate::hook_config;
 use crate::hook_server;
@@ -258,14 +262,16 @@ pub fn stop_pipe_server() -> Result<(), String> {
 pub fn focus_session_window(
     session_pid: Option<u32>,
     jump_target: Option<JumpTarget>,
+    session_cwd: Option<String>,
 ) -> JumpResult {
     log::info!(
-        "[focus_session_window] called with session_pid={:?}, jump_target={:?}",
+        "[focus_session_window] called with session_pid={:?}, jump_target={:?}, session_cwd={:?}",
         session_pid,
-        jump_target.as_ref().map(|t| (&t.terminal_app, &t.pid, &t.working_directory))
+        jump_target.as_ref().map(|t| (&t.terminal_app, &t.pid, &t.working_directory)),
+        session_cwd
     );
 
-    crate::terminal_jump::jump_to_session(session_pid, jump_target.as_ref())
+    crate::terminal_jump::jump_to_session(session_pid, jump_target.as_ref(), session_cwd.as_deref())
 }
 
 // Process watcher commands
@@ -856,7 +862,7 @@ pub fn test_detect_terminal(pid: Option<u32>) -> serde_json::Value {
     #[cfg(target_os = "windows")]
     {
         let target_pid = pid.unwrap_or_else(|| std::process::id());
-        let jump_target = crate::terminal_jump::resolver::resolve_from_pid(target_pid, None);
+        let jump_target = crate::terminal_jump::resolver::resolve_from_pid(target_pid, None, None);
         let found_window = window_focus::find_window_by_pid(target_pid);
         serde_json::json!({
             "pid": target_pid,
@@ -903,7 +909,7 @@ pub fn debug_sessions() -> serde_json::Value {
                 })
             }
         };
-        let jump_target = crate::terminal_jump::resolver::resolve_from_pid(current_pid, None);
+        let jump_target = crate::terminal_jump::resolver::resolve_from_pid(current_pid, None, None);
         serde_json::json!({
             "currentPid": current_pid,
             "parentPid": parent_pid,

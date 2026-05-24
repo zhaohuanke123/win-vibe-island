@@ -9,7 +9,7 @@ We use [Semantic Versioning](https://semver.org/):
 - **MINOR**: New features, backward compatible
 - **PATCH**: Bug fixes, backward compatible
 
-Current version: `1.1.0`
+Current version: `2.0.0`
 
 Version numbers are defined in:
 - `src-tauri/Cargo.toml` - `version` field
@@ -76,8 +76,8 @@ azuresigntool sign -kvt <tenant-id> -kvu <vault-url> -kvc <certificate-name> -tr
 ### Create a Tag
 
 ```bash
-git tag -a v0.1.0 -m "Release v0.1.0"
-git push origin v0.1.0
+git tag -a v2.0.0 -m "Release v2.0.0"
+git push origin v2.0.0
 ```
 
 ### Create GitHub Release
@@ -94,7 +94,7 @@ git push origin v0.1.0
 ### Release Notes Template
 
 ```markdown
-# Vibe Island v0.1.0
+# Vibe Island v2.0.0
 
 ## What's New
 - Initial release

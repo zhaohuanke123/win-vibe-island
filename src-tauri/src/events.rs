@@ -1,3 +1,6 @@
+//! Tauri 事件发射 — 后端→前端的类型化事件推送。
+//! 定义 SessionStart、SessionEnd、StateChange 等事件 payload 结构体，提供 `emit_*` 辅助函数通过 `AppHandle::emit()` 推送到前端。
+
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 

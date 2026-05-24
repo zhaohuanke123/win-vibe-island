@@ -343,5 +343,5 @@ git commit -m "complete task #N: [Title]"
 
 | 文件 | 用途 |
 |------|------|
-| `executor.md` | Executor 子代理指令 |
-| `verifier.md` | Verifier 子代理指令 |
+| `.claude/agents/executor.md` | Executor 子代理指令 |
+| `.claude/agents/verifier.md` | Verifier 子代理指令 |

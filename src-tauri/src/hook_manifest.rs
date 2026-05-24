@@ -1,3 +1,6 @@
+//! Hook 安装清单管理 — 跟踪 Vibe Island 写入的 Claude Code hook 记录。
+//! 支持安全安装（去重检查）、精确卸载（仅删除清单中记录的 hook）、以及时间戳备份策略（保留最近 3 个备份）。
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{Read, Write};

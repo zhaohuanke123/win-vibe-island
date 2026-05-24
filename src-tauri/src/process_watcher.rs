@@ -1,3 +1,6 @@
+//! Agent 进程监控 — 轮询枚举运行中进程，匹配已知 AI 编程助手（Claude Code、Codex、Cursor 等），
+//! 跟踪进程启动/退出事件并通过 Tauri 事件推送到前端。作为 session 状态检测的 fallback 机制。
+
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

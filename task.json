@@ -25,7 +25,7 @@
       "priority": "critical",
       "dependencies": [],
       "requirement_ref": "architecture.md#Core Infrastructure",
-      "design_ref": "DESIGN.md#System Tray",
+      "design_ref": "architecture.md#System Tray",
       "docs_updated": true,
       "implementation_done": true,
       "verified": true,
@@ -294,7 +294,7 @@
       ],
       "files": [
         "README.md",
-        "docs/hooks-setup.md"
+        "docs/hooks/hooks-setup.md"
       ]
     },
     {
@@ -364,7 +364,7 @@
         "README.md",
         "src-tauri/tauri.conf.json",
         "CHANGELOG.md",
-        "docs/release-process.md"
+        "docs/operations/release-process.md"
       ]
     },
     {
@@ -479,7 +479,7 @@
         18
       ],
       "files": [
-        "docs/hooks-setup.md",
+        "docs/hooks/hooks-setup.md",
         "README.md"
       ]
     },
@@ -720,7 +720,7 @@
         "编写后端 IPC 命令测试",
         "测试多显示器场景",
         "测试高 DPI 场景",
-        "更新 AGENTS.md 添加动画系统说明",
+        "更新 CLAUDE.md 添加动画系统说明",
         "更新 progress.txt 记录开发进度"
       ],
       "status": "completed",
@@ -733,7 +733,7 @@
       "verified": true,
       "passes": true,
       "files": [
-        "AGENTS.md",
+        "CLAUDE.md",
         "progress.txt"
       ]
     },
@@ -1968,25 +1968,6 @@
       ]
     },
     {
-      "id": 75,
-      "title": "Bugfix: Hook JSON output validation failed — 非阻塞事件 stdout 为空 + PreToolUse 响应格式错误",
-      "description": "Claude Code 报 'Hook JSON output validation failed — (root): Invalid input'。根因1: vibe-island-hooks.exe 对非阻塞事件(SessionStart/Notification等)直接 exit 0 但不写 stdout，CC 要求 exit 0 时 stdout 必须有合法 JSON。根因2: pipe_server.rs 对 PreToolUse 返回 {\"decision\":\"allow\"}，但 CC 文档要求用 hookSpecificOutput 包装格式 {\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\"}}。",
-      "steps": [
-        "vibe-island-hooks.rs: 非阻塞事件 exit 前输出 {\"continue\":true} 到 stdout",
-        "pipe_server.rs: PreToolUse 响应改用 hookSpecificOutput 包装格式，permissionDecision 字段",
-        "cargo check 验证编译",
-        "手动测试: 触发各 hook 事件确认不再报 JSON validation 错误"
-      ],
-      "status": "pending",
-      "type": "bug",
-      "priority": "high",
-      "dependencies": [],
-      "files": [
-        "src-tauri/src/bin/vibe-island-hooks.rs",
-        "src-tauri/src/pipe_server.rs"
-      ]
-    },
-    {
       "id": 74,
       "title": "Feature: Animation Alignment (Framer Motion 弹性动画与物理效果对齐)",
       "description": "对齐 SwiftUI 的交互动画物理特性。利用 Framer Motion 微调 Spring（弹簧物理）参数，实现丝滑的多状态形态流转与高度/宽度变形 morph 动画。",
@@ -2012,6 +1993,25 @@
         "src-tauri/src/config/types.rs",
         "frontend/src/components/Overlay.tsx",
         "frontend/src/components/AnimatedNotch.tsx"
+      ]
+    },
+    {
+      "id": 75,
+      "title": "Bugfix: Hook JSON output validation failed — 非阻塞事件 stdout 为空 + PreToolUse 响应格式错误",
+      "description": "Claude Code 报 'Hook JSON output validation failed — (root): Invalid input'。根因1: vibe-island-hooks.exe 对非阻塞事件(SessionStart/Notification等)直接 exit 0 但不写 stdout，CC 要求 exit 0 时 stdout 必须有合法 JSON。根因2: pipe_server.rs 对 PreToolUse 返回 {\"decision\":\"allow\"}，但 CC 文档要求用 hookSpecificOutput 包装格式 {\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\"}}。",
+      "steps": [
+        "vibe-island-hooks.rs: 非阻塞事件 exit 前输出 {\"continue\":true} 到 stdout",
+        "pipe_server.rs: PreToolUse 响应改用 hookSpecificOutput 包装格式，permissionDecision 字段",
+        "cargo check 验证编译",
+        "手动测试: 触发各 hook 事件确认不再报 JSON validation 错误"
+      ],
+      "status": "completed",
+      "type": "bug",
+      "priority": "high",
+      "dependencies": [],
+      "files": [
+        "src-tauri/src/bin/vibe-island-hooks.rs",
+        "src-tauri/src/pipe_server.rs"
       ]
     }
   ]

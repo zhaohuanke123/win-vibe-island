@@ -1,3 +1,6 @@
+//! Win32 Overlay 窗口 — 原生悬浮窗的创建、定位、DPI 缩放、圆角、点击穿透切换。
+//! 所有函数均为 Windows 专用（`#[cfg(target_os = "windows")]`），非 Windows 平台提供 stub。
+
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::*;
 #[cfg(target_os = "windows")]

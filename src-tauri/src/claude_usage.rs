@@ -1,3 +1,5 @@
+//! Claude Code 用量统计 — 读取 Claude Code 用量缓存文件，解析 5h/7d 使用百分比和重置时间。
+
 use serde::Serialize;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
