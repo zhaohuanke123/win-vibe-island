@@ -23,7 +23,7 @@ import "./SessionRow.css";
 import "./Pill.css";
 import "./NotchRow.css";
 
-type FocusResult = "Success" | "FlashOnly" | "NotFound" | "Restored" | "CommandFailed";
+type JumpResult = "Success" | "AppActivated" | "NotFound" | "Failed";
 
 function clampOverlayHeight(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, Math.ceil(value)));
@@ -217,15 +217,20 @@ export function Overlay() {
 
     const terminalName = session.jumpTarget?.terminalApp || "Terminal";
     const sessionLabel = session.title || session.label;
-    showJumpToast(terminalName, sessionLabel);
 
     try {
-      await invoke<FocusResult>("focus_session_window", {
+      const result = await invoke<JumpResult>("focus_session_window", {
         sessionPid: session.pid ?? null,
         jumpTarget: session.jumpTarget ?? null,
+        sessionCwd: session.cwd ?? null,
       });
-    } catch (e) {
-      setError(`Failed to focus window: ${e}`);
+      if (result === "NotFound" || result === "Failed") {
+        showJumpToast(terminalName, sessionLabel, true);
+      } else {
+        showJumpToast(terminalName, sessionLabel);
+      }
+    } catch {
+      showJumpToast(terminalName, sessionLabel, true);
     }
   }, [setActiveSession, showJumpToast]);
 
@@ -478,6 +483,7 @@ export function Overlay() {
             <JumpToast
               terminalName={jumpToast.terminalName}
               sessionLabel={jumpToast.sessionLabel}
+              failed={jumpToast.failed}
               onDismiss={dismissJumpToast}
               data-testid="jump-toast"
             />

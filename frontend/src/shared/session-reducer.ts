@@ -317,6 +317,7 @@ function applyPermissionRequested(
               name: p.toolName,
               input: p.toolInput ?? {},
               startTime: p.timestamp,
+              toolUseId: p.toolUseId,
             } : s.currentTool,
           }
         : s
@@ -363,7 +364,6 @@ function applySessionCompleted(
             ...s,
             state: "completed" as UIPhase,
             lastActivity: p.timestamp,
-            notifKind: "done" as NotifKind,
             ...(p.summary ? { toolName: p.summary } : {}),
             ...(p.isInterrupt ? { lastError: "Session interrupted" } : {}),
           }

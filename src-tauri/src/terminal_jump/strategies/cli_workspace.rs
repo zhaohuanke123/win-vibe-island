@@ -50,8 +50,14 @@ fn run_command_with_timeout(program: &str, args: &str, _timeout: Duration) -> Re
     use std::os::windows::process::CommandExt;
     use std::process::Command;
 
-    let child = Command::new(program)
-        .args(args.split_whitespace())
+    // 通过 cmd /C 执行，让 cmd.exe 按 PATHEXT 找 .cmd/.bat（code.cmd、cursor.cmd 等）
+    let cmdline = if args.is_empty() {
+        program.to_string()
+    } else {
+        format!("{} {}", program, args)
+    };
+    let child = Command::new("cmd")
+        .args(["/C", &cmdline])
         .creation_flags(0x08000000) // CREATE_NO_WINDOW
         .spawn()
         .map_err(|e| format!("Failed to spawn '{}': {}", program, e))?;

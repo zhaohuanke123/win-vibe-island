@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { StateIndicator } from "./StateIndicator";
 import type { StateIndicatorKind } from "./StateIndicator";
 import { NotifBody } from "./NotifBody";
+import { useSessionsStore } from "../store/sessions";
 import { getAgent, hexA } from "../shared/agents";
 import type { AgentType } from "../shared/agents";
 import { AgentIcon } from "./AgentIcon";
@@ -38,6 +39,7 @@ interface SessionRowProps {
   density?: "comfortable" | "compact";
   groupBy?: "none" | "state" | "agent" | "project";
   onJump?: (session: Session) => void;
+  onJumpFailed?: () => void;
   onDetail?: (session: Session) => void;
   onContextMenu?: (session: Session, position: { x: number; y: number }) => void;
   "data-testid"?: string;
@@ -50,6 +52,7 @@ export const SessionRow = memo(function SessionRow({
   density = "comfortable",
   groupBy = "none",
   onJump,
+  onJumpFailed,
   onDetail,
   onContextMenu,
   "data-testid": testId,
@@ -68,12 +71,16 @@ export const SessionRow = memo(function SessionRow({
     if (session.pid || session.jumpTarget) {
       setJumping(true);
       try {
-        await invoke<JumpResult>("focus_session_window", {
+        const result = await invoke<JumpResult>("focus_session_window", {
           sessionPid: session.pid ?? null,
           jumpTarget: session.jumpTarget ?? null,
+          sessionCwd: session.cwd ?? null,
         });
+        if (result === "NotFound" || result === "Failed") {
+          onJumpFailed?.();
+        }
       } catch {
-        // Silently fail — the overlay is non-blocking
+        onJumpFailed?.();
       } finally {
         setJumping(false);
       }
@@ -266,10 +273,18 @@ export const SessionRow = memo(function SessionRow({
             <NotifBody
               kind={session.notifKind}
               session={session}
-              onSubmit={(response) => {
+              onSubmit={session.notifKind === "done" ? undefined : (response) => {
+                // Look up toolUseId from pendingApprovals (most reliable source)
+                const pendingApproval = useSessionsStore.getState().pendingApprovals.find(
+                  (a) => a.sessionId === session.id
+                );
+                const toolUseId = pendingApproval?.toolUseId
+                  ?? session.currentTool?.toolUseId
+                  ?? session.currentTool?.input?.toolUseId
+                  ?? session.id;
                 try {
                   invoke("submit_approval_response", {
-                    toolUseId: session.currentTool?.input?.toolUseId ?? session.id,
+                    toolUseId,
                     approved: response === "approve" || response === "approve-once" || response === "approve-always",
                     answers: response.startsWith("deny") || response === "dismiss" ? null : { response },
                   });

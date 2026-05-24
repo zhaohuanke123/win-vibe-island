@@ -22,11 +22,11 @@ impl FocusStrategy for WindowsTerminalStrategy {
             return None;
         }
 
-        // 优先使用 PID 聚焦（可靠性高）
+        // 优先使用 PID 聚焦，按 workspace 标题匹配多窗口
         if let Some(pid) = target.pid {
-            if let Some(hwnd) = crate::window_focus::find_window_by_pid(pid) {
-                return Some(crate::window_focus::focus_window(hwnd).into());
-            }
+            let workspace = target.working_directory.as_deref()
+                .or(target.workspace_name.as_deref());
+            return Some(crate::window_focus::focus_wt_window_by_workspace(pid, workspace).into());
         }
 
         // wt.exe focus-tab 命令

@@ -34,19 +34,27 @@ const WEZTERM_SNAPSHOT_TIMEOUT: Duration = Duration::from_secs(3);
 /// 这是 v1 → v2 的桥梁方法。当只有 PID 信息时，通过进程树探测
 /// 确定 terminal_app，然后尝试通过 CLI 获取更多精确信息。
 #[cfg(target_os = "windows")]
-pub fn resolve_from_pid(pid: u32, cwd: Option<&str>) -> JumpTarget {
-    // 1. 使用进程树探测确定终端类型
-    let (terminal_type, extra) = crate::window_focus::detect_terminal_type(pid);
+pub fn resolve_from_pid(pid: u32, cwd: Option<&str>, fallback_pid: Option<u32>) -> JumpTarget {
+    log::info!("[resolve_from_pid] pid={}, cwd={:?}, fallback_pid={:?}", pid, cwd, fallback_pid);
+
+    // 1. 使用注册表驱动的进程树探测确定终端类型
+    //    如果 hook PID 已退出（SessionStart 竞态），用 ppid 重试
+    let mut result = detect_terminal_app(pid);
+    if result.0.is_none() {
+        if let Some(ppid) = fallback_pid.filter(|&p| p != 0) {
+            log::info!("[resolve_from_pid] hook pid={} not found, retrying with ppid={}", pid, ppid);
+            result = detect_terminal_app(ppid);
+        }
+    }
+    let (terminal_app, terminal_pid_from_tree) = result;
+    log::info!(
+        "[resolve_from_pid] detect_terminal_app → terminal_app={:?}, terminal_pid={:?}",
+        terminal_app, terminal_pid_from_tree
+    );
 
     // 2. 查注册表获取 TerminalDescriptor
-    let desc = terminal_type.as_ref().and_then(|t| {
-        crate::terminal_jump::registry::find_by_id_or_alias(t)
-    });
-
-    // 3. 构建 JumpTarget
-    let terminal_app = terminal_type.map(|t| match t.as_str() {
-        "windowsTerminal" => "WindowsTerminal".into(),
-        other => other.into(),
+    let desc = terminal_app.as_ref().and_then(|app| {
+        crate::terminal_jump::registry::find_by_id_or_alias(app)
     });
 
     let workspace_name = cwd.and_then(|p| {
@@ -55,7 +63,7 @@ pub fn resolve_from_pid(pid: u32, cwd: Option<&str>) -> JumpTarget {
             .map(String::from)
     });
 
-    // 4. 尝试获取更精确的信息（Windows Terminal tab / WezTerm pane）
+    // 3. 尝试获取更精确的信息（Windows Terminal tab / WezTerm pane）
     let (terminal_tab_id, terminal_tab_index, terminal_session_id) = if let Some(ref desc) = desc {
         match desc.focus_strategy {
             crate::terminal_jump::registry::FocusStrategyType::WindowsTerminal => {
@@ -65,7 +73,6 @@ pub fn resolve_from_pid(pid: u32, cwd: Option<&str>) -> JumpTarget {
                     .unwrap_or((None, None, None))
             }
             crate::terminal_jump::registry::FocusStrategyType::PidFallback => {
-                // WezTerm: 尝试通过 CLI list 获取 pane 信息
                 if desc.id == "wezterm" {
                     snapshot_wezterm()
                         .and_then(|panes| find_matching_wezterm_pane(&panes, cwd))
@@ -81,13 +88,13 @@ pub fn resolve_from_pid(pid: u32, cwd: Option<&str>) -> JumpTarget {
         (None, None, None)
     };
 
-    // 5. 从 extra 提取 PID（terminalPid）
-    let pid = extra
-        .as_ref()
-        .and_then(|e| e.get("terminalPid"))
-        .and_then(|v| v.as_u64())
-        .map(|v| v as u32)
-        .unwrap_or(pid);
+    // 4. 确定最终 PID：优先用进程树探测到的终端 PID
+    let resolved_pid = terminal_pid_from_tree.unwrap_or(pid);
+
+    log::info!(
+        "[resolve_from_pid] result: terminal_app={:?}, pid={}, workspace_name={:?}, tab_id={:?}",
+        terminal_app, resolved_pid, workspace_name, terminal_tab_id
+    );
 
     JumpTarget {
         terminal_app,
@@ -95,15 +102,15 @@ pub fn resolve_from_pid(pid: u32, cwd: Option<&str>) -> JumpTarget {
         pane_title: None,
         working_directory: cwd.map(String::from),
         terminal_session_id,
-        pid: Some(pid),
+        pid: Some(resolved_pid),
         terminal_tab_index,
         terminal_tab_id,
-        extra,
+        extra: None,
     }
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn resolve_from_pid(_pid: u32, _cwd: Option<&str>) -> JumpTarget {
+pub fn resolve_from_pid(_pid: u32, _cwd: Option<&str>, _fallback_pid: Option<u32>) -> JumpTarget {
     JumpTarget {
         terminal_app: None,
         workspace_name: None,
@@ -322,6 +329,8 @@ pub fn detect_terminal_app(pid: u32) -> (Option<String>, Option<u32>) {
 fn detect_terminal_app_inner(pid: u32) -> Option<(String, u32)> {
     use windows::Win32::System::Diagnostics::ToolHelp::*;
 
+    log::info!("[detect_terminal_app_inner] walking process tree from pid={}", pid);
+
     let parent_pid = unsafe {
         let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0).ok()?;
         let mut entry = PROCESSENTRY32W {
@@ -346,9 +355,19 @@ fn detect_terminal_app_inner(pid: u32) -> Option<(String, u32)> {
         }
     };
 
-    let mut current_pid = parent_pid?;
-    for _ in 0..10 {
+    let mut current_pid = match parent_pid {
+        Some(p) if p != 0 => p,
+        other => {
+            log::warn!(
+                "[detect_terminal_app_inner] pid={} not found in process snapshot (parent_pid={:?}) — process likely exited",
+                pid, other
+            );
+            return None;
+        }
+    };
+    for i in 0..10 {
         if current_pid == 0 {
+            log::info!("[detect_terminal_app_inner] level={}: hit pid=0, stopping", i);
             break;
         }
 
@@ -388,8 +407,22 @@ fn detect_terminal_app_inner(pid: u32) -> Option<(String, u32)> {
                     "windows-terminal" => "WindowsTerminal".to_string(),
                     _ => desc.display_name.to_string(),
                 };
+                log::info!(
+                    "[detect_terminal_app_inner] level={}: MATCHED pid={} exe={} → app={}",
+                    i, current_pid, name, app
+                );
                 return Some((app, current_pid));
+            } else {
+                log::info!(
+                    "[detect_terminal_app_inner] level={}: pid={} exe={} — no registry match",
+                    i, current_pid, name
+                );
             }
+        } else {
+            log::info!(
+                "[detect_terminal_app_inner] level={}: pid={} — exe_name not found (process exited?)",
+                i, current_pid
+            );
         }
 
         // 继续向上走进程树
@@ -418,6 +451,7 @@ fn detect_terminal_app_inner(pid: u32) -> Option<(String, u32)> {
         }?;
     }
 
+    log::info!("[detect_terminal_app_inner] exhausted 10 levels from pid={}, no match", pid);
     None
 }
 

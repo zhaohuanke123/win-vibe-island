@@ -1354,12 +1354,12 @@ fn detect_jump_target(cwd: String) -> JumpTarget {
     #[cfg(target_os = "windows")]
     {
         let pid = std::process::id();
-        crate::terminal_jump::resolver::resolve_from_pid(pid, Some(&cwd))
+        crate::terminal_jump::resolver::resolve_from_pid(pid, Some(&cwd), None)
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        crate::terminal_jump::resolver::resolve_from_pid(0, Some(&cwd))
+        crate::terminal_jump::resolver::resolve_from_pid(0, Some(&cwd), None)
     }
 }
 

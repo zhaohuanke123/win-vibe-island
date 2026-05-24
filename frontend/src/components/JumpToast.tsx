@@ -7,6 +7,8 @@ interface JumpToastProps {
   terminalName: string;
   /** Session label for secondary info. */
   sessionLabel?: string;
+  /** Show failure state instead of "Jumping to..." */
+  failed?: boolean;
   /** Called when the toast finishes its animation. */
   onDismiss: () => void;
   "data-testid"?: string;
@@ -15,6 +17,7 @@ interface JumpToastProps {
 export const JumpToast = memo(function JumpToast({
   terminalName,
   sessionLabel,
+  failed,
   onDismiss,
   "data-testid": testId,
 }: JumpToastProps) {
@@ -32,23 +35,42 @@ export const JumpToast = memo(function JumpToast({
 
   return (
     <div className="pill__toast-container" data-testid={testId}>
-      <div className="pill__toast">
-        <svg
-          className="pill__toast-icon"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M6 2 L13 8 L6 14" />
-        </svg>
-        <span className="pill__toast-label">
-          Jumping to <span className="pill__toast-term">{terminalName}</span>
-        </span>
-        {sessionLabel && (
-          <span className="pill__toast-term">{sessionLabel}</span>
+      <div className={`pill__toast${failed ? " pill__toast--failed" : ""}`}>
+        {failed ? (
+          <>
+            <svg
+              className="pill__toast-icon"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 4 L12 12 M12 4 L4 12" />
+            </svg>
+            <span className="pill__toast-label">未找到终端窗口</span>
+          </>
+        ) : (
+          <>
+            <svg
+              className="pill__toast-icon"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M6 2 L13 8 L6 14" />
+            </svg>
+            <span className="pill__toast-label">
+              Jumping to <span className="pill__toast-term">{terminalName}</span>
+            </span>
+            {sessionLabel && (
+              <span className="pill__toast-term">{sessionLabel}</span>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -57,10 +79,10 @@ export const JumpToast = memo(function JumpToast({
 
 /** Hook to manage jump toast state. Returns showToast and the current toast data. */
 export function useJumpToast() {
-  const [toast, setToast] = useState<{ terminalName: string; sessionLabel?: string } | null>(null);
+  const [toast, setToast] = useState<{ terminalName: string; sessionLabel?: string; failed?: boolean } | null>(null);
 
-  const showToast = useCallback((terminalName: string, sessionLabel?: string) => {
-    setToast({ terminalName, sessionLabel });
+  const showToast = useCallback((terminalName: string, sessionLabel?: string, failed?: boolean) => {
+    setToast({ terminalName, sessionLabel, failed });
   }, []);
 
   const dismissToast = useCallback(() => {

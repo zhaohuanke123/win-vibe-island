@@ -284,9 +284,16 @@ unsafe fn flash_window(hwnd: HWND) {
 
 #[cfg(target_os = "windows")]
 pub fn focus_window_by_pid(pid: u32) -> FocusResult {
+    log::info!("[focus_window_by_pid] pid={}", pid);
     match find_window_by_pid(pid) {
-        Some(hwnd) => focus_window(hwnd),
-        None => FocusResult::NotFound,
+        Some(hwnd) => {
+            log::info!("[focus_window_by_pid] found hwnd={:?} for pid={}", hwnd, pid);
+            focus_window(hwnd)
+        }
+        None => {
+            log::info!("[focus_window_by_pid] no visible window found for pid={}", pid);
+            FocusResult::NotFound
+        }
     }
 }
 
@@ -368,6 +375,121 @@ pub fn focus_by_workspace_with_exe(workspace: &str, exe_name: &str) -> FocusResu
         Some(hwnd) => focus_window(hwnd),
         None => FocusResult::NotFound,
     }
+}
+
+/// Focus a Windows Terminal window by PID, preferring the one whose title matches workspace.
+///
+/// WT 所有窗口共享同一 PID（v1.18 起），`find_window_by_pid` 只返回第一个可见窗口。
+/// 此函数枚举该 PID 的所有可见窗口，依次尝试：
+/// 1. 完整 workspace 路径匹配
+/// 2. 最后一段文件夹名匹配
+/// 3. 负向过滤（跳过系统窗口，如 "C:\Windows\system32\cmd.exe"）
+/// 4. 回退到第一个候选
+#[cfg(target_os = "windows")]
+pub fn focus_wt_window_by_workspace(pid: u32, workspace: Option<&str>) -> FocusResult {
+    use windows::Win32::Foundation::*;
+    use windows::Win32::UI::WindowsAndMessaging::*;
+
+    let folder_name = workspace
+        .and_then(|w| w.rsplit(|c: char| c == '/' || c == '\\').find(|s| !s.is_empty()))
+        .unwrap_or("");
+
+    struct EnumData {
+        target_pid: u32,
+        candidates: Vec<(HWND, String)>,
+    }
+
+    unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let data = &mut *(lparam.0 as *mut EnumData);
+
+        let mut window_pid: u32 = 0;
+        GetWindowThreadProcessId(hwnd, Some(&mut window_pid));
+
+        if window_pid != data.target_pid {
+            return BOOL(1);
+        }
+
+        if !IsWindowVisible(hwnd).as_bool() {
+            return BOOL(1);
+        }
+
+        let title_len = GetWindowTextLengthW(hwnd);
+        if title_len == 0 {
+            return BOOL(1);
+        }
+
+        let mut buf = vec![0u16; (title_len + 1) as usize];
+        GetWindowTextW(hwnd, &mut buf);
+        let title = String::from_utf16_lossy(&buf[..title_len as usize]);
+
+        data.candidates.push((hwnd, title));
+        BOOL(1)
+    }
+
+    let mut data = EnumData {
+        target_pid: pid,
+        candidates: Vec::new(),
+    };
+
+    unsafe {
+        let _ = EnumWindows(Some(enum_callback), LPARAM(&mut data as *mut _ as isize));
+    }
+
+    if data.candidates.is_empty() {
+        return FocusResult::NotFound;
+    }
+
+    // 记录所有候选窗口
+    for (i, (hwnd, title)) in data.candidates.iter().enumerate() {
+        log::info!(
+            "[focus_wt_window_by_workspace] candidate[{}]: hwnd={:?} title={:?}",
+            i, hwnd, title
+        );
+    }
+
+    // 匹配1: 完整 workspace 路径
+    if let Some(ws) = workspace {
+        if !ws.is_empty() {
+            let ws_lower = ws.to_lowercase();
+            for (hwnd, title) in &data.candidates {
+                if title.to_lowercase().contains(&ws_lower) {
+                    log::info!("[focus_wt_window_by_workspace] matched full path: {:?}", title);
+                    return focus_window(*hwnd);
+                }
+            }
+        }
+    }
+
+    // 匹配2: 最后一段文件夹名
+    if !folder_name.is_empty() {
+        let folder_lower = folder_name.to_lowercase();
+        for (hwnd, title) in &data.candidates {
+            if title.to_lowercase().contains(&folder_lower) {
+                log::info!("[focus_wt_window_by_workspace] matched folder: {:?}", title);
+                return focus_window(*hwnd);
+            }
+        }
+    }
+
+    // 负向过滤: 跳过系统窗口（标题含 \Windows\system32）
+    if let Some((hwnd, title)) = data.candidates.iter().find(|(_, title)| {
+        let lower = title.to_lowercase();
+        !lower.starts_with("c:\\windows") && !lower.contains("\\windows\\system32")
+    }) {
+        log::info!(
+            "[focus_wt_window_by_workspace] negative filter: hwnd={:?} title={:?}",
+            hwnd, title
+        );
+        return focus_window(*hwnd);
+    }
+
+    // 最终回退
+    let (hwnd, title) = &data.candidates[0];
+    log::info!(
+        "[focus_wt_window_by_workspace] final fallback: hwnd={:?} title={:?}",
+        hwnd, title
+    );
+    focus_window(*hwnd)
 }
 
 /// Last-resort focus: try all known editors to find a matching window.
@@ -529,6 +651,91 @@ fn build_process_name_map() -> std::collections::HashMap<u32, String> {
 
 // ─── Non-Windows stubs ───────────────────────────────────────────────────────
 
+/// 聚焦任何可见的已知终端窗口（最终 fallback）
+///
+/// 只匹配真正的终端模拟器（WindowsTerminal、WezTerm、Alacritty、Tabby），
+/// 排除 IDE（VSCode、Cursor、Windsurf），避免跳转到 IDE 窗口。
+#[cfg(target_os = "windows")]
+pub fn focus_any_terminal() -> FocusResult {
+    use windows::Win32::UI::WindowsAndMessaging::*;
+
+    let pid_map = build_process_name_map();
+
+    // 只取真正的终端模拟器的 exe 名（排除 CliOpenWorkspace 和 WorkspaceMatch 策略的 IDE）
+    let terminal_exes: Vec<String> = crate::terminal_jump::registry::KNOWN_TERMINALS
+        .iter()
+        .filter(|desc| {
+            matches!(
+                desc.focus_strategy,
+                crate::terminal_jump::registry::FocusStrategyType::WindowsTerminal
+                | crate::terminal_jump::registry::FocusStrategyType::PidFallback
+            )
+        })
+        .flat_map(|desc| desc.exe_names.iter().map(|e| e.to_lowercase()))
+        .collect();
+
+    log::info!("[focus_any_terminal] looking for exes: {:?}", terminal_exes);
+
+    struct EnumData {
+        pid_map: std::collections::HashMap<u32, String>,
+        terminal_exes: Vec<String>,
+        found_hwnd: Option<HWND>,
+        found_exe: Option<String>,
+    }
+
+    unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let data = &mut *(lparam.0 as *mut EnumData);
+        if data.found_hwnd.is_some() {
+            return BOOL(0);
+        }
+
+        let mut window_pid: u32 = 0;
+        GetWindowThreadProcessId(hwnd, Some(&mut window_pid));
+
+        if let Some(exe_name) = data.pid_map.get(&window_pid) {
+            let exe_lower = exe_name.to_lowercase();
+            if data.terminal_exes.iter().any(|k| *k == exe_lower) {
+                let is_visible = IsWindowVisible(hwnd).as_bool();
+                let title_len = GetWindowTextLengthW(hwnd);
+                if is_visible && title_len > 0 {
+                    data.found_hwnd = Some(hwnd);
+                    data.found_exe = Some(exe_name.clone());
+                    return BOOL(0);
+                }
+            }
+        }
+
+        BOOL(1)
+    }
+
+    let mut data = EnumData {
+        pid_map,
+        terminal_exes,
+        found_hwnd: None,
+        found_exe: None,
+    };
+
+    unsafe {
+        let _ = EnumWindows(Some(enum_callback), LPARAM(&mut data as *mut _ as isize));
+    }
+
+    match data.found_hwnd {
+        Some(hwnd) => {
+            log::info!("[focus_any_terminal] found window: exe={:?}", data.found_exe);
+            focus_window(hwnd)
+        }
+        None => {
+            log::info!("[focus_any_terminal] no terminal window found");
+            FocusResult::NotFound
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn focus_any_terminal() -> FocusResult {
+    FocusResult::NotFound
+}
+
 #[cfg(not(target_os = "windows"))]
 pub fn find_window_by_pid(_pid: u32) -> Option<()> {
     None
@@ -546,6 +753,11 @@ pub fn focus_window_by_pid(_pid: u32) -> FocusResult {
 
 #[cfg(not(target_os = "windows"))]
 pub fn focus_with_jump_target(_target: &JumpTarget) -> FocusResult {
+    FocusResult::NotFound
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn focus_wt_window_by_workspace(_pid: u32, _workspace: Option<&str>) -> FocusResult {
     FocusResult::NotFound
 }
 

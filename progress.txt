@@ -1,5 +1,28 @@
 # Progress Log
 
+## [2026-05-23] - Task #75: Bugfix — Hook JSON output validation failed ✅
+
+### What was done:
+
+**根因1: 非阻塞事件 stdout 为空**
+- `vibe-island-hooks.rs`: 非阻塞事件（SessionStart/Notification/Stop 等）exit 前现在输出 `{"continue":true}` 到 stdout
+- CC 要求 exit 0 时 stdout 必须有合法 JSON，之前直接 exit 不写 stdout 导致报错
+
+**根因2: PreToolUse 响应格式错误**
+- `pipe_server.rs`: PreToolUse 响应从 `{"decision":"allow"}` 改为 `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}`
+- 符合 CC 文档要求的 hookSpecificOutput 包装格式
+
+### Files modified:
+- src-tauri/src/bin/vibe-island-hooks.rs（非阻塞事件输出合法 JSON）
+- src-tauri/src/pipe_server.rs（PreToolUse 响应格式修正）
+
+### Testing:
+- `cargo check` 通过（无新 warning）
+
+### Status: completed ✅
+
+---
+
 This file tracks development history across agent sessions.
 Each entry documents the documentation gate, what was done, how it was tested,
 and any relevant notes.

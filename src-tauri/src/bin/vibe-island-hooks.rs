@@ -60,6 +60,7 @@ fn main() {
         "request_id": request_id,
         "hook_event_name": event_name,
         "pid": std::process::id(),
+        "ppid": get_parent_pid(),
         "payload": payload,
     });
 
@@ -115,12 +116,14 @@ fn main() {
         response
     });
 
-    // 5. Write response to stdout if we got one
+    // 5. Write response to stdout
+    // CC 要求 exit 0 时 stdout 必须有合法 JSON
     if let Some(response_json) = result {
         let _ = io::stdout().write_all(response_json.as_bytes());
-        let _ = io::stdout().flush();
+    } else {
+        let _ = io::stdout().write_all(b"{\"continue\":true}");
     }
-    // If no response: fail-open, exit silently (no stdout = agent continues)
+    let _ = io::stdout().flush();
 }
 
 #[cfg(target_os = "windows")]
@@ -182,4 +185,39 @@ async fn read_pipe_response(
     }
 
     None
+}
+
+/// 获取当前进程的父进程 PID
+#[cfg(target_os = "windows")]
+fn get_parent_pid() -> u32 {
+    use windows::Win32::System::Diagnostics::ToolHelp::*;
+
+    unsafe {
+        let snapshot = match CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
+            Ok(s) => s,
+            Err(_) => return 0,
+        };
+        let mut entry = PROCESSENTRY32W {
+            dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+            ..Default::default()
+        };
+        let my_pid = std::process::id();
+        if Process32FirstW(snapshot, &mut entry).is_ok() {
+            loop {
+                if entry.th32ProcessID == my_pid {
+                    return entry.th32ParentProcessID;
+                }
+                entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+                if Process32NextW(snapshot, &mut entry).is_err() {
+                    break;
+                }
+            }
+        }
+        0
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn get_parent_pid() -> u32 {
+    0
 }

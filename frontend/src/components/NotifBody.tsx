@@ -113,6 +113,12 @@ function formatToolArgs(input: Record<string, unknown>): string {
 
 // ─── Kind: two (2-way permission) ──────────────────────────────────────────
 
+/** Check if keyboard event originated from an editable element (input, textarea). */
+function isEditableTarget(e: KeyboardEvent): boolean {
+  const tag = (e.target as HTMLElement).tagName;
+  return tag === "INPUT" || tag === "TEXTAREA";
+}
+
 interface NotifTwoProps {
   session: Session;
   standalone: boolean;
@@ -134,6 +140,7 @@ function NotifTwo({ session, standalone, onSubmit, testId }: NotifTwoProps) {
   // Keyboard: Enter = primary, Escape = dismiss
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isEditableTarget(e)) return;
       if (e.key === "Enter") {
         e.preventDefault();
         handleApprove();
@@ -209,6 +216,7 @@ function NotifThree({ session, standalone, onSubmit, testId }: NotifThreeProps) 
   // Keyboard: 1/2/3 to pick
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isEditableTarget(e)) return;
       const idx = parseInt(e.key, 10);
       if (idx >= 1 && idx <= options.length) {
         e.preventDefault();
@@ -293,7 +301,7 @@ function NotifJump({ session, standalone, onSubmit, onJump, testId }: NotifJumpP
   // Keyboard: 1/2/3 pick, Enter send, Esc dismiss
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't capture when typing in input
+      // Don't capture when typing in our own input
       if (document.activeElement === inputRef.current) {
         if (e.key === "Escape") {
           e.preventDefault();
@@ -301,6 +309,8 @@ function NotifJump({ session, standalone, onSubmit, onJump, testId }: NotifJumpP
         }
         return;
       }
+      // Don't capture when typing in any other editable element
+      if (isEditableTarget(e)) return;
 
       const idx = parseInt(e.key, 10);
       if (idx >= 1 && idx <= options.length) {
@@ -411,8 +421,6 @@ interface NotifDoneProps {
 }
 
 function NotifDone({ session, standalone, onJump, testId }: NotifDoneProps) {
-  const [quickReply, setQuickReply] = useState("");
-
   // Summary comes from lastError (error message) or toolName
   const summary = session.lastError
     ? session.lastError
@@ -433,14 +441,6 @@ function NotifDone({ session, standalone, onJump, testId }: NotifDoneProps) {
         {projectName ? `Completed · ${projectName}` : "Completed"}
       </span>
       <div className="notif-body__reply">{summary}</div>
-      <input
-        className="notif-body__input"
-        type="text"
-        placeholder="Quick reply..."
-        value={quickReply}
-        onChange={(e) => setQuickReply(e.target.value)}
-        data-testid="notif-quick-reply"
-      />
       {standalone && onJump && (
         <div className="notif-body__actions notif-body__actions--end">
           <button

@@ -98,6 +98,7 @@ export interface Session {
     name: string;
     input: Record<string, unknown>;
     startTime: number;
+    toolUseId?: string;
   };
 
   // 显示用的工具名称和文件路径

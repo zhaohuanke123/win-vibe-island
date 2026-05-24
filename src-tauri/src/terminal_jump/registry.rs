@@ -51,24 +51,24 @@ pub static KNOWN_TERMINALS: &[TerminalDescriptor] = &[
         id: "vscode",
         aliases: &["vscode", "code", "visual-studio-code"],
         exe_names: &["code.exe"],
-        cli_command: Some("code"),
-        focus_strategy: FocusStrategyType::CliOpenWorkspace,
+        cli_command: None,
+        focus_strategy: FocusStrategyType::WorkspaceMatch,
     },
     TerminalDescriptor {
         display_name: "Cursor",
         id: "cursor",
         aliases: &["cursor"],
         exe_names: &["cursor.exe"],
-        cli_command: Some("cursor"),
-        focus_strategy: FocusStrategyType::CliOpenWorkspace,
+        cli_command: None,
+        focus_strategy: FocusStrategyType::WorkspaceMatch,
     },
     TerminalDescriptor {
         display_name: "Windsurf",
         id: "windsurf",
         aliases: &["windsurf"],
         exe_names: &["windsurf.exe"],
-        cli_command: Some("windsurf"),
-        focus_strategy: FocusStrategyType::CliOpenWorkspace,
+        cli_command: None,
+        focus_strategy: FocusStrategyType::WorkspaceMatch,
     },
     TerminalDescriptor {
         display_name: "WezTerm",
@@ -112,6 +112,8 @@ pub fn find_by_exe_name(exe_name: &str) -> Option<&'static TerminalDescriptor> {
 pub fn find_by_id_or_alias(name: &str) -> Option<&'static TerminalDescriptor> {
     let lower = name.to_lowercase();
     KNOWN_TERMINALS.iter().find(|desc| {
-        desc.id == lower || desc.aliases.iter().any(|alias| *alias == lower)
+        desc.id == lower
+        || desc.aliases.iter().any(|alias| *alias == lower)
+        || desc.display_name.to_lowercase() == lower
     })
 }

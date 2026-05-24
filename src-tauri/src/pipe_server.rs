@@ -1,5 +1,8 @@
+//! Windows Named Pipe 服务器 — 监听 `\\.\pipe\VibeIsland`，接收 Agent SDK（Node.js/Python）推送的会话事件。
+//! 作为 HTTP Hook 的补充通道，支持非 Claude Code 工具（Codex CLI、自定义 agent）接入。
+
 use crate::config::get_config;
-use crate::agent_event::JumpTarget;
+use crate::agent_event::{JumpTarget, JumpTargetPayload};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -371,12 +374,12 @@ async fn write_pipe_response(
     };
 
     let stdout_payload = if event_name == "PreToolUse" {
-        let mut obj = serde_json::json!({"decision": decision.behavior});
-        if let Some(ref msg) = decision.message {
-            obj.as_object_mut().unwrap()
-                .insert("reason".to_string(), serde_json::Value::String(msg.clone()));
-        }
-        obj
+        serde_json::json!({
+            "hookSpecificOutput": {
+                "hookEventName": event_name,
+                "permissionDecision": decision.behavior,
+            }
+        })
     } else {
         // PermissionRequest returns a decision object
         if let Some(ref updated_input) = decision.updated_input {
@@ -423,17 +426,33 @@ async fn write_pipe_response(
 /// 返回 Option<JumpTarget>，可直接序列化到前端事件中。
 fn build_jump_target(envelope: &serde_json::Value, cwd: &str) -> Option<JumpTarget> {
     let hooks_pid = envelope.get("pid").and_then(|v| v.as_u64()).map(|v| v as u32);
+    let hooks_ppid = envelope.get("ppid").and_then(|v| v.as_u64()).map(|v| v as u32);
 
     #[cfg(target_os = "windows")]
     {
-        hooks_pid.map(|p| crate::terminal_jump::resolver::resolve_from_pid(p, Some(cwd)))
+        let result = hooks_pid.map(|p| crate::terminal_jump::resolver::resolve_from_pid(p, Some(cwd), hooks_ppid));
+        log::info!(
+            "[build_jump_target] hooks_pid={:?}, ppid={:?}, terminal_app={:?}",
+            hooks_pid,
+            hooks_ppid,
+            result.as_ref().and_then(|jt| jt.terminal_app.as_ref())
+        );
+        result
     }
     #[cfg(not(target_os = "windows"))]
     {
         let _ = hooks_pid;
+        let _ = hooks_ppid;
         let _ = cwd;
         None
     }
+}
+
+fn now_ts() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 /// Handle a hook event envelope from the CLI.
@@ -506,6 +525,17 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
             );
             let event = ClaudeCodeAdapter::to_session_started(&payload);
             session_state::apply_event(&event);
+
+            // 持久化 jump_target 到 session state（与 hook_server 对齐）
+            if let Some(jt) = jump_target {
+                let jt_event = crate::agent_event::AgentEvent::JumpTargetUpdated(JumpTargetPayload {
+                    session_id: session_id.clone(),
+                    jump_target: jt,
+                    timestamp: now_ts(),
+                });
+                session_state::apply_event(&jt_event);
+            }
+
             let _ = app.emit(
                 "state_change",
                 &serde_json::json!({ "session_id": session_id, "state": "idle" }),
@@ -545,6 +575,16 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
             session_state::apply_event(&thinking);
             let tool_started = ClaudeCodeAdapter::to_tool_use_started(&payload);
             session_state::apply_event(&tool_started);
+
+            // 持久化 jump_target 到 session state（PreToolUse 可刷新终端信息）
+            if let Some(jt) = jump_target {
+                let jt_event = crate::agent_event::AgentEvent::JumpTargetUpdated(JumpTargetPayload {
+                    session_id: session_id.clone(),
+                    jump_target: jt,
+                    timestamp: now_ts(),
+                });
+                session_state::apply_event(&jt_event);
+            }
 
             if let Some(tool_name) = payload.get("tool_name").and_then(|v| v.as_str()) {
                 let file_path = payload.get("tool_input").and_then(|input| {
