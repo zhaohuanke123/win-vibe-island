@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SessionList 原型 — 会话列表交互</title>
+<style>
+:root {
+  --ink:#0d0d0f; --paper:#f1ead9; --ink-soft:rgba(241,234,217,0.55); --ink-mute:rgba(241,234,217,0.30);
+  --line:rgba(255,255,255,0.08); --bg-soft:rgba(255,255,255,0.025);
+  --glass-bg:rgba(13,13,15,0.85); --glass-border:rgba(255,255,255,0.06);
+  --glass-shadow:0 2px 16px rgba(0,0,0,0.32),0 0 0 1px rgba(255,255,255,0.04);
+  --phase-idle:#9a958a; --phase-running:#6ea7ff; --phase-approval:#f4a4a4;
+  --phase-answer:#ffd58a; --phase-completed:#6fb982;
+  --font-ui:'Segoe UI Variable','Inter','Segoe UI',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;font-family:var(--font-ui);display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:20px}
+h2{color:var(--ink-soft);font-size:13px;font-weight:400}
+
+.panel{
+  width:400px;border-radius:16px;background:var(--glass-bg);backdrop-filter:blur(24px);
+  border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);overflow:hidden;
+}
+.panel-head{padding:8px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+.panel-head-title{font-size:11px;color:var(--ink-soft)}
+.panel-head-gear{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;color:var(--ink-mute);transition:all 120ms ease;font-size:12px}
+.panel-head-gear:hover{background:var(--bg-soft);color:var(--ink-soft)}
+
+.session-row{
+  display:flex;align-items:center;padding:11px 14px 11px 16px;gap:8px;
+  border-bottom:1px solid var(--line);cursor:pointer;
+  transition:background 120ms ease;
+}
+.session-row:hover{background:var(--bg-soft)}
+.session-row.active{background:rgba(255,255,255,0.04)}
+.session-row:last-child{border-bottom:none}
+.sr-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.sr-dot.running{background:var(--phase-running);box-shadow:0 0 6px var(--phase-running);animation:dotPulse 1s ease-in-out infinite}
+.sr-dot.approval{background:var(--phase-approval);box-shadow:0 0 8px var(--phase-approval);animation:dotPulse 0.6s ease-in-out infinite}
+.sr-dot.idle{background:var(--phase-idle)}
+.sr-dot.done{background:var(--phase-completed);box-shadow:0 0 4px var(--phase-completed)}
+@keyframes dotPulse{0%,100%{opacity:1}50%{opacity:0.45}}
+
+.sr-info{flex:1;min-width:0}
+.sr-name{font-size:12px;font-weight:500;color:var(--paper);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr-tool{font-size:10px;font-family:var(--font-mono);color:var(--ink-mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.sr-status{font-size:10px;color:var(--ink-soft);flex-shrink:0}
+.sr-chevron{color:var(--ink-mute);font-size:12px;transition:transform 160ms ease;flex-shrink:0}
+.sr-chevron.expanded{transform:rotate(180deg)}
+
+/* 详情区 */
+.detail{padding:10px 16px 12px;border-bottom:1px solid var(--line);display:none;background:rgba(255,255,255,0.01)}
+.detail.visible{display:block}
+.detail-line{font-size:10px;font-family:var(--font-mono);color:var(--ink-soft);line-height:1.8}
+.detail-line .add{color:var(--phase-completed)}
+.detail-line .del{color:var(--phase-approval)}
+
+.dim-note{color:var(--ink-mute);font-size:10px;font-family:var(--font-mono)}
+</style>
+</head>
+<body>
+<h2>SessionList — 点击行展开详情</h2>
+
+<div class="panel">
+  <div class="panel-head">
+    <span class="panel-head-title">Vibe Island · 3 sessions</span>
+    <div class="panel-head-gear">⚙</div>
+  </div>
+
+  <!-- Row 1: running + detail -->
+  <div class="session-row active" data-row="0">
+    <div class="sr-dot running"></div>
+    <div class="sr-info">
+      <div class="sr-name">Claude Code</div>
+      <div class="sr-tool">Read frontend/src/index.css</div>
+    </div>
+    <span class="sr-status">running</span>
+    <span class="sr-chevron expanded" id="chevron-0">⌵</span>
+  </div>
+  <div class="detail visible" id="detail-0">
+    <div class="detail-line"><span class="add">+ --paper: #f1ead9;</span></div>
+    <div class="detail-line"><span class="del">- --paper: #e8e0cc;</span></div>
+    <div class="detail-line" style="color:var(--ink-mute)">  --glass-blur: blur(24px);</div>
+  </div>
+
+  <!-- Row 2: waiting approval -->
+  <div class="session-row" data-row="1">
+    <div class="sr-dot approval"></div>
+    <div class="sr-info">
+      <div class="sr-name">Claude Code #2</div>
+      <div class="sr-tool">Bash rm -rf node_modules/</div>
+    </div>
+    <span class="sr-status">waiting approval</span>
+    <span class="sr-chevron" id="chevron-1">⌵</span>
+  </div>
+  <div class="detail" id="detail-1">
+    <div class="detail-line" style="color:var(--phase-answer)">⏳ 等待审批 — rm -rf node_modules/</div>
+    <div class="detail-line" style="color:var(--ink-mute);margin-top:4px">工作目录: /home/project</div>
+  </div>
+
+  <!-- Row 3: idle -->
+  <div class="session-row" data-row="2">
+    <div class="sr-dot idle"></div>
+    <div class="sr-info">
+      <div class="sr-name">Codex</div>
+      <div class="sr-tool">—</div>
+    </div>
+    <span class="sr-status">idle</span>
+    <span class="sr-chevron" id="chevron-2">⌵</span>
+  </div>
+  <div class="detail" id="detail-2">
+    <div class="detail-line" style="color:var(--ink-mute)">无活跃任务</div>
+  </div>
+</div>
+
+<div class="dim-note">行内边距 11px 12px 11px 16px · hover bg-soft · active rgba(255,255,255,0.04)</div>
+
+<script>
+document.querySelectorAll('.session-row').forEach(row => {
+  row.addEventListener('click', () => {
+    const idx = row.dataset.row;
+    const detail = document.getElementById('detail-' + idx);
+    const chevron = document.getElementById('chevron-' + idx);
+    const wasVisible = detail.classList.contains('visible');
+
+    // 全部关闭
+    document.querySelectorAll('.detail').forEach(d=>d.classList.remove('visible'));
+    document.querySelectorAll('.sr-chevron').forEach(c=>c.classList.remove('expanded'));
+    document.querySelectorAll('.session-row').forEach(r=>r.classList.remove('active'));
+
+    // 切换
+    if (!wasVisible) {
+      detail.classList.add('visible');
+      chevron.classList.add('expanded');
+      row.classList.add('active');
+    }
+  });
+});
+</script>
+</body>
+</html>

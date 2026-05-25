@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NotchRow 原型 — Vibe Island 紧凑通知条</title>
+<style>
+:root {
+  --ink:#0d0d0f; --paper:#f1ead9; --ink-soft:rgba(241,234,217,0.55); --ink-mute:rgba(241,234,217,0.30);
+  --line:rgba(255,255,255,0.08); --bg-soft:rgba(255,255,255,0.025);
+  --glass-bg:rgba(13,13,15,0.85); --glass-border:rgba(255,255,255,0.06);
+  --glass-shadow:0 2px 16px rgba(0,0,0,0.32),0 0 0 1px rgba(255,255,255,0.04);
+  --phase-idle:#9a958a; --phase-running:#6ea7ff; --phase-approval:#f4a4a4; --phase-answer:#ffd58a; --phase-completed:#6fb982;
+  --font-ui:'Segoe UI Variable','Inter','Segoe UI',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;font-family:var(--font-ui);display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:40px}
+h2{color:var(--ink-soft);font-size:12px;font-weight:400;margin-bottom:16px;text-align:center}
+
+/* NotchRow 容器 */
+.notch-row-shell{position:relative;width:180px}
+.notch-row{
+  height:32px;border-radius:16px;background:var(--glass-bg);backdrop-filter:blur(24px);
+  border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);
+  display:flex;align-items:center;padding:0 12px;gap:6px;cursor:pointer;
+  transition:background-color 120ms ease;
+  position:relative;overflow:hidden;
+}
+.notch-row::before{
+  content:'';position:absolute;top:0;left:12px;right:12px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),rgba(255,255,255,0.10),rgba(255,255,255,0.06),transparent);
+}
+.notch-row:hover{background:rgba(13,13,15,0.92)}
+.notch-row:active{background:rgba(13,13,15,0.95)}
+
+/* 状态点 */
+.np-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;transition:background-color 150ms ease}
+.np-dot.idle{background:var(--phase-idle)}
+.np-dot.running{background:var(--phase-running);box-shadow:0 0 6px var(--phase-running);animation:dot-pulse 1s ease-in-out infinite}
+.np-dot.approval{background:var(--phase-approval);box-shadow:0 0 8px var(--phase-approval);animation:dot-pulse 0.6s ease-in-out infinite}
+.np-dot.answer{background:var(--phase-answer);box-shadow:0 0 6px var(--phase-answer);animation:dot-pulse 1.2s ease-in-out infinite}
+.np-dot.done{background:var(--phase-completed);box-shadow:0 0 4px var(--phase-completed)}
+@keyframes dot-pulse{0%,100%{opacity:1}50%{opacity:0.45}}
+
+/* Agent 图标 */
+.np-icon{width:14px;height:14px;border-radius:4px;flex-shrink:0}
+.np-icon.claude{background:linear-gradient(135deg,#d97706,#ea580c)}
+
+/* 标签 */
+.np-label{flex:1;font-size:12px;font-weight:500;color:var(--paper);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* 右侧 chip */
+.np-chip{font-size:10px;font-family:var(--font-mono);color:var(--ink-mute);background:var(--bg-soft);padding:1px 5px;border-radius:4px;flex-shrink:0}
+
+/* 状态切换器 */
+.state-switcher{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.state-btn{padding:4px 12px;border-radius:12px;border:1px solid var(--glass-border);background:transparent;color:var(--ink-soft);font-size:11px;cursor:pointer;transition:all 120ms ease;font-family:var(--font-ui)}
+.state-btn:hover{background:var(--bg-soft);color:var(--paper)}
+.state-btn.active{border-color:var(--phase-running);color:var(--phase-running);background:rgba(110,167,255,0.08)}
+
+/* 尺寸标注 */
+.dim-label{color:var(--ink-mute);font-size:10px;font-family:var(--font-mono);margin-top:8px;text-align:center}
+</style>
+</head>
+<body>
+
+<h2>NotchRow 紧凑通知条 — 不同 Agent 状态</h2>
+
+<div class="state-switcher" id="switcher">
+  <button class="state-btn active" data-state="idle">idle</button>
+  <button class="state-btn" data-state="running">running</button>
+  <button class="state-btn" data-state="approval">waitingForApproval</button>
+  <button class="state-btn" data-state="answer">waitingForAnswer</button>
+  <button class="state-btn" data-state="done">completed</button>
+</div>
+
+<div class="notch-row-shell">
+  <div class="notch-row" id="notch">
+    <div class="np-dot idle" id="dot"></div>
+    <div class="np-icon claude"></div>
+    <span class="np-label">Claude Code</span>
+    <span class="np-chip">1</span>
+  </div>
+  <div class="dim-label">180 × 32px · 圆角 16px</div>
+</div>
+
+<script>
+const states = {
+  idle:    { dot:'idle',    label:'Vibe Island', icon:false, chip:'', color:'' },
+  running: { dot:'running', label:'Claude Code',  icon:true,  chip:'1', color:'#d97706' },
+  approval:{ dot:'approval',label:'Claude Code',  icon:true,  chip:'1', color:'#d97706' },
+  answer:  { dot:'answer',  label:'Claude Code',  icon:true,  chip:'1', color:'#d97706' },
+  done:    { dot:'done',    label:'Claude Code',  icon:true,  chip:'✓', color:'#6fb982' },
+};
+
+document.querySelectorAll('.state-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.state-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const s = states[btn.dataset.state];
+    const dot = document.getElementById('dot');
+    dot.className = 'np-dot ' + s.dot;
+    document.querySelector('.np-label').textContent = s.label;
+    document.querySelector('.np-icon').style.display = s.icon ? '' : 'none';
+    document.querySelector('.np-chip').textContent = s.chip;
+  });
+});
+// initial
+document.querySelector('.np-icon').style.display = 'none';
+document.querySelector('.np-chip').textContent = '';
+</script>
+
+</body>
+</html>

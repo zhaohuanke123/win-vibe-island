@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vibe Island — 全局交互流程图</title>
+<style>
+  :root {
+    --ink: #0d0d0f;
+    --paper: #f1ead9;
+    --ink-soft: rgba(241,234,217,0.55);
+    --ink-mute: rgba(241,234,217,0.30);
+    --line: rgba(255,255,255,0.08);
+    --bg-soft: rgba(255,255,255,0.025);
+    --glass-bg: rgba(13,13,15,0.85);
+    --glass-border: rgba(255,255,255,0.06);
+    --glass-shadow: 0 2px 16px rgba(0,0,0,0.32), 0 0 0 1px rgba(255,255,255,0.04);
+    --phase-idle: #9a958a;
+    --phase-running: #6ea7ff;
+    --phase-approval: #f4a4a4;
+    --phase-answer: #ffd58a;
+    --phase-completed: #6fb982;
+    --accent-plan: #a78bfa;
+    --action-approve: #d98d26;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'Segoe UI Variable', 'Inter', 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 40px;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    color: var(--ink-soft);
+    margin-bottom: 40px;
+  }
+  .flow-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 1400px;
+  }
+  .flow-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: var(--glass-shadow);
+  }
+  .flow-card.full {
+    grid-column: 1 / -1;
+  }
+  .flow-card h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .flow-card h2 .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* State machine */
+  .state-machine { display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center; padding:16px 0; }
+  .state-node {
+    padding: 10px 18px; border-radius: 20px;
+    font-size: 12px; font-weight: 500;
+    text-align: center; min-width: 80px;
+    border: 1px solid var(--glass-border);
+    background: var(--bg-soft);
+  }
+  .state-node.idle { border-color: var(--phase-idle); color: var(--phase-idle); }
+  .state-node.running { border-color: var(--phase-running); color: var(--phase-running); background: rgba(110,167,255,0.06); }
+  .state-node.approval { border-color: var(--phase-approval); color: var(--phase-approval); background: rgba(244,164,164,0.06); }
+  .state-node.answer { border-color: var(--phase-answer); color: var(--phase-answer); background: rgba(255,213,138,0.06); }
+  .state-node.completed { border-color: var(--phase-completed); color: var(--phase-completed); }
+  .state-arrow { color: var(--ink-mute); font-size: 18px; }
+
+  /* Mode transitions */
+  .mode-flow { display:flex; flex-direction:column; gap:16px; }
+  .mode-row { display:flex; align-items:center; gap:12px; }
+  .mode-box {
+    padding: 12px 20px; border-radius: 12px;
+    border: 1px solid var(--glass-border);
+    background: var(--bg-soft);
+    min-width: 140px; text-align: center;
+  }
+  .mode-box.active { border-color: var(--phase-running); background: rgba(110,167,255,0.06); }
+  .mode-box.focus { border-color: var(--phase-approval); background: rgba(244,164,164,0.06); }
+  .mode-arrow { color: var(--ink-mute); font-size: 16px; }
+  .mode-trigger { font-size: 11px; color: var(--ink-mute); }
+
+  /* Component tree */
+  .comp-tree { font-family: 'JetBrains Mono', 'Cascadia Code', monospace; font-size: 12px; line-height:2; }
+  .comp-tree .root { color: var(--accent-plan); }
+  .comp-tree .branch { color: var(--phase-running); padding-left:20px; }
+  .comp-tree .leaf { color: var(--ink-soft); padding-left:40px; }
+  .comp-tree .state-ref { color: var(--ink-mute); font-size: 11px; }
+
+  /* Event flow */
+  .event-list { font-size: 12px; }
+  .event-item { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--line); }
+  .event-dir { padding:2px 8px; border-radius:4px; font-size:10px; font-weight:600; }
+  .event-dir.in { background: rgba(110,167,255,0.15); color: var(--phase-running); }
+  .event-dir.out { background: rgba(111,185,130,0.15); color: var(--phase-completed); }
+  .event-name { flex:1; }
+  .event-target { color: var(--ink-mute); font-size:11px; }
+
+  /* Window layout */
+  .window-layout { display:flex; flex-direction:column; gap:12px; align-items:center; }
+  .win-row { display:flex; gap:12px; align-items:flex-start; }
+  .win-box {
+    border: 1px dashed var(--line); border-radius: 8px;
+    padding: 10px 14px; text-align: center; font-size:11px;
+  }
+  .win-box.main { border-style:solid; border-color:var(--phase-running); min-width:180px; }
+  .win-box label { display:block; font-weight:600; margin-bottom:4px; }
+  .win-box .size { color: var(--ink-mute); }
+
+  .legend { display:flex; gap:16px; flex-wrap:wrap; margin-top:32px; padding:16px; border-top:1px solid var(--line); }
+  .legend-item { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-soft); }
+  .legend-item .swatch { width:12px; height:12px; border-radius:3px; }
+</style>
+</head>
+<body>
+
+<h1>Vibe Island 交互流程图</h1>
+<p class="subtitle">全局组件关系 · 状态流转 · 模式切换 · 事件链路</p>
+
+<div class="flow-grid">
+
+  <!-- 1. Agent 状态机 -->
+  <div class="flow-card full">
+    <h2><span class="dot" style="background:var(--phase-running)"></span> Agent 会话状态机</h2>
+    <div class="state-machine">
+      <div class="state-node idle">idle<br><small>空闲</small></div>
+      <span class="state-arrow">→</span>
+      <div class="state-node running">running<br><small>运行中</small></div>
+      <span class="state-arrow">→</span>
+      <div class="state-node approval">waitingFor<br>Approval<br><small>等待审批</small></div>
+      <span class="state-arrow">→</span>
+      <div class="state-node answer">waitingFor<br>Answer<br><small>等待回答</small></div>
+      <span class="state-arrow">→</span>
+      <div class="state-node running">running<br><small>继续运行</small></div>
+      <span class="state-arrow">→</span>
+      <div class="state-node completed">completed<br><small>完成</small></div>
+    </div>
+    <p style="color:var(--ink-mute);font-size:11px;margin-top:12px;text-align:center">
+      running ↔ waitingForApproval ↔ waitingForAnswer 可循环 · 审批超时自动拒绝 · 回答超时保持等待
+    </p>
+  </div>
+
+  <!-- 2. UI 模式切换 -->
+  <div class="flow-card">
+    <h2><span class="dot" style="background:var(--accent-plan)"></span> Overlay 模式切换</h2>
+    <div class="mode-flow">
+      <div class="mode-row">
+        <div class="mode-box active">Compact Notch<br><small>180×32px · 圆角16px</small></div>
+        <div class="mode-arrow">←→</div>
+        <div class="mode-box">Expanded Panel<br><small>600×400~720px · 圆角22px</small></div>
+      </div>
+      <div class="mode-trigger" style="text-align:center">触发: 点击 NotchRow / Chevron</div>
+      <div style="border-top:1px solid var(--line);margin:12px 0"></div>
+      <div class="mode-row">
+        <div class="mode-box">Expanded Panel</div>
+        <div class="mode-arrow">→</div>
+        <div class="mode-box focus">Approval Focus<br><small>600×720px · 审批突出</small></div>
+      </div>
+      <div class="mode-trigger" style="text-align:center">触发: waitingForApproval 状态进入</div>
+    </div>
+  </div>
+
+  <!-- 3. 窗口布局 -->
+  <div class="flow-card">
+    <h2><span class="dot" style="background:var(--phase-answer)"></span> 窗口层级</h2>
+    <div class="window-layout">
+      <div class="win-row">
+        <div class="win-box main">
+          <label>主 Overlay</label>
+          <span class="size">透明 · 置顶 · 无边框</span>
+        </div>
+      </div>
+      <div class="win-row">
+        <div class="win-box"><label>ControlCenter</label><span class="size">独立窗口 480×640</span></div>
+        <div class="win-box"><label>SettingsPanel</label><span class="size">Overlay 内嵌</span></div>
+        <div class="win-box"><label>JumpToast</label><span class="size">Overlay 内浮层</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 组件树 -->
+  <div class="flow-card full">
+    <h2><span class="dot" style="background:var(--phase-completed)"></span> 组件层级树</h2>
+    <div class="comp-tree">
+      <div class="root">AnimatedOverlay <span class="state-ref">← 驱动窗口大小同步 (framer-motion)</span></div>
+      <div class="branch">├─ Overlay <span class="state-ref">← 编排者：拖拽、吸附、模式切换</span></div>
+      <div class="leaf">│  ├─ NotchRow <span class="state-ref">← 紧凑条 (始终可见)</span></div>
+      <div class="leaf">│  │  ├─ BarsGlyph <span class="state-ref">← 24×24 SVG 活动指示</span></div>
+      <div class="leaf">│  │  ├─ AgentDot <span class="state-ref">← agent 图标 14×14</span></div>
+      <div class="leaf">│  │  └─ Label + RightSlot <span class="state-ref">← 文本 + 扩展区</span></div>
+      <div class="leaf">│  ├─ [Expanded Panel]</div>
+      <div class="leaf">│  │  ├─ PanelHead <span class="state-ref">← 面板标题栏</span></div>
+      <div class="leaf">│  │  ├─ SessionList</div>
+      <div class="leaf">│  │  │  └─ SessionRow × N <span class="state-ref">← 单会话行 (含 Chevron)</span></div>
+      <div class="leaf">│  │  │     └─ SessionDetail <span class="state-ref">← 展开的会话详情</span></div>
+      <div class="leaf">│  │  ├─ ApprovalPanel <span class="state-ref">← 审批请求 (approval focus 时突出)</span></div>
+      <div class="leaf">│  │  └─ SettingsPanel <span class="state-ref">← 设置 (内嵌)</span></div>
+      <div class="leaf">│  ├─ HookStatus <span class="state-ref">← Hook 连接指示</span></div>
+      <div class="leaf">│  └─ JumpToast <span class="state-ref">← 跳转提示浮层</span></div>
+      <div class="branch">├─ Pill <span class="state-ref">← 独立模式容器 (notch/panel/notif 三种 mode)</span></div>
+      <div class="branch">└─ ControlCenter <span class="state-ref">← 独立窗口 (设置+调试入口)</span></div>
+    </div>
+  </div>
+
+  <!-- 5. 事件数据流 -->
+  <div class="flow-card full">
+    <h2><span class="dot" style="background:var(--phase-idle)"></span> 事件 & 数据流</h2>
+    <div class="event-list">
+      <div class="event-item">
+        <span class="event-dir in">IN</span>
+        <span class="event-name">session_start → session_end</span>
+        <span class="event-target">→ Overlay, NotchRow, SessionList</span>
+      </div>
+      <div class="event-item">
+        <span class="event-dir in">IN</span>
+        <span class="event-name">state_change</span>
+        <span class="event-target">→ StatusDot, BarsGlyph, StateIndicator</span>
+      </div>
+      <div class="event-item">
+        <span class="event-dir in">IN</span>
+        <span class="event-name">tool_use → permission_request</span>
+        <span class="event-target">→ SessionRow (tool list), ApprovalPanel</span>
+      </div>
+      <div class="event-item">
+        <span class="event-dir out">OUT</span>
+        <span class="event-name">respond_approval</span>
+        <span class="event-target">ApprovalPanel → Hook Server → Agent</span>
+      </div>
+      <div class="event-item">
+        <span class="event-dir out">OUT</span>
+        <span class="event-name">update_overlay_size</span>
+        <span class="event-target">AnimatedOverlay → Win32 Window (16ms throttle)</span>
+      </div>
+      <div class="event-item">
+        <span class="event-dir in">IN</span>
+        <span class="event-name">hook_status_change</span>
+        <span class="event-target">→ HookStatus</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. 交互触发表 -->
+  <div class="flow-card full">
+    <h2><span class="dot" style="background:var(--action-approve)"></span> 用户交互 → 系统响应</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="border-bottom:1px solid var(--line);text-align:left;color:var(--ink-soft)">
+          <th style="padding:8px">用户操作</th>
+          <th style="padding:8px">目标组件</th>
+          <th style="padding:8px">系统响应</th>
+          <th style="padding:8px">动画</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--line)">
+          <td style="padding:8px">点击 NotchRow</td>
+          <td style="padding:8px">Overlay</td>
+          <td style="padding:8px">紧凑 → 展开 (Overlay 面板滑出)</td>
+          <td style="padding:8px;color:var(--ink-mute)">spring expand (300/30/0.8)</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--line)">
+          <td style="padding:8px">点击 Chevron / 空白区</td>
+          <td style="padding:8px">Overlay</td>
+          <td style="padding:8px">展开 → 紧凑 (面板收起)</td>
+          <td style="padding:8px;color:var(--ink-mute)">spring collapse (300/30/0.7)</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--line)">
+          <td style="padding:8px">拖拽 Overlay</td>
+          <td style="padding:8px">Overlay</td>
+          <td style="padding:8px">窗口吸附到屏幕顶部/底部边缘</td>
+          <td style="padding:8px;color:var(--ink-mute)">spring transition (300/30/1.0)</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--line)">
+          <td style="padding:8px">进入 waitingForApproval</td>
+          <td style="padding:8px">Overlay</td>
+          <td style="padding:8px">自动展开 + ApprovalPanel 聚焦</td>
+          <td style="padding:8px;color:var(--ink-mute)">spring expand + 600ms pulse</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--line)">
+          <td style="padding:8px">点击 Approve/Reject</td>
+          <td style="padding:8px">ApprovalPanel</td>
+          <td style="padding:8px">emit respond_approval → 状态更新</td>
+          <td style="padding:8px;color:var(--ink-mute)">150ms button press</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--line)">
+          <td style="padding:8px">点击 SessionRow</td>
+          <td style="padding:8px">SessionRow</td>
+          <td style="padding:8px">展开会话详情 (DiffViewer 等)</td>
+          <td style="padding:8px;color:var(--ink-mute)">Chevron 160ms ease rotate</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--line)">
+          <td style="padding:8px">点击齿轮图标</td>
+          <td style="padding:8px">PanelHead</td>
+          <td style="padding:8px">切换到 SettingsPanel</td>
+          <td style="padding:8px;color:var(--ink-mute)">面板内容 crossfade</td>
+        </tr>
+        <tr>
+          <td style="padding:8px">Hover 任意可交互元素</td>
+          <td style="padding:8px">所有</td>
+          <td style="padding:8px">背景/边框颜色过渡</td>
+          <td style="padding:8px;color:var(--ink-mute)">120ms ease</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<div class="legend">
+  <div class="legend-item"><span class="swatch" style="background:var(--phase-idle)"></span> idle</div>
+  <div class="legend-item"><span class="swatch" style="background:var(--phase-running)"></span> running</div>
+  <div class="legend-item"><span class="swatch" style="background:var(--phase-approval)"></span> waitingForApproval</div>
+  <div class="legend-item"><span class="swatch" style="background:var(--phase-answer)"></span> waitingForAnswer</div>
+  <div class="legend-item"><span class="swatch" style="background:var(--phase-completed)"></span> completed</div>
+  <div class="legend-item"><span class="swatch" style="background:var(--accent-plan)"></span> plan mode</div>
+  <div class="legend-item"><span class="swatch" style="background:var(--action-approve)"></span> approve action</div>
+</div>
+
+</body>
+</html>

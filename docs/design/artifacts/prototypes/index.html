@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vibe Island — 交互原型索引</title>
+<style>
+:root {
+  --ink:#0d0d0f; --paper:#f1ead9; --ink-soft:rgba(241,234,217,0.55); --ink-mute:rgba(241,234,217,0.30);
+  --line:rgba(255,255,255,0.08); --bg-soft:rgba(255,255,255,0.025);
+  --glass-bg:rgba(13,13,15,0.85); --glass-border:rgba(255,255,255,0.06);
+  --glass-shadow:0 2px 16px rgba(0,0,0,0.32),0 0 0 1px rgba(255,255,255,0.04);
+  --phase-running:#6ea7ff; --phase-approval:#f4a4a4; --phase-completed:#6fb982;
+  --font-ui:'Segoe UI Variable','Inter','Segoe UI',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;font-family:var(--font-ui);display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:32px;padding:40px}
+h1{font-size:22px;font-weight:600;color:var(--paper)}
+.sub{color:var(--ink-soft);font-size:12px;margin-top:-24px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;max-width:900px;width:100%}
+.card{
+  background:var(--glass-bg);backdrop-filter:blur(24px);
+  border:1px solid var(--glass-border);border-radius:14px;
+  padding:20px;box-shadow:var(--glass-shadow);
+  cursor:pointer;transition:all 150ms ease;text-decoration:none;display:block;
+}
+.card:hover{background:rgba(13,13,15,0.92);border-color:rgba(255,255,255,0.10);transform:translateY(-1px)}
+.card h3{font-size:13px;font-weight:600;color:var(--paper);margin-bottom:6px}
+.card p{font-size:11px;color:var(--ink-soft);line-height:1.5}
+.card .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:9px;font-family:var(--font-mono);margin-top:8px}
+.tag.prototype{background:rgba(110,167,255,0.12);color:var(--phase-running)}
+.tag.interaction{background:rgba(244,164,164,0.12);color:var(--phase-approval)}
+.tag.visual{background:rgba(111,185,130,0.12);color:var(--phase-completed)}
+
+.note{color:var(--ink-mute);font-size:10px;font-family:var(--font-mono);max-width:600px;text-align:center;line-height:1.6}
+.note a{color:var(--phase-running);text-decoration:none}
+.note a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<h1>Vibe Island 交互原型</h1>
+<p class="sub">点击卡片在浏览器中打开对应原型</p>
+
+<div class="grid">
+  <a class="card" href="overlay-prototype.html">
+    <h3>Overlay 主面板</h3>
+    <p>紧凑 ↔ 展开切换，玻璃态悬浮窗，点击条/按钮切换模式</p>
+    <span class="tag prototype">prototype</span><span class="tag interaction">interaction</span>
+  </a>
+  <a class="card" href="notch-row-prototype.html">
+    <h3>NotchRow 通知条</h3>
+    <p>5 种 Agent 状态切换，32px 紧凑条，状态点脉冲动画</p>
+    <span class="tag prototype">prototype</span><span class="tag visual">visual</span>
+  </a>
+  <a class="card" href="status-indicator-prototype.html">
+    <h3>StatusDot + BarsGlyph</h3>
+    <p>dot/glyph/bar/tint 四种变体，SMIL 动画，状态颜色映射</p>
+    <span class="tag prototype">prototype</span><span class="tag visual">visual</span>
+  </a>
+  <a class="card" href="session-list-prototype.html">
+    <h3>SessionList 会话列表</h3>
+    <p>点击行展开详情，hover/active 状态，Chevron 旋转动画</p>
+    <span class="tag prototype">prototype</span><span class="tag interaction">interaction</span>
+  </a>
+  <a class="card" href="approval-panel-prototype.html">
+    <h3>ApprovalPanel 审批面板</h3>
+    <p>Approve/Reject 交互，琥珀色按钮，审批超时，结果反馈</p>
+    <span class="tag prototype">prototype</span><span class="tag interaction">interaction</span>
+  </a>
+  <a class="card" href="jump-toast-prototype.html">
+    <h3>JumpToast 跳转提示</h3>
+    <p>浮层通知，从下方滑入，2.5s 自动消失，成功/失败状态</p>
+    <span class="tag prototype">prototype</span><span class="tag interaction">interaction</span>
+  </a>
+  <a class="card" href="diff-viewer-prototype.html">
+    <h3>DiffViewer 差异查看</h3>
+    <p>代码差异对比，添加/删除行高亮，行号，等宽字体</p>
+    <span class="tag prototype">prototype</span><span class="tag visual">visual</span>
+  </a>
+</div>
+
+<div class="note">
+  也可查看 <a href="../flows/master-interaction-flow.html">全局交互流程图</a> · <a href="../canvases/visual-system-canvas.html">视觉系统画布</a><br>
+  设计规格见 <a href="../../specs/">../../specs/</a>
+</div>
+</body>
+</html>

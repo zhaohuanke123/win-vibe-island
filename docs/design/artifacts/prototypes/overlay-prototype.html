@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Overlay 原型 — Vibe Island 悬浮窗</title>
+<style>
+:root {
+  --ink:#0d0d0f; --paper:#f1ead9; --ink-soft:rgba(241,234,217,0.55); --ink-mute:rgba(241,234,217,0.30);
+  --line:rgba(255,255,255,0.08); --bg-soft:rgba(255,255,255,0.025);
+  --glass-bg:rgba(13,13,15,0.85); --glass-border:rgba(255,255,255,0.06);
+  --glass-shadow:0 2px 16px rgba(0,0,0,0.32),0 0 0 1px rgba(255,255,255,0.04);
+  --phase-idle:#9a958a; --phase-running:#6ea7ff; --phase-approval:#f4a4a4;
+  --phase-answer:#ffd58a; --phase-completed:#6fb982; --action-approve:#d98d26;
+  --font-ui:'Segoe UI Variable','Inter','Segoe UI',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;font-family:var(--font-ui);display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:24px}
+.controls{display:flex;gap:12px;flex-wrap:wrap}
+.mode-btn{padding:6px 16px;border-radius:14px;border:1px solid var(--glass-border);background:transparent;color:var(--ink-soft);font-size:11px;cursor:pointer;transition:all 120ms ease;font-family:var(--font-ui)}
+.mode-btn:hover{background:var(--bg-soft);color:var(--paper)}
+.mode-btn.active{border-color:var(--phase-running);color:var(--phase-running);background:rgba(110,167,255,0.08)}
+
+.overlay-shell{
+  border-radius:22px;background:var(--glass-bg);backdrop-filter:blur(24px);
+  border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);
+  transition:width 320ms cubic-bezier(0.22,1,0.36,1),height 320ms cubic-bezier(0.22,1,0.36,1),border-radius 320ms ease;
+  overflow:hidden;position:relative;
+  contain:paint;isolation:isolate;
+}
+.overlay-shell.compact{width:200px;height:32px;border-radius:16px}
+.overlay-shell.expanded{width:600px;height:420px;border-radius:22px}
+.overlay-shell::before{
+  content:'';position:absolute;top:0;left:16px;right:16px;height:1px;z-index:2;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),rgba(255,255,255,0.10),rgba(255,255,255,0.06),transparent);
+}
+
+/* 紧凑条 */
+.overlay-bar{
+  height:32px;display:flex;align-items:center;padding:0 14px;gap:8px;
+  cursor:pointer;transition:background 120ms ease;
+}
+.overlay-bar:hover{background:rgba(255,255,255,0.02)}
+.ov-dot{width:9px;height:9px;border-radius:50%;background:var(--phase-running);box-shadow:0 0 6px var(--phase-running);animation:dot-pulse 1s ease-in-out infinite;flex-shrink:0}
+@keyframes dot-pulse{0%,100%{opacity:1}50%{opacity:0.45}}
+.ov-label{flex:1;font-size:12px;font-weight:500;color:var(--paper)}
+.ov-chevron{width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:var(--ink-mute);font-size:12px;transition:transform 160ms ease}
+.ov-chevron.expanded{transform:rotate(180deg)}
+
+/* 面板内容 */
+.overlay-panel{padding:0;border-top:1px solid var(--line);display:none;flex-direction:column;height:calc(100% - 32px)}
+.overlay-shell.expanded .overlay-panel{display:flex}
+
+.panel-head{padding:8px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+.panel-head-title{font-size:11px;color:var(--ink-soft)}
+.panel-head-gear{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;color:var(--ink-mute);transition:all 120ms ease}
+.panel-head-gear:hover{background:var(--bg-soft);color:var(--ink-soft)}
+
+.panel-body{flex:1;overflow-y:auto;padding:4px 0}
+.session-row{display:flex;align-items:center;padding:11px 14px 11px 16px;gap:8px;border-bottom:1px solid var(--line);cursor:pointer;transition:background 120ms ease}
+.session-row:hover{background:var(--bg-soft)}
+.session-row .sr-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.session-row .sr-name{flex:1;font-size:12px;font-weight:500;color:var(--paper)}
+.session-row .sr-status{font-size:10px;color:var(--ink-soft)}
+.session-row .sr-chevron{color:var(--ink-mute);font-size:10px;transition:transform 160ms ease}
+
+.panel-foot{padding:6px 14px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--ink-mute)}
+.panel-foot .pf-dot{width:6px;height:6px;border-radius:50%;background:var(--phase-running)}
+.dim-label{color:var(--ink-mute);font-size:10px;font-family:var(--font-mono)}
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <button class="mode-btn active" data-mode="expanded">Expanded Panel (展开)</button>
+  <button class="mode-btn" data-mode="compact">Compact Notch (紧凑)</button>
+</div>
+
+<div class="overlay-shell expanded" id="overlay">
+  <div class="overlay-bar" id="bar">
+    <div class="ov-dot"></div>
+    <span class="ov-label">Claude Code</span>
+    <div class="ov-chevron expanded" id="chevron">⌵</div>
+  </div>
+  <div class="overlay-panel">
+    <div class="panel-head">
+      <span class="panel-head-title">Vibe Island · 3 sessions</span>
+      <div class="panel-head-gear">⚙</div>
+    </div>
+    <div class="panel-body">
+      <div class="session-row">
+        <div class="sr-dot" style="background:var(--phase-running);box-shadow:0 0 6px var(--phase-running);animation:dot-pulse 1s ease-in-out infinite"></div>
+        <span class="sr-name">Claude Code</span>
+        <span class="sr-status">running</span>
+        <span class="sr-chevron">›</span>
+      </div>
+      <div class="session-row">
+        <div class="sr-dot" style="background:var(--phase-approval)"></div>
+        <span class="sr-name">Claude Code #2</span>
+        <span class="sr-status">waiting approval</span>
+        <span class="sr-chevron">›</span>
+      </div>
+      <div class="session-row">
+        <div class="sr-dot" style="background:var(--phase-idle)"></div>
+        <span class="sr-name">Codex</span>
+        <span class="sr-status">idle</span>
+        <span class="sr-chevron">›</span>
+      </div>
+    </div>
+    <div class="panel-foot">
+      <span>Hook connected</span>
+      <div class="pf-dot"></div>
+    </div>
+  </div>
+</div>
+<div class="dim-label" id="dimLabel">600 × 420px · 圆角 22px</div>
+
+<script>
+const overlay = document.getElementById('overlay');
+const dimLabel = document.getElementById('dimLabel');
+const chevron = document.getElementById('chevron');
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const mode = btn.dataset.mode;
+    if (mode === 'compact') {
+      overlay.className = 'overlay-shell compact';
+      chevron.classList.remove('expanded');
+      dimLabel.textContent = '180 × 32px · 圆角 16px';
+    } else {
+      overlay.className = 'overlay-shell expanded';
+      chevron.classList.add('expanded');
+      dimLabel.textContent = '600 × 420px · 圆角 22px';
+    }
+  });
+});
+
+// 点击 bar 切换
+document.getElementById('bar').addEventListener('click', (e) => {
+  if (e.target.closest('.ov-chevron')) return;
+  const isExpanded = overlay.classList.contains('expanded');
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  if (isExpanded) {
+    overlay.className = 'overlay-shell compact';
+    chevron.classList.remove('expanded');
+    dimLabel.textContent = '180 × 32px · 圆角 16px';
+    document.querySelector('[data-mode="compact"]').classList.add('active');
+  } else {
+    overlay.className = 'overlay-shell expanded';
+    chevron.classList.add('expanded');
+    dimLabel.textContent = '600 × 420px · 圆角 22px';
+    document.querySelector('[data-mode="expanded"]').classList.add('active');
+  }
+});
+</script>
+
+</body>
+</html>

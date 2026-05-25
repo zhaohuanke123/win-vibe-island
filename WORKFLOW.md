@@ -104,6 +104,7 @@ Source of truth:
 | 检查项 | 通过标准 |
 |--------|----------|
 | 任务文档引用 | 当前任务有 `requirement_ref` 和 `design_ref`，或有明确的等价文档章节 |
+| 设计规格 | 若 `design_ref` 指向 `docs/design/specs/`，文件须存在且 status 为 "approved" |
 | 行为定义 | bug/feature/behavior change 的预期行为已写入文档 |
 | 文档更新 | 如果行为变化，相关文档已先更新，任务 `docs_updated` 为 `true` |
 | 跳过记录 | 如果用户确认跳过文档，`progress.txt` 记录了原因、风险、待补文档 |
@@ -336,6 +337,17 @@ git commit -m "complete task #N: [Title]"
 4. **Win32 API**：
    - 所有 Win32 调用必须在 `#[cfg(target_os = "windows")]` 块中
    - 为非 Windows 平台提供 stub 实现
+
+### 设计文件夹
+
+| 目录 | 内容 |
+|------|------|
+| `docs/design/specs/` | 设计规格文档 — 实现组件时的权威视觉/交互参考 |
+| `docs/design/artifacts/prototypes/` | 交互原型 HTML 文件 |
+| `docs/design/artifacts/flows/` | 交互流程图 / 屏幕序列 |
+| `docs/design/artifacts/canvases/` | 视觉探索画布 / 线框图 |
+
+设计规格文档（`specs/`）是 `design_ref` 的推荐目标格式。规格模板见 `docs/design/specs/TEMPLATE.md`。
 
 ---
 

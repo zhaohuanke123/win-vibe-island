@@ -59,13 +59,23 @@ frontend/src/
 5. 添加 `data-testid` 供测试使用
 6. 在 `__tests__/components/` 添加测试
 
+## 设计驱动开发
+
+当 task 的 `design_ref` 指向 `docs/design/specs/` 下的设计规格文件时：
+
+1. **先读取设计规格。** 规格文档是视觉参数和交互行为的权威来源。
+2. **严格遵循规格中的数值。** 颜色使用规格 2.2 指定的 CSS 变量，尺寸使用规格 2.1 的 px 值，动画使用规格 4.1 的 spring 参数。
+3. **不要凭感觉调整。** 如果规格中的值在实现时发现有问题，报告给用户确认，而不是自行修改。
+4. **实现后对照规格 Section 9 检查清单逐项验证。**
+
 ## 修改现有组件
 
 1. 先确认 Documentation Gate 通过
-2. 确认组件的 data-testid 不被其他测试依赖
-3. 修改后运行 `npm run build` 验证编译
-4. 如涉及动画参数，参考 [[animation]] skill
-5. 如涉及状态变化，参考 [[state-machine]] skill
+2. 如果存在对应的设计规格，先读取规格确认当前视觉参数
+3. 确认组件的 data-testid 不被其他测试依赖
+4. 修改后运行 `npm run build` 验证编译
+5. 如涉及动画参数，参考 [[animation]] skill
+6. 如涉及状态变化，参考 [[state-machine]] skill
 
 ## UI 配置变更（需双向同步）
 

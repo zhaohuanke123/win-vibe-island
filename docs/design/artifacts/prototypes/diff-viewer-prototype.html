@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiffViewer 原型 — 代码差异查看</title>
+<style>
+:root {
+  --ink:#0d0d0f; --paper:#f1ead9; --ink-soft:rgba(241,234,217,0.55); --ink-mute:rgba(241,234,217,0.30);
+  --line:rgba(255,255,255,0.08);
+  --glass-bg:rgba(13,13,15,0.85); --glass-border:rgba(255,255,255,0.06);
+  --glass-shadow:0 2px 16px rgba(0,0,0,0.32),0 0 0 1px rgba(255,255,255,0.04);
+  --phase-completed:#6fb982; --phase-approval:#f4a4a4; --phase-running:#6ea7ff;
+  --font-ui:'Segoe UI Variable','Inter','Segoe UI',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;font-family:var(--font-ui);display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:20px}
+h2{color:var(--ink-soft);font-size:13px;font-weight:400}
+
+.diff-container{
+  width:500px;max-height:300px;overflow-y:auto;border-radius:12px;
+  background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);
+  font-family:var(--font-mono);font-size:11px;line-height:20px;
+}
+.diff-header{padding:6px 10px;border-bottom:1px solid var(--line);font-size:10px;color:var(--ink-mute);display:flex;justify-content:space-between}
+.diff-line{padding:0 10px;display:flex;white-space:pre}
+.diff-line .ln{width:32px;text-align:right;padding-right:10px;color:var(--ink-mute);flex-shrink:0;user-select:none}
+.diff-line .code{flex:1}
+.diff-line.added{background:rgba(111,185,130,0.12)}
+.diff-line.added .code{color:var(--phase-completed)}
+.diff-line.removed{background:rgba(244,164,164,0.10)}
+.diff-line.removed .code{color:var(--phase-approval)}
+.diff-line.unchanged .code{color:var(--ink-soft)}
+
+.tabs{display:flex;gap:0;margin-bottom:4px}
+.tab{padding:4px 14px;font-size:10px;cursor:pointer;color:var(--ink-mute);border-bottom:1px solid transparent;transition:all 120ms ease}
+.tab:hover{color:var(--ink-soft)}
+.tab.active{color:var(--phase-running);border-bottom-color:var(--phase-running)}
+.dim-note{color:var(--ink-mute);font-size:10px;font-family:var(--font-mono);margin-top:8px}
+</style>
+</head>
+<body>
+<h2>DiffViewer — 代码差异查看</h2>
+
+<div class="tabs">
+  <span class="tab active" onclick="switchView('unified')">Unified</span>
+  <span class="tab" onclick="switchView('split')">Split</span>
+</div>
+
+<div class="diff-container" id="diff">
+  <div class="diff-header">
+    <span>src-tauri/src/config/types.rs</span>
+    <span style="color:var(--phase-completed)">+3 −2</span>
+  </div>
+  <div class="diff-line unchanged"><span class="ln">21</span><span class="code">pub struct UiDimensions {</span></div>
+  <div class="diff-line unchanged"><span class="ln">22</span><span class="code">    pub bar_height: u32,</span></div>
+  <div class="diff-line removed"><span class="ln">23</span><span class="code">    pub status_dot_size: u32,  // default: 12</span></div>
+  <div class="diff-line added"><span class="ln">23</span><span class="code">    pub status_dot_size: u32,  // default: 9 (synced)</span></div>
+  <div class="diff-line unchanged"><span class="ln">24</span><span class="code">    pub padding: u32,</span></div>
+  <div class="diff-line unchanged"><span class="ln">25</span><span class="code">    pub gap: u32,</span></div>
+  <div class="diff-line added"><span class="ln">26</span><span class="code">    pub chevron_size: u32,</span></div>
+  <div class="diff-line added"><span class="ln">27</span><span class="code">}</span></div>
+</div>
+
+<div class="dim-note">最大高度 300px · 可滚动 · 等宽字体 11px · 行高 20px</div>
+
+<script>
+function switchView(view) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

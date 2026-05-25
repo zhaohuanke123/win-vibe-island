@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vibe Island — 视觉系统画布</title>
+<style>
+  :root {
+    --ink: #0d0d0f;
+    --paper: #f1ead9;
+    --ink-soft: rgba(241,234,217,0.55);
+    --ink-mute: rgba(241,234,217,0.30);
+    --line: rgba(255,255,255,0.08);
+    --bg-soft: rgba(255,255,255,0.025);
+    --glass-bg: rgba(13,13,15,0.85);
+    --glass-border: rgba(255,255,255,0.06);
+    --glass-shadow: 0 2px 16px rgba(0,0,0,0.32), 0 0 0 1px rgba(255,255,255,0.04);
+    --phase-idle: #9a958a;
+    --phase-running: #6ea7ff;
+    --phase-approval: #f4a4a4;
+    --phase-answer: #ffd58a;
+    --phase-completed: #6fb982;
+    --accent-plan: #a78bfa;
+    --action-approve: #d98d26;
+    --font-ui: 'Segoe UI Variable', 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 40px;
+  }
+  h1 { font-size:28px; font-weight:600; letter-spacing:-0.5px; margin-bottom:4px; }
+  .subtitle { color:var(--ink-soft); margin-bottom:40px; }
+
+  .canvas-grid {
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 24px;
+    max-width: 1400px;
+  }
+  .card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: var(--glass-shadow);
+  }
+  .card.full { grid-column: 1 / -1; }
+  .card h2 {
+    font-size: 14px; font-weight: 600;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* Color swatches */
+  .swatch-grid { display:flex; flex-wrap:wrap; gap:10px; }
+  .swatch-item {
+    width: 72px; height: 72px; border-radius: 12px;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    font-size: 10px; text-align: center;
+    border: 1px solid var(--glass-border);
+  }
+  .swatch-item .hex { font-family:var(--font-mono); font-size:9px; margin-top:4px; opacity:0.7; }
+
+  /* Glass demo */
+  .glass-demo {
+    position:relative; height:120px; border-radius:12px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  .glass-demo::before {
+    content:''; position:absolute; top:0; left:12px; right:12px; height:1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), rgba(255,255,255,0.10), rgba(255,255,255,0.06), transparent);
+  }
+  .glass-demo .dots {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:100px; height:40px;
+    background: radial-gradient(circle at 20% 50%, rgba(255,255,255,0.03) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(255,255,255,0.03) 0%, transparent 50%);
+  }
+
+  /* Typography */
+  .type-sample { margin-bottom:12px; }
+  .type-sample .label { font-size:10px; color:var(--ink-mute); margin-bottom:2px; font-family:var(--font-mono); }
+  .type-sample .text { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* Spacing */
+  .spacing-bar { height:8px; border-radius:4px; margin-bottom:6px; }
+  .spacing-label { font-size:10px; color:var(--ink-mute); font-family:var(--font-mono); }
+
+  /* Component size ref */
+  .size-ref { display:flex; gap:16px; flex-wrap:wrap; }
+  .size-box {
+    border: 1px dashed var(--line); border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px; color:var(--ink-mute); font-family:var(--font-mono);
+    position:relative;
+  }
+  .size-box .tag {
+    position:absolute; bottom:-18px; left:50%; transform:translateX(-50%);
+    font-size:10px; color:var(--ink-soft); white-space:nowrap;
+  }
+
+  /* Animation specs */
+  .anim-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .anim-table th { text-align:left; padding:6px 8px; color:var(--ink-soft); border-bottom:1px solid var(--line); }
+  .anim-table td { padding:6px 8px; border-bottom:1px solid var(--line); }
+  .anim-table code { font-family:var(--font-mono); font-size:11px; color:var(--accent-plan); }
+
+  /* Notch bar preview */
+  .notch-preview {
+    height:32px; border-radius:16px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    display:flex; align-items:center; padding:0 14px; gap:8px;
+    margin-bottom:12px;
+  }
+  .notch-preview .np-dot { width:9px; height:9px; border-radius:50%; }
+  .notch-preview .np-label { flex:1; font-size:12px; }
+  .notch-preview .np-mono { font-family:var(--font-mono); font-size:10px; color:var(--ink-mute); }
+
+  /* Panel preview */
+  .panel-preview {
+    border-radius:22px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    overflow:hidden;
+  }
+  .panel-preview .pp-head {
+    padding:6px 12px 8px;
+    border-bottom:1px solid var(--line);
+    font-size:11px; color:var(--ink-soft);
+  }
+  .panel-preview .pp-row {
+    padding:11px 12px 11px 16px;
+    border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:8px;
+    font-size:12px;
+  }
+  .panel-preview .pp-row:last-child { border-bottom:none; }
+</style>
+</head>
+<body>
+
+<h1>Vibe Island 视觉系统画布</h1>
+<p class="subtitle">设计令牌 · 组件尺寸 · 状态颜色 · 动画参数 · 玻璃态语言</p>
+
+<div class="canvas-grid">
+
+  <!-- 色彩系统 -->
+  <div class="card full">
+    <h2>色彩系统</h2>
+
+    <h3 style="font-size:12px;color:var(--ink-soft);margin:12px 0 8px">阶段颜色（语义色）</h3>
+    <div class="swatch-grid">
+      <div class="swatch-item" style="background:var(--phase-idle);color:var(--ink)">
+        idle<div class="hex">#9a958a</div>
+      </div>
+      <div class="swatch-item" style="background:var(--phase-running);color:var(--ink)">
+        running<div class="hex">#6ea7ff</div>
+      </div>
+      <div class="swatch-item" style="background:var(--phase-approval);color:var(--ink)">
+        approval<div class="hex">#f4a4a4</div>
+      </div>
+      <div class="swatch-item" style="background:var(--phase-answer);color:var(--ink)">
+        answer<div class="hex">#ffd58a</div>
+      </div>
+      <div class="swatch-item" style="background:var(--phase-completed);color:var(--ink)">
+        done<div class="hex">#6fb982</div>
+      </div>
+      <div class="swatch-item" style="background:var(--accent-plan);color:var(--ink)">
+        plan<div class="hex">#a78bfa</div>
+      </div>
+      <div class="swatch-item" style="background:var(--action-approve);color:var(--ink)">
+        approve<div class="hex">#d98d26</div>
+      </div>
+    </div>
+
+    <h3 style="font-size:12px;color:var(--ink-soft);margin:16px 0 8px">Alpha 变体示例 (running 色)</h3>
+    <div class="swatch-grid">
+      <div class="swatch-item" style="background:rgba(110,167,255,0.04);color:var(--ink-soft)">a04</div>
+      <div class="swatch-item" style="background:rgba(110,167,255,0.10);color:var(--ink-soft)">a10</div>
+      <div class="swatch-item" style="background:rgba(110,167,255,0.20);color:var(--paper)">a20</div>
+      <div class="swatch-item" style="background:rgba(110,167,255,0.40);color:var(--paper)">a40</div>
+    </div>
+
+    <h3 style="font-size:12px;color:var(--ink-soft);margin:16px 0 8px">基础色板</h3>
+    <div class="swatch-grid">
+      <div class="swatch-item" style="background:var(--ink);border-color:rgba(255,255,255,0.15)">
+        ink<div class="hex">#0d0d0f</div>
+      </div>
+      <div class="swatch-item" style="background:var(--paper);color:var(--ink)">
+        paper<div class="hex">#f1ead9</div>
+      </div>
+      <div class="swatch-item" style="background:var(--ink-soft);color:var(--ink)">
+        soft<div class="hex">55%</div>
+      </div>
+      <div class="swatch-item" style="background:var(--ink-mute);color:var(--ink)">
+        mute<div class="hex">30%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 玻璃态语言 -->
+  <div class="card full">
+    <h2>玻璃态视觉语言</h2>
+    <div class="glass-demo">
+      <div class="dots"></div>
+      <span style="color:var(--ink-soft);font-size:12px;z-index:1">glass surface</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;font-size:11px;font-family:var(--font-mono)">
+      <div>background: <span style="color:var(--accent-plan)">rgba(13,13,15,0.85)</span></div>
+      <div>blur: <span style="color:var(--accent-plan)">24px</span></div>
+      <div>border: <span style="color:var(--accent-plan)">rgba(255,255,255,0.06)</span></div>
+      <div>shadow: <span style="color:var(--accent-plan)">0 2px 16px rgba(0,0,0,0.32)</span></div>
+      <div>top highlight: <span style="color:var(--accent-plan)">linear-gradient inset</span></div>
+      <div>isolation: <span style="color:var(--accent-plan)">isolate + contain:paint</span></div>
+    </div>
+  </div>
+
+  <!-- 组件尺寸参考 -->
+  <div class="card full">
+    <h2>尺寸参考</h2>
+
+    <h3 style="font-size:12px;color:var(--ink-soft);margin-bottom:12px">Notch 条 (紧凑模式)</h3>
+    <div class="notch-preview" style="width:180px">
+      <div class="np-dot" style="background:var(--phase-running)"></div>
+      <span class="np-label">Claude Code</span>
+      <span class="np-mono">1</span>
+    </div>
+    <div style="font-size:11px;color:var(--ink-mute);font-family:var(--font-mono);margin-bottom:16px">
+      180×32px · 圆角16px · 内边距14px · 间距8px · 状态点9px
+    </div>
+
+    <h3 style="font-size:12px;color:var(--ink-soft);margin-bottom:12px">展开面板</h3>
+    <div class="panel-preview" style="width:600px">
+      <div class="pp-head">Vibe Island · 2 sessions</div>
+      <div class="pp-row">
+        <div class="np-dot" style="background:var(--phase-running);width:9px;height:9px;border-radius:50%"></div>
+        <span style="flex:1">Claude Code</span>
+        <span style="color:var(--ink-mute);font-size:10px">running</span>
+      </div>
+      <div class="pp-row">
+        <div class="np-dot" style="background:var(--phase-idle);width:9px;height:9px;border-radius:50%"></div>
+        <span style="flex:1">Codex</span>
+        <span style="color:var(--ink-mute);font-size:10px">idle</span>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--ink-mute);font-family:var(--font-mono);margin-top:8px">
+      600×(400~720)px · 圆角22px · 可滚动内容区
+    </div>
+  </div>
+
+  <!-- 排版 -->
+  <div class="card">
+    <h2>排版</h2>
+    <div class="type-sample">
+      <div class="label">--font-ui · 13px · regular</div>
+      <div class="text" style="font-size:13px">Vibe Island 氛围岛 · 桌面悬浮监控</div>
+    </div>
+    <div class="type-sample">
+      <div class="label">--font-ui · 12px · 600 weight</div>
+      <div class="text" style="font-size:12px;font-weight:600">Session Name · 会话名称</div>
+    </div>
+    <div class="type-sample">
+      <div class="label">--font-mono · 10px</div>
+      <div class="text" style="font-family:var(--font-mono);font-size:10px;color:var(--ink-mute)">0x1A2B3C · 12:34:56</div>
+    </div>
+    <div class="type-sample">
+      <div class="label">--font-ui · 11px · ink-soft</div>
+      <div class="text" style="font-size:11px;color:var(--ink-soft)">次级信息 · 时间戳 · 描述文本</div>
+    </div>
+  </div>
+
+  <!-- 间距 -->
+  <div class="card">
+    <h2>间距系统</h2>
+    <div style="margin-bottom:16px">
+      <div class="spacing-label">barHeight — 32px</div>
+      <div class="spacing-bar" style="width:160px;background:var(--phase-running)"></div>
+    </div>
+    <div style="margin-bottom:16px">
+      <div class="spacing-label">padding — 14px</div>
+      <div class="spacing-bar" style="width:70px;background:var(--ink-soft)"></div>
+    </div>
+    <div style="margin-bottom:16px">
+      <div class="spacing-label">gap — 8px</div>
+      <div class="spacing-bar" style="width:40px;background:var(--ink-mute)"></div>
+    </div>
+    <div style="margin-bottom:16px">
+      <div class="spacing-label">statusDotSize — 9px</div>
+      <div class="spacing-bar" style="width:45px;background:var(--phase-approval)"></div>
+    </div>
+    <div>
+      <div class="spacing-label">圆角: compact 16px · expanded 22px · pill 20px</div>
+    </div>
+  </div>
+
+  <!-- 动画参数 -->
+  <div class="card full">
+    <h2>动画参数</h2>
+    <table class="anim-table">
+      <thead>
+        <tr><th>触发场景</th><th>类型</th><th>参数</th><th>时长</th><th>缓动</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>紧凑 → 展开</td><td>Framer Motion spring</td><td><code>stiffness:300 damping:30 mass:0.8</code></td><td>~300ms</td><td>spring</td></tr>
+        <tr><td>展开 → 紧凑</td><td>Framer Motion spring</td><td><code>stiffness:300 damping:30 mass:0.7</code></td><td>~250ms</td><td>spring</td></tr>
+        <tr><td>状态切换 (过渡)</td><td>Framer Motion spring</td><td><code>stiffness:300 damping:30 mass:1.0</code></td><td>~300ms</td><td>spring</td></tr>
+        <tr><td>微动 (micro)</td><td>Framer Motion spring</td><td><code>stiffness:300 damping:30 mass:0.8</code></td><td>~200ms</td><td>spring</td></tr>
+        <tr><td>hover 过渡</td><td>CSS transition</td><td><code>opacity, background</code></td><td>120ms</td><td>ease</td></tr>
+        <tr><td>Chevron 旋转</td><td>CSS transition</td><td><code>transform</code></td><td>160ms</td><td>ease</td></tr>
+        <tr><td>面板展开/收起</td><td>CSS transition</td><td><code>max-height, opacity</code></td><td>300ms</td><td>ease</td></tr>
+        <tr><td>StatusDot 脉冲</td><td>CSS animation</td><td><code>opacity pulse</code></td><td>600-1200ms</td><td>ease-in-out</td></tr>
+        <tr><td>BarsGlyph running</td><td>SMIL animate</td><td><code>height cycle [4,12]→[6,14]→[4,10]</code></td><td>900ms</td><td>staggered</td></tr>
+        <tr><td>窗口大小同步</td><td>IPC throttle</td><td><code>emit window size</code></td><td>16ms节流</td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:12px;color:var(--ink-soft);margin:16px 0 8px">CSS 缓动曲线</h3>
+    <div style="font-family:var(--font-mono);font-size:11px;display:flex;gap:24px;flex-wrap:wrap">
+      <div><span style="color:var(--ink-soft)">springBounce</span> <code style="color:var(--accent-plan)">cubic-bezier(0.34, 1.56, 0.64, 1)</code></div>
+      <div><span style="color:var(--ink-soft)">springSmooth</span> <code style="color:var(--accent-plan)">cubic-bezier(0.22, 1, 0.36, 1)</code></div>
+      <div><span style="color:var(--ink-soft)">springSnappy</span> <code style="color:var(--accent-plan)">cubic-bezier(0.68, -0.55, 0.265, 1.55)</code></div>
+    </div>
+  </div>
+
+  <!-- 状态指示器变体 -->
+  <div class="card full">
+    <h2>状态指示器变体</h2>
+    <div style="display:flex;gap:32px;align-items:center;flex-wrap:wrap">
+      <div style="text-align:center">
+        <div style="width:9px;height:9px;border-radius:50%;background:var(--phase-running);margin:0 auto 4px;
+                    animation:pulse 1s ease-in-out infinite"></div>
+        <div style="font-size:10px;color:var(--ink-mute);font-family:var(--font-mono)">dot (9px)</div>
+      </div>
+      <div style="text-align:center">
+        <svg width="24" height="24" viewBox="0 0 24 24">
+          <rect x="5.25" y="10" width="2.5" height="4" rx="1.25" fill="var(--phase-running)"><animate attributeName="height" values="4;12;4" dur="0.9s" repeatCount="indefinite"/><animate attributeName="y" values="10;6;10" dur="0.9s" repeatCount="indefinite"/></rect>
+          <rect x="10.75" y="10" width="2.5" height="4" rx="1.25" fill="var(--phase-running)"><animate attributeName="height" values="4;14;4" dur="0.9s" begin="0.15s" repeatCount="indefinite"/><animate attributeName="y" values="10;5;10" dur="0.9s" begin="0.15s" repeatCount="indefinite"/></rect>
+          <rect x="16.25" y="10" width="2.5" height="4" rx="1.25" fill="var(--phase-running)"><animate attributeName="height" values="4;10;4" dur="0.9s" begin="0.30s" repeatCount="indefinite"/><animate attributeName="y" values="10;7;10" dur="0.9s" begin="0.30s" repeatCount="indefinite"/></rect>
+        </svg>
+        <div style="font-size:10px;color:var(--ink-mute);font-family:var(--font-mono)">glyph (24px)</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:32px;height:6px;border-radius:3px;background:var(--phase-running);margin:0 auto 4px;opacity:0.3"></div>
+        <div style="font-size:10px;color:var(--ink-mute);font-family:var(--font-mono)">bar (inline)</div>
+      </div>
+      <div style="text-align:center">
+        <div style="padding:4px 8px;border-radius:6px;background:rgba(110,167,255,0.10);font-size:10px;color:var(--phase-running)">
+          running
+        </div>
+        <div style="font-size:10px;color:var(--ink-mute);font-family:var(--font-mono);margin-top:4px">tint (tag)</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:var(--ink-mute)">
+      四种 StateIndicator 变体: dot / glyph / bar / tint — 由用户配置 stateIndicator 字段选择
+    </div>
+  </div>
+
+</div>
+
+<style>
+@keyframes pulse {
+  0%,100% { opacity:1; box-shadow:0 0 4px var(--phase-running); }
+  50% { opacity:0.5; box-shadow:0 0 8px var(--phase-running); }
+}
+</style>
+
+</body>
+</html>

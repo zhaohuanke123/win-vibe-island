@@ -1,0 +1,110 @@
+{
+  "_description": "Vibe Island 设计令牌 — 机器可读的单一真相来源。所有参数必须在对应源码中精确匹配。",
+  "_version": "1.0.0",
+  "_updated": "2026-05-25",
+
+  "colors": {
+    "base": {
+      "ink": { "value": "#0d0d0f", "file": "frontend/src/index.css", "line": 5, "var": "--ink" },
+      "paper": { "value": "#f1ead9", "file": "frontend/src/index.css", "line": 6, "var": "--paper" },
+      "inkSoft": { "value": "rgba(241, 234, 217, 0.55)", "file": "frontend/src/index.css", "line": 7, "var": "--ink-soft" },
+      "inkMute": { "value": "rgba(241, 234, 217, 0.3)", "file": "frontend/src/index.css", "line": 8, "var": "--ink-mute" },
+      "line": { "value": "rgba(255, 255, 255, 0.08)", "file": "frontend/src/index.css", "line": 9, "var": "--line" },
+      "bgSoft": { "value": "rgba(255, 255, 255, 0.025)", "file": "frontend/src/index.css", "line": 10, "var": "--bg-soft" }
+    },
+    "glass": {
+      "blur": { "value": "blur(24px)", "file": "frontend/src/index.css", "line": 18, "var": "--glass-blur" },
+      "background": { "value": "rgba(13, 13, 15, 0.85)", "file": "frontend/src/index.css", "line": 19, "var": "--glass-bg" },
+      "border": { "value": "rgba(255, 255, 255, 0.06)", "file": "frontend/src/index.css", "line": 20, "var": "--glass-border" },
+      "shadow": { "value": "0 2px 16px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.04)", "file": "frontend/src/index.css", "line": 21, "var": "--glass-shadow" }
+    },
+    "phase": {
+      "idle": { "value": "#9a958a", "file": "frontend/src/index.css", "line": 28, "var": "--phase-idle", "configFile": "frontend/src/store/config.ts", "configLine": 205 },
+      "running": { "value": "#6ea7ff", "file": "frontend/src/index.css", "line": 26, "var": "--phase-running", "configFile": "frontend/src/store/config.ts", "configLine": 206 },
+      "waitingForApproval": { "value": "#f4a4a4", "file": "frontend/src/index.css", "line": 24, "var": "--phase-approval", "configFile": "frontend/src/store/config.ts", "configLine": 207 },
+      "waitingForAnswer": { "value": "#ffd58a", "file": "frontend/src/index.css", "line": 25, "var": "--phase-answer", "configFile": "frontend/src/store/config.ts", "configLine": 208 },
+      "completed": { "value": "#6fb982", "file": "frontend/src/index.css", "line": 27, "var": "--phase-completed", "configFile": "frontend/src/store/config.ts", "configLine": 209 }
+    },
+    "action": {
+      "approve": { "value": "rgba(217, 141, 38, 1)", "file": "frontend/src/index.css", "line": 69, "var": "--action-approve" },
+      "approveHover": { "value": "rgba(217, 141, 38, 0.88)", "file": "frontend/src/index.css", "line": 70, "var": "--action-approve-hover" },
+      "approveActive": { "value": "rgba(217, 141, 38, 0.78)", "file": "frontend/src/index.css", "line": 71, "var": "--action-approve-active" },
+      "approveBorder": { "value": "rgba(217, 141, 38, 0.42)", "file": "frontend/src/index.css", "line": 72, "var": "--action-approve-border" }
+    },
+    "accent": {
+      "plan": { "value": "#a78bfa", "file": "frontend/src/index.css", "line": 75, "var": "--accent-plan" }
+    }
+  },
+
+  "dimensions": {
+    "overlay": {
+      "compactWidth": { "value": 180, "unit": "px", "file": "frontend/src/store/config.ts", "line": 184 },
+      "compactHeight": { "value": 32, "unit": "px", "file": "frontend/src/store/config.ts", "line": 185 },
+      "expandedWidth": { "value": 600, "unit": "px", "file": "frontend/src/store/config.ts", "line": 186 },
+      "expandedMinHeight": { "value": 400, "unit": "px", "file": "frontend/src/store/config.ts", "line": 187 },
+      "expandedMaxHeight": { "value": 720, "unit": "px", "file": "frontend/src/store/config.ts", "line": 188 },
+      "compactBorderRadius": { "value": 16, "unit": "px", "file": "frontend/src/store/config.ts", "line": 192 },
+      "expandedBorderRadius": { "value": 22, "unit": "px", "file": "frontend/src/store/config.ts", "line": 193 }
+    },
+    "ui": {
+      "barHeight": { "value": 32, "unit": "px", "file": "frontend/src/store/config.ts", "line": 223 },
+      "padding": { "value": 14, "unit": "px", "file": "frontend/src/store/config.ts", "line": 224 },
+      "gap": { "value": 8, "unit": "px", "file": "frontend/src/store/config.ts", "line": 225 },
+      "statusDotSize": { "value": 9, "unit": "px", "file": "frontend/src/store/config.ts", "line": 226 }
+    }
+  },
+
+  "springs": {
+    "expand":    { "stiffness": 300, "damping": 30, "mass": 0.8, "file": "frontend/src/store/config.ts", "line": 216 },
+    "collapse":  { "stiffness": 300, "damping": 30, "mass": 0.7, "file": "frontend/src/store/config.ts", "line": 217 },
+    "transition": { "stiffness": 300, "damping": 30, "mass": 1.0, "file": "frontend/src/store/config.ts", "line": 218 },
+    "micro":     { "stiffness": 300, "damping": 30, "mass": 0.8, "file": "frontend/src/store/config.ts", "line": 219 }
+  },
+
+  "cssTransitions": {
+    "hover":   { "value": "120ms ease",   "file": "frontend/src/config/animation.ts", "line": 51 },
+    "chevron": { "value": "160ms ease",   "file": "frontend/src/config/animation.ts", "line": 53 },
+    "expand":  { "value": "300ms ease",   "file": "frontend/src/config/animation.ts", "line": 55 }
+  },
+
+  "easings": {
+    "springBounce": { "value": "cubic-bezier(0.34, 1.56, 0.64, 1)",      "file": "frontend/src/config/animation.ts", "line": 66 },
+    "springSmooth": { "value": "cubic-bezier(0.22, 1, 0.36, 1)",         "file": "frontend/src/config/animation.ts", "line": 67 },
+    "springSnappy": { "value": "cubic-bezier(0.68, -0.55, 0.265, 1.55)", "file": "frontend/src/config/animation.ts", "line": 68 }
+  },
+
+  "animationDurations": {
+    "running":       { "value": 1000, "unit": "ms", "file": "frontend/src/store/config.ts", "line": 212 },
+    "approvalPulse": { "value": 600,  "unit": "ms", "file": "frontend/src/store/config.ts", "line": 213 },
+    "answerPulse":   { "value": 600,  "unit": "ms", "file": "frontend/src/store/config.ts", "line": 214 }
+  },
+
+  "typography": {
+    "fontUi":   { "value": "'Segoe UI Variable', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif", "file": "frontend/src/index.css", "line": 109, "var": "--font-ui" },
+    "fontMono": { "value": "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace", "file": "frontend/src/index.css", "line": 110, "var": "--font-mono" }
+  },
+
+  "dualSyncPairs": {
+    "_description": "这些参数必须在 Rust types.rs 和前端 config.ts 中同步修改",
+    "stateColors": {
+      "rust": "src-tauri/src/config/types.rs::StateColors",
+      "frontend": "frontend/src/store/config.ts::DEFAULT_CONFIG.ui.stateColors"
+    },
+    "springConfig": {
+      "rust": "src-tauri/src/config/types.rs::SpringConfig",
+      "frontend": "frontend/src/store/config.ts::DEFAULT_CONFIG.ui.animation.spring"
+    },
+    "animationConfig": {
+      "rust": "src-tauri/src/config/types.rs::AnimationConfig",
+      "frontend": "frontend/src/store/config.ts::DEFAULT_CONFIG.ui.animation"
+    },
+    "uiDimensions": {
+      "rust": "src-tauri/src/config/types.rs::UiDimensions",
+      "frontend": "frontend/src/store/config.ts::DEFAULT_CONFIG.ui.dimensions"
+    },
+    "overlayConfig": {
+      "rust": "src-tauri/src/config/types.rs::OverlayConfigDefaults",
+      "frontend": "frontend/src/store/config.ts::DEFAULT_CONFIG.overlay"
+    }
+  }
+}

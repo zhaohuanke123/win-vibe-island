@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ApprovalPanel 原型 — 审批交互</title>
+<style>
+:root {
+  --ink:#0d0d0f; --paper:#f1ead9; --ink-soft:rgba(241,234,217,0.55); --ink-mute:rgba(241,234,217,0.30);
+  --line:rgba(255,255,255,0.08); --bg-soft:rgba(255,255,255,0.025);
+  --glass-bg:rgba(13,13,15,0.85); --glass-border:rgba(255,255,255,0.06);
+  --glass-shadow:0 2px 16px rgba(0,0,0,0.32),0 0 0 1px rgba(255,255,255,0.04);
+  --phase-approval:#f4a4a4; --phase-running:#6ea7ff; --phase-completed:#6fb982;
+  --action-approve:#d98d26; --action-approve-hover:rgba(217,141,38,0.88); --action-approve-active:rgba(217,141,38,0.78);
+  --action-approve-border:rgba(217,141,38,0.42);
+  --font-ui:'Segoe UI Variable','Inter','Segoe UI',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;font-family:var(--font-ui);display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:20px}
+h2{color:var(--ink-soft);font-size:13px;font-weight:400}
+
+.panel{
+  width:420px;border-radius:16px;background:var(--glass-bg);backdrop-filter:blur(24px);
+  border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);overflow:hidden;
+}
+.panel-head{padding:8px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+.panel-head-title{font-size:11px;color:var(--phase-approval);font-weight:600}
+
+.approval-item{padding:14px;border-bottom:1px solid var(--line)}
+.approval-item:last-child{border-bottom:none}
+.approval-item .tool-name{font-size:12px;font-weight:500;color:var(--paper);margin-bottom:4px}
+.approval-item .tool-args{font-size:10px;font-family:var(--font-mono);color:var(--ink-mute);line-height:1.6;margin-bottom:6px}
+.approval-item .tool-context{display:flex;gap:16px;font-size:10px;color:var(--ink-soft)}
+.approval-item .tool-context span{display:flex;align-items:center;gap:4px}
+
+.actions{display:flex;gap:8px;margin-top:10px}
+.btn{padding:6px 16px;border-radius:8px;font-size:11px;font-weight:500;cursor:pointer;transition:all 120ms ease;border:1px solid transparent;font-family:var(--font-ui)}
+.btn-approve{background:var(--action-approve);color:var(--paper);border-color:var(--action-approve-border)}
+.btn-approve:hover{opacity:0.88}
+.btn-approve:active{opacity:0.78;transform:scale(0.97)}
+.btn-reject{background:transparent;color:var(--ink-soft);border-color:var(--line)}
+.btn-reject:hover{background:rgba(255,255,255,0.04);color:var(--paper)}
+.btn-reject:active{background:rgba(255,255,255,0.06)}
+
+.result{display:none;align-items:center;gap:6px;margin-top:8px;font-size:11px}
+.result.show{display:flex}
+.result.approved{color:var(--phase-completed)}
+.result.rejected{color:var(--phase-approval)}
+
+.dim-note{color:var(--ink-mute);font-size:10px;font-family:var(--font-mono);margin-top:8px;text-align:center}
+
+.reset-btn{padding:4px 12px;border-radius:10px;border:1px solid var(--glass-border);background:transparent;color:var(--ink-soft);font-size:11px;cursor:pointer;transition:all 120ms ease;font-family:var(--font-ui)}
+.reset-btn:hover{background:var(--bg-soft);color:var(--paper)}
+</style>
+</head>
+<body>
+<h2>ApprovalPanel — 审批请求处理</h2>
+
+<button class="reset-btn" onclick="resetAll()">重置所有审批</button>
+
+<div class="panel">
+  <div class="panel-head">
+    <span class="panel-head-title">⏳ Approval Required · 2 pending</span>
+  </div>
+
+  <!-- 审批项 1 -->
+  <div class="approval-item" id="item1">
+    <div class="tool-name">Bash</div>
+    <div class="tool-args">rm -rf node_modules/ && npm cache clean --force</div>
+    <div class="tool-context">
+      <span>📁 /home/project</span>
+      <span>🕐 just now</span>
+    </div>
+    <div class="actions" id="actions1">
+      <button class="btn btn-approve" onclick="handleApproval('item1','approved')">Approve</button>
+      <button class="btn btn-reject" onclick="handleApproval('item1','rejected')">Reject</button>
+    </div>
+    <div class="result" id="result1"></div>
+  </div>
+
+  <!-- 审批项 2 -->
+  <div class="approval-item" id="item2">
+    <div class="tool-name">Write</div>
+    <div class="tool-args">file: src/config/secrets.ts<br>content: export const API_KEY = "sk-..."</div>
+    <div class="tool-context">
+      <span>📁 /home/project/src</span>
+      <span>🕐 2 min ago</span>
+    </div>
+    <div class="actions" id="actions2">
+      <button class="btn btn-approve" onclick="handleApproval('item2','approved')">Approve</button>
+      <button class="btn btn-reject" onclick="handleApproval('item2','rejected')">Reject</button>
+    </div>
+    <div class="result" id="result2"></div>
+  </div>
+
+  <!-- 审批项 3: 超时示例 -->
+  <div class="approval-item" id="item3">
+    <div class="tool-name">HTTP Request</div>
+    <div class="tool-args">POST https://api.example.com/data<br>body: {"action":"delete_all"}</div>
+    <div class="tool-context">
+      <span>🌐 api.example.com</span>
+      <span>🕐 5 min ago</span>
+    </div>
+    <div class="actions" id="actions3">
+      <button class="btn btn-approve" onclick="handleApproval('item3','approved')">Approve</button>
+      <button class="btn btn-reject" onclick="handleApproval('item3','rejected')">Reject</button>
+    </div>
+    <div class="result" id="result3"></div>
+  </div>
+</div>
+
+<div class="dim-note">按钮 hover 120ms ease · approve 琥珀色 · reject 透明边框</div>
+
+<script>
+function handleApproval(itemId, action) {
+  const item = document.getElementById(itemId);
+  const actions = document.getElementById('actions' + itemId.slice(-1));
+  const result = document.getElementById('result' + itemId.slice(-1));
+
+  actions.style.display = 'none';
+  result.className = 'result show ' + action;
+  result.textContent = action === 'approved' ? '✓ 已批准 — emit respond_approval' : '✗ 已拒绝 — emit respond_approval';
+
+  // 淡化审批项
+  setTimeout(() => { item.style.opacity = '0.35'; item.style.transition = 'opacity 300ms ease'; }, 400);
+}
+
+function resetAll() {
+  ['item1','item2','item3'].forEach(id => {
+    document.getElementById(id).style.opacity = '1';
+    document.getElementById('actions' + id.slice(-1)).style.display = 'flex';
+    document.getElementById('result' + id.slice(-1)).className = 'result';
+  });
+}
+</script>
+</body>
+</html>

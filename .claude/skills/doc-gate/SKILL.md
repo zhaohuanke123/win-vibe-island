@@ -28,6 +28,7 @@ description: |
 需要查阅具体模块时，先看对应文档：
 - 动画 → `docs/architecture/animation-design.md`
 - 状态流程 → `docs/architecture/states-and-flows.md`
+- 设计规格 → `docs/design/specs/`
 - Hook 配置 → `docs/hooks/hooks-setup.md`
 - 测试 → `docs/testing/testing.md`
 - 命令解析 → `docs/command-registry-design.md`
@@ -47,6 +48,7 @@ description: |
 | 检查项 | 通过标准 |
 |--------|----------|
 | 任务文档引用 | 有 `requirement_ref` 和 `design_ref`，或等价文档 |
+| 设计规格 | 若 `design_ref` 指向 `docs/design/specs/`，文件存在且 status 为 "approved" |
 | 行为定义 | 预期行为已写入文档 |
 | 文档更新 | 行为变化时文档已先更新 |
 | 跳过记录 | 用户确认跳过时 `progress.txt` 记录了原因和风险 |
@@ -68,3 +70,53 @@ description: |
 ```
 
 任务只有在 docs/code/tests 一致后才能标记完成。
+
+## 设计合规检查
+
+当变更涉及视觉参数（颜色、尺寸、动画、样式）时，**在标记任务完成前必须运行**：
+
+```bash
+node scripts/check-design-compliance.js
+```
+
+这个脚本机械对比源码和 `docs/design/design-tokens.json`，**不依赖 AI 判断**：
+- 提取 `index.css` 中的 CSS 变量值 → 对比 tokens.json
+- 提取 `config.ts` 中的尺寸/颜色/弹簧默认值 → 对比 tokens.json
+- 提取 `animation.ts` 中的缓动/时长 → 对比 tokens.json
+- 检查 Rust ↔ 前端双向同步
+- 检查 BEM 命名约定
+
+退出码 0 = 通过，可继续 / 1 = 有差异，必须修复。
+
+### 何时运行
+- 修改了 `index.css`、`config.ts`、`animation.ts`、`types.rs`
+- 新增/修改了组件 CSS
+- spec 的验证清单第9节要求
+
+### 设计令牌更新
+如果检查失败是因为 **有意修改** 设计参数（非 bug），先更新 `design-tokens.json` 使其与源码一致，再重新运行检查。`design-tokens.json` 始终反映**当前实际值**。
+
+## 设计合规检查
+
+当变更涉及视觉参数（颜色、尺寸、动画、样式）时，**在标记任务完成前必须运行**：
+
+```bash
+node scripts/check-design-compliance.js
+```
+
+这个脚本机械对比源码和 `docs/design/design-tokens.json`，**不依赖 AI 判断**：
+- 提取 `index.css` 中的 CSS 变量值 → 对比 tokens.json
+- 提取 `config.ts` 中的尺寸/颜色/弹簧默认值 → 对比 tokens.json
+- 提取 `animation.ts` 中的缓动/时长 → 对比 tokens.json
+- 检查 Rust ↔ 前端双向同步
+- 检查 BEM 命名约定
+
+退出码 0 = 通过，可继续 / 1 = 有差异，必须修复。
+
+### 何时运行
+- 修改了 `index.css`、`config.ts`、`animation.ts`、`types.rs`
+- 新增/修改了组件 CSS
+- spec 的验证清单第9节要求
+
+### 设计令牌更新
+如果检查失败是因为 **有意修改** 设计参数（非 bug），先更新 `design-tokens.json` 使其与源码一致，再重新运行检查。`design-tokens.json` 始终反映**当前实际值**。

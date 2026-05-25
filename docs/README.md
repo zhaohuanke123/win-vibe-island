@@ -51,6 +51,13 @@
 | [design/open-island-alignment-prd.md](design/open-island-alignment-prd.md) | Open Island 对标架构升级 PRD — v2.0 路线图 |
 | [design/v8-migration-plan.md](design/v8-migration-plan.md) | v8 UI/动画/功能迁移计划（已完成，保留参考） |
 
+## 设计规格与产物
+
+| 文档 | 说明 |
+|------|------|
+| [design/specs/TEMPLATE.md](design/specs/TEMPLATE.md) | 设计规格模板 — 组件实现前的权威视觉/交互参数文档 |
+| [design/artifacts/](design/artifacts/) | 设计过程产物 — 原型、流程图、视觉画布 |
+
 ## 运维
 
 | 文档 | 说明 |
