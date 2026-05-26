@@ -1,7 +1,6 @@
 import type { Story } from "@ladle/react";
 import { SessionRow } from "./SessionRow";
 import type { Session } from "../store/sessions";
-import type { StateIndicatorKind } from "./StateIndicator";
 
 // ── Mock session factory ─────────────────────────────────────────────────────
 

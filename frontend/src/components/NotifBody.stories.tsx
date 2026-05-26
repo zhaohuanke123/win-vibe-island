@@ -1,6 +1,6 @@
 import type { Story } from "@ladle/react";
 import { NotifBody } from "./NotifBody";
-import type { Session, NotifKind } from "../store/sessions";
+import type { Session } from "../store/sessions";
 
 // ── Mock session factory ─────────────────────────────────────────────────────
 

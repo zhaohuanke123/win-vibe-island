@@ -1,6 +1,5 @@
 import type { Story } from "@ladle/react";
 import { StateIndicator } from "./StateIndicator";
-import type { StateIndicatorKind } from "./StateIndicator";
 import type { UIPhase } from "../store/sessions";
 
 // ── Stories ──────────────────────────────────────────────────────────────────
