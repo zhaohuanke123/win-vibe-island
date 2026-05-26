@@ -31,27 +31,43 @@ phase('上下文收集')
 const taskContext = await agent(`
 读取项目任务上下文。按以下步骤操作：
 
-1. 读取 task.json，找到当前活跃任务（status 不是 completed 的任务）
+1. 读取 task.json，找到当前活跃任务（status 不是 completed 且不是 removed 的任务）
 2. 读取 progress.txt，了解已完成的工作和当前进度
-3. 从活跃任务中提取：
+3. 如果没有活跃任务：
+   - 报告 "NO_ACTIVE_TASKS" 并说明最后完成的任务
+   - 列出最近的 progress.txt 记录摘要
+   - 等待用户指示：是要创建新任务，还是对已有任务做修改
+4. 如果有活跃任务，提取：
    - task ID 和 title
    - requirement_ref（需求文档引用）
    - design_ref（设计文档引用）
    - docs_updated（文档是否已更新）
-4. 读取 architecture.md 获取架构约束概要
+5. 读取 architecture.md 获取架构约束概要
 
-输出格式：
+输出格式（有活跃任务时）：
 - Task ID: ...
 - Title: ...
 - Requirement ref: ...
 - Design ref: ...
 - Docs updated: ...
 - Progress summary: ...
+
+输出格式（无活跃任务时）：
+- Status: NO_ACTIVE_TASKS
+- Last completed task: ...
+- Progress summary: ...
 `, { label: '收集任务上下文', phase: '上下文收集' });
 
 log(`## 任务上下文\n${taskContext}`);
 
 phase('Gate 评估')
+
+const noActiveTasks = taskContext.includes('NO_ACTIVE_TASKS');
+let gatePassed = false;
+
+if (noActiveTasks) {
+  log('## Gate 评估跳过 — 没有活跃任务。等待用户指示后续操作（创建新任务或修改已有任务）。');
+} else {
 
 const gateResult = await agent(`
 根据以下任务上下文，执行 Documentation Gate 检查。
@@ -76,7 +92,7 @@ log(`## Gate 评估结果\n${gateResult}`);
 
 phase('结果处理')
 
-const gatePassed = gateResult.includes('PASS') && !gateResult.includes('FAIL');
+gatePassed = gateResult.includes('PASS') && !gateResult.includes('FAIL');
 
 if (!gatePassed) {
   const failAction = await agent(`
@@ -100,6 +116,8 @@ ${gateResult}
   log(`## Gate 失败处理\n${failAction}`);
 }
 
+} // end if (!noActiveTasks)
+
 log(`
 ## 模块文档导航
 需要查阅具体模块时，参考以下文档：
@@ -113,7 +131,7 @@ log(`
 
 phase('设计合规')
 
-const needsDesignCheck = await agent(`
+const needsDesignCheck = noActiveTasks ? 'NO — 没有活跃任务' : await agent(`
 根据当前任务上下文，判断是否涉及视觉变更（颜色、尺寸、动画、样式等）。
 
 任务上下文：
@@ -169,7 +187,7 @@ log(`
 ## Documentation Gate 工作流完成
 
 ### 总结
-- Gate 状态：${gatePassed ? '✅ 通过' : '⚠️ 已处理'}
+- Gate 状态：${noActiveTasks ? '⏭️ 跳过（无活跃任务）' : (gatePassed ? '✅ 通过' : '⚠️ 已处理')}
 - 设计合规：${needsDesignCheck.includes('YES') ? '已检查' : '不需要'}
-- **下一步**：可以开始源码修改
+- **下一步**：${noActiveTasks ? '等待用户指示（创建新任务或修改已有任务）' : '可以开始源码修改'}
 `);
