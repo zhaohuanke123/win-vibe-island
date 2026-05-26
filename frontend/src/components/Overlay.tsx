@@ -41,6 +41,7 @@ function ApprovalFocusContent({
   queueInfo,
   onNavigatePrev,
   onNavigateNext,
+  onBackToSessions,
 }: {
   approvalRequest: ApprovalRequest;
   approvalSession: Session | null;
@@ -49,11 +50,22 @@ function ApprovalFocusContent({
   queueInfo?: { current: number; total: number };
   onNavigatePrev?: () => void;
   onNavigateNext?: () => void;
+  onBackToSessions?: () => void;
 }) {
   return (
     <div className="overlay__approval-focus" data-testid="approval-focus">
       <div className="overlay__approval-context" data-testid="approval-context">
         <div className="overlay__approval-context-main">
+          {onBackToSessions && (
+            <button
+              className="approval-queue-nav__btn"
+              onClick={onBackToSessions}
+              title="Back to session list"
+              style={{ marginRight: 6 }}
+            >
+              &#8592;
+            </button>
+          )}
           <span className="overlay__approval-context-label" title={approvalRequest.sessionLabel}>
             {approvalRequest.sessionLabel}
           </span>
@@ -107,6 +119,9 @@ export function Overlay() {
   const currentApprovalIndex = useSessionsStore((s) => s.currentApprovalIndex);
   const removeCurrentApproval = useSessionsStore((s) => s.removeCurrentApproval);
   const setCurrentApprovalIndex = useSessionsStore((s) => s.setCurrentApprovalIndex);
+  const approvalMinimized = useSessionsStore((s) => s.approvalMinimized);
+  const minimizeApprovalPanel = useSessionsStore((s) => s.minimizeApprovalPanel);
+  const restoreApprovalPanel = useSessionsStore((s) => s.restoreApprovalPanel);
   const config = useConfigStore((s) => s.config);
   const renameSession = useSessionsStore((s) => s.renameSession);
   const removeSession = useSessionsStore((s) => s.removeSession);
@@ -166,6 +181,15 @@ export function Overlay() {
       setExpanded(false);
     }
   }, [approvalFocusKey, currentApproval]);
+
+  // 新审批到达时自动恢复审批面板
+  const prevPendingCountRef = useRef(pendingApprovals.length);
+  useEffect(() => {
+    if (pendingApprovals.length > prevPendingCountRef.current && approvalMinimized) {
+      restoreApprovalPanel();
+    }
+    prevPendingCountRef.current = pendingApprovals.length;
+  }, [pendingApprovals.length, approvalMinimized, restoreApprovalPanel]);
 
   // Notification + taskbar flash when approval arrives and window not focused
   const notificationsEnabled = useConfigStore((s) => s.notificationsEnabled ?? true);
@@ -260,9 +284,9 @@ export function Overlay() {
     }
   }, [contextMenu, renameSession]);
 
-  const isApprovalFocusMode = Boolean(approvalFocusKey);
+  const isApprovalFocusMode = Boolean(approvalFocusKey) && !approvalMinimized;
   const isApprovalManuallyCollapsed = approvalFocusKey !== null && collapsedApprovalFocusKey === approvalFocusKey;
-  const isOverlayExpanded = (expanded || isApprovalFocusMode) && !isApprovalManuallyCollapsed;
+  const isOverlayExpanded = (expanded || Boolean(approvalFocusKey)) && !isApprovalManuallyCollapsed;
   const shouldUseAdaptiveHeight = !isApprovalFocusMode;
   const overlayExpandedHeight = isApprovalFocusMode
     ? APPROVAL_FOCUS_HEIGHT
@@ -349,8 +373,12 @@ export function Overlay() {
     handledApprovalStateFocusKeyRef.current = resolvedKey;
     setCollapsedApprovalFocusKey(resolvedKey);
     removeCurrentApproval();
+    // 所有审批处理完后重置最小化状态
     if (pendingApprovals.length <= 1) {
       setExpanded(false);
+      if (approvalMinimized) {
+        useSessionsStore.getState().restoreApprovalPanel();
+      }
     }
   };
 
@@ -503,10 +531,16 @@ export function Overlay() {
               rightSlot={
                 <span className="notch-row__right">
                   {pendingApprovals.length > 0 && (
-                    <span className="notch-row__chip" style={{
-                      background: "rgba(244, 164, 164, 0.2)",
-                      color: "#f4a4a4",
-                    }}>
+                    <span
+                      className="notch-row__chip"
+                      onClick={restoreApprovalPanel}
+                      title="Click to review pending approvals"
+                      style={{
+                        background: "rgba(244, 164, 164, 0.2)",
+                        color: "#f4a4a4",
+                        cursor: "pointer",
+                      }}
+                    >
                       {pendingApprovals.length} pending
                     </span>
                   )}
@@ -534,12 +568,40 @@ export function Overlay() {
                   </div>
                 )}
 
+                {/* 审批最小化提示条：点击回到审批面板 */}
+                {!isApprovalFocusMode && approvalMinimized && pendingApprovals.length > 0 && (
+                  <div
+                    className="overlay__approval-banner"
+                    onClick={restoreApprovalPanel}
+                    data-testid="approval-banner"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      padding: "6px 12px",
+                      background: "var(--accent-warn-bg, rgba(255, 193, 7, 0.12))",
+                      borderBottom: "1px solid var(--line)",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      color: "var(--accent-warn, #FFC107)",
+                    }}
+                  >
+                    <span>&#9888;</span>
+                    <span>
+                      {pendingApprovals.length} pending approval{pendingApprovals.length > 1 ? "s" : ""}
+                    </span>
+                    <span style={{ marginLeft: "auto", opacity: 0.7 }}>&#8594; Review</span>
+                  </div>
+                )}
+
                 {isApprovalFocusMode && currentApproval ? (
                   <ApprovalFocusContent
                     approvalRequest={currentApproval}
                     approvalSession={approvalSession}
                     sessionsCount={sessions.length}
                     onApprovalHandled={handleApprovalHandled}
+                    onBackToSessions={minimizeApprovalPanel}
                     queueInfo={pendingApprovals.length > 1 ? { current: currentApprovalIndex + 1, total: pendingApprovals.length } : undefined}
                     onNavigatePrev={pendingApprovals.length > 1 && currentApprovalIndex > 0 ? handleNavigatePrev : undefined}
                     onNavigateNext={pendingApprovals.length > 1 && currentApprovalIndex < pendingApprovals.length - 1 ? handleNavigateNext : undefined}

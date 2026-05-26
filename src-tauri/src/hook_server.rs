@@ -17,6 +17,7 @@ use crate::approval_types::approval_types;
 use crate::config::get_config;
 use crate::session_state;
 use crate::agent_event::*;
+use std::sync::OnceLock;
 use axum::{
     extract::State,
     http::StatusCode,
@@ -101,12 +102,18 @@ struct PendingApproval {
     created_at: std::time::Instant,
 }
 
+/// 全局审批映射，不依赖 hook_server 是否运行。
+/// pipe_server 和 hook_server 都可以注册审批，前端 submit_approval_response 从此读取。
+static PENDING_APPROVALS: OnceLock<Mutex<std::collections::HashMap<String, PendingApproval>>> = OnceLock::new();
+
+fn ensure_pending_approvals() -> &'static Mutex<std::collections::HashMap<String, PendingApproval>> {
+    PENDING_APPROVALS.get_or_init(|| Mutex::new(std::collections::HashMap::new()))
+}
+
 /// Hook server state
 struct HookServerState {
     running: Mutex<bool>,
     app_handle: AppHandle,
-    /// Pending approval requests keyed by tool_use_id
-    pending_approvals: Mutex<std::collections::HashMap<String, PendingApproval>>,
     /// Server start time for uptime calculation
     start_time: std::time::Instant,
     /// Total number of requests received
@@ -183,7 +190,6 @@ pub fn start_hook_server(app: AppHandle) -> Result<(), String> {
     let state = Arc::new(HookServerState {
         running: Mutex::new(true),
         app_handle: app.clone(),
-        pending_approvals: Mutex::new(std::collections::HashMap::new()),
         start_time: std::time::Instant::now(),
         total_requests: Mutex::new(0),
         error_count: Mutex::new(0),
@@ -860,23 +866,20 @@ async fn handle_permission_request(
     // Create a oneshot channel for the response
     let (response_tx, response_rx) = oneshot::channel::<PermissionDecision>();
 
-    // Store the pending approval
+    // Store the pending approval (scoped so lock is dropped before .await)
     {
-        let state_guard = HOOK_SERVER_STATE.lock();
-        if let Some(ref state) = *state_guard {
-            let mut pending = state.pending_approvals.lock();
-            pending.insert(
-                tool_use_id.clone(),
-                PendingApproval {
-                    tool_use_id: tool_use_id.clone(),
-                    session_id: session_id.clone(),
-                    tool_name: tool_name.clone(),
-                    tool_input: tool_input.clone(),
-                    response_tx,
-                    created_at: std::time::Instant::now(),
-                },
-            );
-        }
+        let mut pending = ensure_pending_approvals().lock();
+        pending.insert(
+            tool_use_id.clone(),
+            PendingApproval {
+                tool_use_id: tool_use_id.clone(),
+                session_id: session_id.clone(),
+                tool_name: tool_name.clone(),
+                tool_input: tool_input.clone(),
+                response_tx,
+                created_at: std::time::Instant::now(),
+            },
+        );
     }
 
     // Emit unified AgentEvent through SessionState
@@ -1166,32 +1169,28 @@ fn extract_questions(tool_input: &serde_json::Value) -> Option<Vec<serde_json::V
 /// so it can await the user's decision and write the response back through
 /// the pipe.  The frontend calls the same `submit_approval_response` command
 /// regardless of which path created the pending entry.
+///
+/// 不依赖 hook_server 是否运行，始终注册审批并返回 receiver。
 pub fn register_pipe_approval(
     tool_use_id: String,
     session_id: String,
     tool_name: String,
     tool_input: serde_json::Value,
-) -> Option<oneshot::Receiver<PermissionDecision>> {
-    let state_guard = HOOK_SERVER_STATE.lock();
-    if let Some(ref state) = *state_guard {
-        let (response_tx, response_rx) = oneshot::channel::<PermissionDecision>();
-        let mut pending = state.pending_approvals.lock();
-        pending.insert(
-            tool_use_id.clone(),
-            PendingApproval {
-                tool_use_id,
-                session_id,
-                tool_name,
-                tool_input,
-                response_tx,
-                created_at: std::time::Instant::now(),
-            },
-        );
-        Some(response_rx)
-    } else {
-        log::warn!("register_pipe_approval: hook server not running, pipe approval unavailable");
-        None
-    }
+) -> oneshot::Receiver<PermissionDecision> {
+    let (response_tx, response_rx) = oneshot::channel::<PermissionDecision>();
+    let mut pending = ensure_pending_approvals().lock();
+    pending.insert(
+        tool_use_id.clone(),
+        PendingApproval {
+            tool_use_id,
+            session_id,
+            tool_name,
+            tool_input,
+            response_tx,
+            created_at: std::time::Instant::now(),
+        },
+    );
+    response_rx
 }
 
 
@@ -1211,44 +1210,39 @@ pub fn submit_approval_response(
         approved,
         answers
     );
-    let state_guard = HOOK_SERVER_STATE.lock();
-    if let Some(ref state) = *state_guard {
-        let mut pending = state.pending_approvals.lock();
-        log::info!(
-            "Pending approvals keys: {:?}",
-            pending.keys().collect::<Vec<_>>()
-        );
-        if let Some(pending_approval) = pending.remove(tool_use_id) {
-            // Build updated_input if answers are provided
-            let updated_input = if let Some(ref ans) = answers {
-                // Include both questions (from original input) and answers
-                let questions = pending_approval.tool_input.get("questions").cloned();
-                Some(serde_json::json!({
-                    "questions": questions.unwrap_or(serde_json::json!([])),
-                    "answers": ans,
-                }))
-            } else {
-                None
-            };
-
-            let decision = PermissionDecision {
-                behavior: if approved { "allow" } else { "deny" }.to_string(),
-                message: None,
-                updated_input,
-            };
-            pending_approval
-                .response_tx
-                .send(decision)
-                .map_err(|_| "Failed to send approval response".to_string())?;
-            Ok(())
+    let mut pending = ensure_pending_approvals().lock();
+    log::info!(
+        "Pending approvals keys: {:?}",
+        pending.keys().collect::<Vec<_>>()
+    );
+    if let Some(pending_approval) = pending.remove(tool_use_id) {
+        // Build updated_input if answers are provided
+        let updated_input = if let Some(ref ans) = answers {
+            // Include both questions (from original input) and answers
+            let questions = pending_approval.tool_input.get("questions").cloned();
+            Some(serde_json::json!({
+                "questions": questions.unwrap_or(serde_json::json!([])),
+                "answers": ans,
+            }))
         } else {
-            Err(format!(
-                "No pending approval found for tool_use_id: {}",
-                tool_use_id
-            ))
-        }
+            None
+        };
+
+        let decision = PermissionDecision {
+            behavior: if approved { "allow" } else { "deny" }.to_string(),
+            message: None,
+            updated_input,
+        };
+        pending_approval
+            .response_tx
+            .send(decision)
+            .map_err(|_| "Failed to send approval response".to_string())?;
+        Ok(())
     } else {
-        Err("Hook server not running".to_string())
+        Err(format!(
+            "No pending approval found for tool_use_id: {}",
+            tool_use_id
+        ))
     }
 }
 
@@ -1282,7 +1276,7 @@ async fn handle_health(State(state): State<Arc<HookServerState>>) -> Json<HookHe
     let total_requests = *state.total_requests.lock();
     let error_count = *state.error_count.lock();
     let last_heartbeat = *state.last_heartbeat.lock();
-    let pending_approvals = state.pending_approvals.lock().len();
+    let pending_approvals = ensure_pending_approvals().lock().len();
 
     Json(HookHealthStatus {
         state: state_type,
@@ -1311,7 +1305,7 @@ async fn handle_test_approve(
     log::info!("[test] Approving permission request for tool_use_id={}", tool_use_id);
 
     let (session_id, approved_behavior) = {
-        let mut pending = state.pending_approvals.lock();
+        let mut pending = ensure_pending_approvals().lock();
         if let Some(approval) = pending.remove(&tool_use_id) {
             let session_id = approval.session_id.clone();
             let _ = approval.response_tx.send(PermissionDecision {
@@ -1425,7 +1419,7 @@ pub fn get_hook_health() -> HookHealthStatus {
         let total_requests = *state.total_requests.lock();
         let error_count = *state.error_count.lock();
         let last_heartbeat = *state.last_heartbeat.lock();
-        let pending_approvals = state.pending_approvals.lock().len();
+        let pending_approvals = ensure_pending_approvals().lock().len();
 
         HookHealthStatus {
             state: state_type,
@@ -1444,7 +1438,7 @@ pub fn get_hook_health() -> HookHealthStatus {
             uptime_secs: None,
             total_requests: 0,
             error_count: 0,
-            pending_approvals: 0,
+            pending_approvals: ensure_pending_approvals().lock().len(),
         }
     }
 }

@@ -768,22 +768,13 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
                 &serde_json::json!({ "session_id": session_id, "state": "waitingForApproval" }),
             );
 
-            // Register pending approval with hook_server so the frontend's
-            // submit_approval_response can find it.  The returned receiver
-            // will be awaited by the connection handler.
-            match crate::hook_server::register_pipe_approval(
+            let rx = crate::hook_server::register_pipe_approval(
                 tool_use_id,
                 session_id,
                 tool_name,
                 tool_input,
-            ) {
-                Some(rx) => HookEventResult::WaitForApproval { request_id, event_name: event_name.to_string(), rx },
-                None => {
-                    // Hook server not running — fail-open: allow the tool.
-                    log::warn!("PermissionRequest via pipe but hook_server not running; fail-open allow");
-                    HookEventResult::RespondImmediately { request_id, event_name: event_name.to_string() }
-                }
-            }
+            );
+            HookEventResult::WaitForApproval { request_id, event_name: event_name.to_string(), rx }
         }
         "PermissionDenied" => {
             let _ = app.emit(

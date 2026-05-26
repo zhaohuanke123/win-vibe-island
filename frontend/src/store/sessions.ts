@@ -174,6 +174,8 @@ interface SessionsStore {
   activeSessionId: string | null;
   pendingApprovals: ApprovalRequest[];
   currentApprovalIndex: number;
+  /** 审批面板是否被用户最小化（回到会话列表） */
+  approvalMinimized: boolean;
   hookServerStatus: HookServerStatus;
   errorLogs: string[];
   groups: string[];
@@ -188,6 +190,8 @@ interface SessionsStore {
   removeApprovalByToolUseId: (toolUseId: string) => void;
   removeApprovalsBySessionId: (sessionId: string) => void;
   setCurrentApprovalIndex: (index: number) => void;
+  minimizeApprovalPanel: () => void;
+  restoreApprovalPanel: () => void;
   // Deprecated: use addPendingApproval instead
   setApprovalRequest: (request: ApprovalRequest | null) => void;
   clearApprovalRequest: () => void;
@@ -212,6 +216,7 @@ export const useSessionsStore = create<SessionsStore>((set, _get) => ({
   activeSessionId: null,
   pendingApprovals: [],
   currentApprovalIndex: 0,
+  approvalMinimized: false,
   hookServerStatus: {
     connectionState: "unknown",
     port: useConfigStore.getState().getHookServerPort(),
@@ -318,6 +323,9 @@ export const useSessionsStore = create<SessionsStore>((set, _get) => ({
     }),
 
   setCurrentApprovalIndex: (index) => set({ currentApprovalIndex: index }),
+
+  minimizeApprovalPanel: () => set({ approvalMinimized: true }),
+  restoreApprovalPanel: () => set({ approvalMinimized: false, currentApprovalIndex: 0 }),
 
   // Deprecated: use addPendingApproval instead
   setApprovalRequest: (request) =>

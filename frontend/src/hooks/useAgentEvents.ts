@@ -245,11 +245,11 @@ export function useAgentEvents() {
           if (prompt) {
             updateSessionInfo(session_id, {
               lastPrompt: truncatePrompt(prompt, 200),
-              ...(!existingSession.title ? { title: truncatePrompt(prompt) } : {}),
+              ...(!existingSession.title || existingSession.title === existingSession.label ? { title: truncatePrompt(prompt) } : {}),
             });
           }
           // Set title from transcript scan (try_refresh_title)
-          if (title && !existingSession.title) {
+          if (title && (!existingSession.title || existingSession.title === existingSession.label)) {
             updateSessionInfo(session_id, { title });
           }
         }

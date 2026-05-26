@@ -245,7 +245,7 @@ function applySessionStarted(
           ? {
               ...s,
               label: p.title,
-              title: p.title,
+              // title 不覆盖：保留已有的语义化标题，留给 transcript 扫描填充
               cwd: p.cwd ?? s.cwd,
               state: "idle" as UIPhase,
               model: p.model,
@@ -260,7 +260,7 @@ function applySessionStarted(
   const session: Session = {
     id: p.sessionId,
     label: p.title,
-    title: p.title,
+    // title 留空，由 transcript 扫描或 prompt 截断填充
     cwd: p.cwd ?? "",
     state: "idle",
     createdAt: p.timestamp,
