@@ -1,7 +1,7 @@
 ---
 name: release
 description: |
-  版本发布流程。同步更新 Cargo.toml + package.json 版本号、生成 changelog、构建验证、打 tag。
+  版本发布流程。同步更新 Cargo.toml + package.json 版本号、生成 changelog、构建验证、打 tag、创建 GitHub Release。
   触发条件：
   - 用户要发版、发布新版本
   - "/release"、"发版"、"release"、"版本升级"
@@ -34,12 +34,5 @@ bash .claude/skills/release/release.sh <patch|minor|major>
 3. 运行 `cargo check` + `npm run build` 验证
 4. 从 `git log` 生成 changelog 摘要
 5. `git commit` + `git tag`
-
-## 手动步骤
-
-脚本完成后需要手动 push：
-
-```bash
-git push origin master
-git push origin v<新版本号>
-```
+6. `git push` master + tag
+7. 通过 `gh release create` 创建 GitHub Release（含 changelog）

@@ -24,6 +24,16 @@ fi
 PROJECT_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$PROJECT_ROOT"
 
+# gh CLI 路径（Windows 下可能不在 PATH 中）
+GH="gh"
+if command -v gh >/dev/null 2>&1; then
+  GH="gh"
+elif [ -f "C:/Program Files/GitHub CLI/gh.exe" ]; then
+  GH="C:/Program Files/GitHub CLI/gh.exe"
+fi
+
+REPO="zhaohuanke123/win-vibe-island"
+
 # --- 1. 读取当前版本 ---
 CURRENT_CARGO=$(grep -m1 '^version' src-tauri/Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
 CURRENT_NPM=$(node -e "console.log(require('./frontend/package.json').version)")
@@ -57,6 +67,39 @@ NEW_VERSION="$major.$minor.$patch"
 echo "新版本: $NEW_VERSION"
 echo "类型: $BUMP"
 
+# --- 3. 生成 changelog ---
+echo ""
+echo "--- CHANGELOG (自上次 tag 以来的 commits) ---"
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+if [ -n "$LAST_TAG" ]; then
+  CHANGELOG=$(git log "$LAST_TAG..HEAD" --oneline --no-merges 2>/dev/null || echo "(无新 commits)")
+else
+  CHANGELOG=$(git log --oneline --no-merges -20)
+fi
+echo "$CHANGELOG"
+echo "---"
+
+# 生成 GitHub Release 用的 markdown body
+generate_release_body() {
+  local commits="$1"
+  local version="$2"
+
+  echo "## Vibe Island v$version"
+  echo ""
+
+  # 统计 commit 数和文件变更
+  local commit_count=$(echo "$commits" | grep -c . 2>/dev/null || echo "0")
+  local stat=$(git diff --stat "$LAST_TAG..HEAD" 2>/dev/null | tail -1 || echo "")
+  echo "$commit_count commits${stat:+ | $stat}"
+  echo ""
+
+  echo "### Changes"
+  echo ""
+  echo "$commits" | while read -r line; do
+    echo "- $line"
+  done
+}
+
 if [ "$DRY_RUN" = true ]; then
   echo ""
   echo "[DRY RUN] 将执行以下操作:"
@@ -66,32 +109,21 @@ if [ "$DRY_RUN" = true ]; then
   echo "  4. npm --prefix frontend install (更新 package-lock.json)"
   echo "  5. 检查 git 状态"
   echo "  6. 生成 CHANGELOG 预览"
+  echo "  7. 创建 GitHub Release"
+  echo ""
+  echo "--- GitHub Release 预览 ---"
+  generate_release_body "$CHANGELOG" "$NEW_VERSION"
+  echo "---"
+  echo ""
+  echo "[DRY RUN] 完成。使用 'bash release.sh $BUMP' 执行真实发版。"
+  exit 0
 fi
-
-# --- 3. 生成 changelog ---
-echo ""
-echo "--- CHANGELOG (自上次 tag 以来的 commits) ---"
-LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-if [ -n "$LAST_TAG" ]; then
-  git log "$LAST_TAG..HEAD" --oneline --no-merges 2>/dev/null || echo "(无新 commits)"
-else
-  git log --oneline --no-merges -20
-fi
-echo "---"
 
 # --- 4. 检查工作区 ---
 if ! git diff --quiet 2>/dev/null; then
   echo ""
   echo "警告: 工作区有未提交的更改，请先提交或暂存。" >&2
-  if [ "$DRY_RUN" = false ]; then
-    exit 1
-  fi
-fi
-
-if [ "$DRY_RUN" = true ]; then
-  echo ""
-  echo "[DRY RUN] 完成。使用 'bash release.sh $BUMP' 执行真实发版。"
-  exit 0
+  exit 1
 fi
 
 # --- 5. 更新版本号 ---
@@ -150,13 +182,32 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 
 git tag -a "$TAG" -m "Release $TAG"
 
+# --- 8. Push ---
+echo ""
+echo "--- Push ---"
+git push origin master
+git push origin "$TAG"
+echo "已推送 master + $TAG"
+
+# --- 9. 创建 GitHub Release ---
+echo ""
+echo "--- 创建 GitHub Release ---"
+RELEASE_BODY=$(generate_release_body "$CHANGELOG" "$NEW_VERSION")
+
+if $GH release create "$TAG" \
+  --repo "$REPO" \
+  --title "Vibe Island v$NEW_VERSION" \
+  --notes "$RELEASE_BODY" \
+  2>&1; then
+  echo "GitHub Release 创建成功: https://github.com/$REPO/releases/tag/$TAG"
+else
+  echo "警告: GitHub Release 创建失败，请手动创建" >&2
+fi
+
 echo ""
 echo "============================================"
 echo "  Release $NEW_VERSION 完成！"
 echo "  Tag: $TAG"
+echo "  https://github.com/$REPO/releases/tag/$TAG"
 echo "============================================"
-echo ""
-echo "下一步:"
-echo "  git push origin master"
-echo "  git push origin $TAG"
 echo ""
