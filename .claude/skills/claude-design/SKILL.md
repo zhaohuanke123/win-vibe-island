@@ -142,7 +142,6 @@ description: >-
 - 组件在所有 3 种模式（notch/panel/notif）下正常
 - 动画不卡顿（使用 `will-change` + `translateZ(0)`）
 - **运行 `node scripts/check-design-compliance.js` 确认设计参数一致**
-- **运行 `node scripts/check-design-compliance.js` 确认设计参数一致**
 
 ## 现有组件速查
 

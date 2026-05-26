@@ -26,6 +26,7 @@ Thumbs.db
 .claude/*
 !.claude/rules/
 !.claude/skills/
+!.claude/workflows/
 .agents/
 .playwright-mcp/
 skills-lock.json
