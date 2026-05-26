@@ -28,8 +28,8 @@ cd "$PROJECT_ROOT"
 GH="gh"
 if command -v gh >/dev/null 2>&1; then
   GH="gh"
-elif [ -f "C:/Program Files/GitHub CLI/gh.exe" ]; then
-  GH="C:/Program Files/GitHub CLI/gh.exe"
+elif [ -f "/c/Program Files/GitHub CLI/gh.exe" ]; then
+  GH="/c/Program Files/GitHub CLI/gh.exe"
 fi
 
 REPO="zhaohuanke123/win-vibe-island"
