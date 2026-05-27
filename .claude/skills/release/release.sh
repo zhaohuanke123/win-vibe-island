@@ -109,7 +109,8 @@ if [ "$DRY_RUN" = true ]; then
   echo "  4. npm --prefix frontend install (更新 package-lock.json)"
   echo "  5. 检查 git 状态"
   echo "  6. 生成 CHANGELOG 预览"
-  echo "  7. 创建 GitHub Release"
+  echo "  7. 构建安装包 (cargo tauri build)"
+  echo "  8. 创建 GitHub Release + 上传安装包"
   echo ""
   echo "--- GitHub Release 预览 ---"
   generate_release_body "$CHANGELOG" "$NEW_VERSION"
@@ -189,16 +190,44 @@ git push origin master
 git push origin "$TAG"
 echo "已推送 master + $TAG"
 
-# --- 9. 创建 GitHub Release ---
+# --- 9. 构建安装包 ---
+echo ""
+echo "--- 构建安装包 (cargo tauri build) ---"
+cargo tauri build 2>&1
+echo "构建完成"
+
+# 查找 NSIS 安装包
+INSTALLER=""
+for dir in src-tauri/target/release/bundle/nsis src-tauri/target/release/bundle/msi; do
+  if [ -d "$dir" ]; then
+    INSTALLER=$(find "$dir" -name "*.exe" -o -name "*.msi" 2>/dev/null | head -1)
+    [ -n "$INSTALLER" ] && break
+  fi
+done
+
+if [ -z "$INSTALLER" ]; then
+  echo "警告: 未找到安装包文件" >&2
+else
+  echo "安装包: $INSTALLER"
+fi
+
+# --- 10. 创建 GitHub Release ---
 echo ""
 echo "--- 创建 GitHub Release ---"
 RELEASE_BODY=$(generate_release_body "$CHANGELOG" "$NEW_VERSION")
 
-if $GH release create "$TAG" \
-  --repo "$REPO" \
-  --title "Vibe Island v$NEW_VERSION" \
-  --notes "$RELEASE_BODY" \
-  2>&1; then
+CREATE_ARGS=(
+  "$TAG"
+  --repo "$REPO"
+  --title "Vibe Island v$NEW_VERSION"
+  --notes "$RELEASE_BODY"
+)
+
+if [ -n "$INSTALLER" ]; then
+  CREATE_ARGS+=("$INSTALLER")
+fi
+
+if $GH release create "${CREATE_ARGS[@]}" 2>&1; then
   echo "GitHub Release 创建成功: https://github.com/$REPO/releases/tag/$TAG"
 else
   echo "警告: GitHub Release 创建失败，请手动创建" >&2
