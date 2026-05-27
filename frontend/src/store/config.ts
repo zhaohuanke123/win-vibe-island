@@ -223,7 +223,7 @@ const DEFAULT_CONFIG: AppConfig = {
       barHeight: 32,
       padding: 14,
       gap: 8,
-      statusDotSize: 9,
+      statusDotSize: 12,
     },
     stateIndicator: "dot",
     density: "comfortable",

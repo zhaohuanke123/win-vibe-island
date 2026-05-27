@@ -13,10 +13,11 @@
 
 | 配置类别 | Rust 文件 | 前端文件 | 同步项 |
 |----------|----------|---------|--------|
-| 状态颜色 | `src-tauri/src/config/types.rs` → `StateColors` | `frontend/src/store/config.ts` → `DEFAULT_CONFIG.ui.stateColors` | idle/running/approval/error/done |
+| 状态颜色 | `src-tauri/src/config/types.rs` → `StateColors` | `frontend/src/store/config.ts` → `DEFAULT_CONFIG.ui.stateColors` | idle/running/waitingForApproval/waitingForAnswer/completed |
 | 弹簧参数 | `types.rs` → `SpringConfig` | `config.ts` → `DEFAULT_CONFIG.ui.animation.spring` | expand/collapse/transition/micro |
-| 动画时长 | `types.rs` → `AnimationConfig` | `config.ts` → `DEFAULT_CONFIG.ui.animation` | thinking/running/streaming/approval duration |
+| 动画时长 | `types.rs` → `AnimationConfig` | `config.ts` → `DEFAULT_CONFIG.ui.animation` | running/waitingForApproval/waitingForAnswer duration |
 | UI 尺寸 | `types.rs` → `UiDimensions` | `config.ts` → `DEFAULT_CONFIG.ui.dimensions` | barHeight/padding/gap/statusDotSize |
+| UI 杂项 | `types.rs` → `UiConfig` | `config.ts` → `DEFAULT_CONFIG.ui` | stateIndicator/density |
 | Overlay 尺寸 | `types.rs` → `OverlayConfigDefaults` | `config.ts` → `DEFAULT_CONFIG.overlay` | compactWidth/expandedWidth/各种radius |
 
 验证：`cargo check && npm run build`

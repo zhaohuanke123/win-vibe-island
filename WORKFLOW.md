@@ -353,7 +353,9 @@ git commit -m "complete task #N: [Title]"
 
 ## 子代理指令文件
 
+> 注意：以下文件为多代理架构设计的一部分，当前尚未实现为独立文件。Executor 和 Verifier 的指令通过 Workflow 工具的 agent() 调用内联传递。
+
 | 文件 | 用途 |
 |------|------|
-| `.claude/agents/executor.md` | Executor 子代理指令 |
-| `.claude/agents/verifier.md` | Verifier 子代理指令 |
+| `.claude/agents/executor.md` | Executor 子代理指令（规划中） |
+| `.claude/agents/verifier.md` | Verifier 子代理指令（规划中） |

@@ -2013,6 +2013,69 @@
         "src-tauri/src/bin/vibe-island-hooks.rs",
         "src-tauri/src/pipe_server.rs"
       ]
+    },
+    {
+      "id": 76,
+      "title": "Review 项目与文档统一性",
+      "description": "审查整体项目代码与文档的一致性。检查 architecture.md、CLAUDE.md、WORKFLOW.md、docs/ 下的文档是否与实际代码实现同步，找出文档过时、缺失或矛盾的地方。",
+      "steps": [
+        "读取 architecture.md，逐项检查技术栈、目录结构、模块描述是否与实际代码一致",
+        "检查 CLAUDE.md 中的配置治理表（状态颜色、弹簧参数、动画时长、UI 尺寸、Overlay 尺寸）是否与 types.rs 和 config.ts 同步",
+        "检查 docs/ 下的设计规格文档是否反映当前组件实现",
+        "检查 WORKFLOW.md 中的工作流程是否与 .claude/workflows/ 下的实际脚本一致",
+        "检查 .claude/rules/ 下的编码规范是否被实际代码遵循",
+        "列出所有不一致项，按优先级排序",
+        "修复高优先级不一致项",
+        "更新 progress.txt 记录审查结果"
+      ],
+      "status": "completed",
+      "type": "review",
+      "priority": "high",
+      "dependencies": [],
+      "requirement_ref": "CLAUDE.md, WORKFLOW.md, architecture.md",
+      "design_ref": "docs/",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "frontend/src/store/config.ts",
+        "src-tauri/src/config/types.rs",
+        ".claude/rules/ArchitectureConstraints.md",
+        "architecture.md",
+        "WORKFLOW.md",
+        "progress.txt"
+      ]
+    },
+    {
+      "id": 77,
+      "title": "浏览器自动化 UI 测试 — 组件显示与自适应验证",
+      "description": "使用 Playwright 编写浏览器自动化测试，验证每个界面、每个组件的正确显示、UI 尺寸和自适应布局。覆盖 Overlay、SessionRow、ApprovalPanel、DiffViewer、StatusDot、BarsGlyph 等核心组件。",
+      "steps": [
+        "检查现有 Playwright 测试基础设施（playwright.config.ts、fixtures）",
+        "为 Overlay 组件编写测试：紧凑态/展开态尺寸、圆角、动画过渡",
+        "为 SessionRow 组件编写测试：不同状态颜色、标题截断、时间显示",
+        "为 ApprovalPanel 组件编写测试：按钮布局、超时倒计时、Diff 预览",
+        "为 StatusDot 组件编写测试：各状态颜色、脉动动画、尺寸",
+        "为 BarsGlyph 组件编写测试：进度条动画、颜色渐变",
+        "编写响应式测试：不同窗口尺寸下组件自适应",
+        "编写 DPI 缩放测试：高 DPI 下组件尺寸正确",
+        "运行全部测试并修复失败用例",
+        "更新 progress.txt 记录测试覆盖情况"
+      ],
+      "status": "pending",
+      "type": "test",
+      "priority": "high",
+      "dependencies": [
+        76
+      ],
+      "requirement_ref": "docs/testing/testing.md",
+      "design_ref": "docs/design/specs/",
+      "docs_updated": false,
+      "implementation_done": false,
+      "verified": false,
+      "passes": false,
+      "files": []
     }
   ]
 }

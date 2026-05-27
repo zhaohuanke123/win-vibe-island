@@ -1,5 +1,47 @@
 # Progress Log
 
+## [2026-05-27] - Task #76: Review 项目与文档统一性 ✅
+
+### Documentation Gate:
+- Requirement ref: CLAUDE.md, WORKFLOW.md, architecture.md
+- Design ref: docs/
+- Gate status: PASS
+
+### What was done:
+
+**配置治理同步修复（高优先级）：**
+- `frontend/src/store/config.ts`: `statusDotSize` 默认值从 9 修正为 12（与 Rust 同步）
+- `src-tauri/src/config/types.rs`: `AnimationConfig` 字段从旧 7-state 命名改为新 4-phase 命名（running/waitingForApproval/waitingForAnswer）
+- `src-tauri/src/config/types.rs`: `UiConfig` 新增 `state_indicator` 和 `density` 字段（与前端同步）
+- `.claude/rules/ArchitectureConstraints.md`: 更新配置治理表，反映新字段名
+
+**文档目录结构修正：**
+- `architecture.md`: 移除不存在的 `.claude/agents/`，添加 `rules/` 和 `workflows/`
+- `architecture.md`: 添加 `window_manager.rs` 和 `terminal_jump/` 到目录结构
+- `architecture.md`: 移除不存在的 `useThrottledCallback.ts`
+- `architecture.md`: 添加 `AgentIcon.tsx` 和 `AnimatedNotch.tsx` 到组件列表
+- `architecture.md`: E2E spec 数量从 7 修正为 10
+- `WORKFLOW.md`: 标注 `.claude/agents/` 文件为规划中（尚未实现）
+
+### 不一致项汇总：
+
+| 优先级 | 问题 | 状态 |
+|--------|------|------|
+| 高 | statusDotSize 默认值不一致 (Rust=12, Frontend=9) | ✅ 已修复 |
+| 高 | AnimationConfig 字段名不一致 (旧7-state vs 新4-phase) | ✅ 已修复 |
+| 高 | UiConfig 字段数不一致 (缺少 stateIndicator/density) | ✅ 已修复 |
+| 中 | .claude/agents/ 文件不存在 | ✅ 文档已标注 |
+| 中 | 架构文档目录结构过时 | ✅ 已修复 |
+| 低 | command_specs 实际 65 个文件（文档说 9+1） | ⚠️ 待后续更新 |
+
+### Testing:
+- `cargo check` 通过（仅有预先存在的 warning）
+- `npm run build` 通过
+
+### Status: completed ✅
+
+---
+
 ## [2026-05-23] - Task #75: Bugfix — Hook JSON output validation failed ✅
 
 ### What was done:

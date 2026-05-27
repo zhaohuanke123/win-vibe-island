@@ -309,6 +309,36 @@ impl Default for AudioConfig {
 // UI Configuration (Frontend Sync)
 // ============================================================================
 
+/// State indicator display kind
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum StateIndicatorKind {
+    Dot,
+    Bar,
+    Glyph,
+    Tint,
+}
+
+impl Default for StateIndicatorKind {
+    fn default() -> Self {
+        Self::Dot
+    }
+}
+
+/// Density mode
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DensityMode {
+    Comfortable,
+    Compact,
+}
+
+impl Default for DensityMode {
+    fn default() -> Self {
+        Self::Comfortable
+    }
+}
+
 /// UI configuration synced to frontend
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -324,6 +354,14 @@ pub struct UiConfig {
     /// Dimension configuration
     #[serde(default)]
     pub dimensions: UiDimensions,
+
+    /// State indicator display kind
+    #[serde(default)]
+    pub state_indicator: StateIndicatorKind,
+
+    /// Density mode
+    #[serde(default)]
+    pub density: DensityMode,
 }
 
 impl Default for UiConfig {
@@ -332,6 +370,8 @@ impl Default for UiConfig {
             state_colors: StateColors::default(),
             animation: AnimationConfig::default(),
             dimensions: UiDimensions::default(),
+            state_indicator: StateIndicatorKind::default(),
+            density: DensityMode::default(),
         }
     }
 }
@@ -359,43 +399,37 @@ impl Default for StateColors {
     }
 }
 
-/// Animation configuration
+/// Animation configuration (4-phase: running / waitingForApproval / waitingForAnswer / completed)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnimationConfig {
-    /// Thinking animation duration (ms)
-    #[serde(default = "default_thinking_duration")]
-    pub thinking_duration_ms: u64,
-
     /// Running animation duration (ms)
     #[serde(default = "default_running_duration")]
     pub running_duration_ms: u64,
 
-    /// Streaming animation duration (ms)
-    #[serde(default = "default_streaming_duration")]
-    pub streaming_duration_ms: u64,
+    /// Waiting for approval animation duration (ms)
+    #[serde(default = "default_waiting_for_approval_duration")]
+    pub waiting_for_approval_duration_ms: u64,
 
-    /// Approval animation duration (ms)
-    #[serde(default = "default_approval_duration")]
-    pub approval_duration_ms: u64,
+    /// Waiting for answer animation duration (ms)
+    #[serde(default = "default_waiting_for_answer_duration")]
+    pub waiting_for_answer_duration_ms: u64,
 
     /// Spring animation parameters
     #[serde(default)]
     pub spring: SpringConfig,
 }
 
-fn default_thinking_duration() -> u64 { 1200 }
 fn default_running_duration() -> u64 { 1000 }
-fn default_streaming_duration() -> u64 { 500 }
-fn default_approval_duration() -> u64 { 600 }
+fn default_waiting_for_approval_duration() -> u64 { 600 }
+fn default_waiting_for_answer_duration() -> u64 { 600 }
 
 impl Default for AnimationConfig {
     fn default() -> Self {
         Self {
-            thinking_duration_ms: default_thinking_duration(),
             running_duration_ms: default_running_duration(),
-            streaming_duration_ms: default_streaming_duration(),
-            approval_duration_ms: default_approval_duration(),
+            waiting_for_approval_duration_ms: default_waiting_for_approval_duration(),
+            waiting_for_answer_duration_ms: default_waiting_for_answer_duration(),
             spring: SpringConfig::default(),
         }
     }
