@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo & Tauri tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: windows-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            windows-cargo-
+
+      - name: Cache NSIS tools
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.LOCALAPPDATA }}\tauri\NSIS
+          key: windows-nsis-${{ hashFiles('src-tauri/tauri.conf.json') }}
+          restore-keys: |
+            windows-nsis-
+
+      - name: Install frontend dependencies
+        run: npm --prefix frontend install
+
+      - name: Build & Release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Vibe Island ${{ github.ref_name }}'
+          releaseBody: ''
+          releaseDraft: false
+          prerelease: false
