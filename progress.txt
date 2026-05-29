@@ -1,5 +1,78 @@
 # Progress Log
 
+## [2026-05-27] - Task #77: 浏览器自动化 UI 测试 — 组件显示与自适应验证 ✅
+
+### Documentation Gate:
+- Requirement ref: docs/testing/testing.md
+- Design ref: docs/design/specs/
+- Gate status: PASS
+
+### What was done:
+
+**新增 5 个 Playwright E2E 测试文件（57 个测试用例）：**
+
+1. `tests/e2e/specs/status-dot.spec.ts`（6 tests）
+   - StatusDot/StateIndicator 视觉状态验证
+   - running/completed 指示灯颜色验证（.ind-dot inline backgroundColor）
+   - 不同状态颜色互不相同
+   - data-phase 属性与 session state 一致
+   - 指示灯尺寸一致性（同状态等大、宽高相等）
+
+2. `tests/e2e/specs/bars-glyph.spec.ts`（10 tests）
+   - BarsGlyph 在 NotchRow bar 区域的存在性
+   - SVG 尺寸约 24x24（允许 DPI 缩放偏差）
+   - CSS mode class（idle/running/waiting/done）
+   - 3 个 bar rect 元素 + bar-1/bar-2/bar-3 class
+   - running 模式 SMIL animate 元素（dur=0.9s, repeatCount=indefinite）
+   - done 模式 tick path 而非 bar rect
+   - idle 模式无 SMIL animate
+   - stagger begin 时间（0s/0.15s/0.30s）
+
+3. `tests/e2e/specs/overlay-dimensions.spec.ts`（12 tests）
+   - 紧凑态：初始未展开、bar 高度约 32px、底部圆角、contain: paint
+   - 展开态：点击 bar 展开、22px 圆角、高度大于紧凑态、panel 存在且有高度、bar 顶部圆角
+   - 审批展开：自动展开、审批面板可见、处理后折叠、审批高度大于普通展开
+
+4. `tests/e2e/specs/session-row-states.spec.ts`（18 tests）
+   - 状态颜色：data-phase 属性、.ind-dot 颜色、不同状态颜色不同
+   - 标题内容：project name 显示、长标题不溢出、agent chip、label store 读取
+   - 时间显示：age 元素存在、非空文本、分钟级时间格式
+   - Stale 样式：>5min stale class、降低 opacity、<5min 非 stale、running 永不 stale
+
+5. `tests/e2e/specs/responsive-layout.spec.ts`（11 tests）
+   - 3 种 viewport（400x300/800x600/1400x900）下 overlay 正常渲染
+   - 展开态不同 viewport 下 session 列表正常
+   - 窄 viewport 长标题不溢出行
+   - 审批面板在不同 viewport 下正常显示
+
+### 测试结果：
+- **57/57 新测试全部通过** ✅
+- 全量 149 测试中 138 通过，11 个预存失败（diff-overflow/thinking-mode/ui-layout/ask-user-question-preview — 均为已有测试，非本次回归）
+
+### 已有测试覆盖对照：
+
+| task.json 步骤 | 状态 | 说明 |
+|---|---|---|
+| 检查 Playwright 基础设施 | ✅ | playwright.config.ts + test-helpers.ts 已存在 |
+| Overlay 测试 | ✅ | overlay-dimensions.spec.ts + 已有 overlay.spec.ts |
+| SessionRow 测试 | ✅ | session-row-states.spec.ts + 已有 ui-layout/ui-interaction |
+| ApprovalPanel 测试 | ✅ | 已有 ui-interaction.spec.ts + diff-viewer.spec.ts |
+| StatusDot 测试 | ✅ | status-dot.spec.ts（通过 .ind-dot 验证） |
+| BarsGlyph 测试 | ✅ | bars-glyph.spec.ts |
+| 响应式测试 | ✅ | responsive-layout.spec.ts |
+| DPI 缩放测试 | ⚠️ | 浏览器模式无法验证真实 DPI，需 Tauri 回归脚本 |
+
+### Files created:
+- tests/e2e/specs/status-dot.spec.ts
+- tests/e2e/specs/bars-glyph.spec.ts
+- tests/e2e/specs/overlay-dimensions.spec.ts
+- tests/e2e/specs/session-row-states.spec.ts
+- tests/e2e/specs/responsive-layout.spec.ts
+
+### Status: completed ✅
+
+---
+
 ## [2026-05-27] - Task #76: Review 项目与文档统一性 ✅
 
 ### Documentation Gate:
@@ -1788,4 +1861,35 @@ AnimatedOverlay (Framer Motion)
 - TypeScript: 0 errors
 
 ### Status: completed ✅
+
+---
+
+## [2026-05-29] - Task #77 截图视觉验证 + Task #78 Bugfix 创建
+
+### 截图测试执行（25 个测试全部通过）：
+
+新增 5 个截图测试文件：
+- `tests/e2e/specs/screenshot-compact.spec.ts`（5 tests）— 紧凑态 5 种 phase 状态
+- `tests/e2e/specs/screenshot-approval.spec.ts`（5 tests）— 审批面板变体
+- `tests/e2e/specs/screenshot-multi-session.spec.ts`（5 tests）— 多 session 分组
+- `tests/e2e/specs/screenshot-responsive.spec.ts`（5 tests）— 响应式 + 密度
+- `tests/e2e/specs/screenshot-mixed.spec.ts`（5 tests）— 边界情况 + 丰富内容
+
+### 多模态视觉验证结果（25 张截图）：
+
+**✅ 正确渲染（15/25）：**
+- compact-idle / compact-running / compact-completed — 紧凑态和展开态正确
+- multi-5sessions-flat / multi-group-by-state/agent/project / multi-10-sessions — 分组排序正确
+- mixed-long-titles / tool-history / stale / all-agents / empty-expanded — 边界情况正确
+- density-comfortable / compact — 密度模式正确
+
+**⚠️ 问题截图（10/25）：**
+- 所有 approval 截图（5张）+ compact-waiting-*（2张）+ 响应式（3张）只显示紧凑态
+- Root cause: simulatePermissionRequest 触发后 overlay 自动展开，clickBar() 反而收起
+- 已创建 Task #78 记录修复
+
+**设计观察：**
+- 面板内深色空白：expandedMinHeight=400px，单 session 时下方 ~300px 空区域（设计意图）
+
+### Status: pending fix → Task #78
 

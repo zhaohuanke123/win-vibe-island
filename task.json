@@ -2076,6 +2076,46 @@
       "verified": false,
       "passes": false,
       "files": []
+    },
+    {
+      "id": 78,
+      "category": "ui",
+      "priority": "medium",
+      "status": "open",
+      "title": "[视觉] 面板大量留白（mixed-tool-history）",
+      "description": "截图: test-results/screenshots/mixed-tool-history.png\n问题: 只有一个 session 条目，但面板下方约 60% 面积是空的深色背景\n根因: expandedMinHeight=400，即使内容只有 100-150px 也被 clamp 到 400px\n建议: 降低 expandedMinHeight 从 400 到 200，让面板更贴合内容\n文件: frontend/src/store/config.ts",
+      "dependencies": [],
+      "docs": []
+    },
+    {
+      "id": 79,
+      "category": "ui",
+      "priority": "medium",
+      "status": "open",
+      "title": "[视觉] 面板大量留白（mixed-stale）",
+      "description": "截图: test-results/screenshots/mixed-stale.png\n问题: 同上，只有一个已完成 session，面板下方大面积空白\n根因: 同上，expandedMinHeight=400\n建议: 同上，降低最小高度\n文件: frontend/src/store/config.ts",
+      "dependencies": [],
+      "docs": []
+    },
+    {
+      "id": 80,
+      "category": "ui",
+      "priority": "medium",
+      "status": "open",
+      "title": "[视觉] 列表末尾被截断（mixed-all-agents）",
+      "description": "截图: test-results/screenshots/mixed-all-agents.png\n问题: 第 6 个 session 被底部状态栏遮挡，文字与 sessions 数量重叠\n根因: PanelHead.css 中 .panel-list 有 max-height:380px，6 个 session 超过此高度\n建议: 移除 max-height:380px，让列表用 flex:1 自然填充可用空间\n文件: frontend/src/components/PanelHead.css",
+      "dependencies": [],
+      "docs": []
+    },
+    {
+      "id": 81,
+      "category": "ui",
+      "priority": "medium",
+      "status": "open",
+      "title": "[视觉] 空分组标题仍显示（mixed-long-titles）",
+      "description": "截图: test-results/screenshots/mixed-long-titles.png\n问题: COMPLETED 分组标题下无内容，底部空白\n根因: GroupedRows.tsx 已有 .filter(g => g.sessions.length > 0) 过滤空分组，可能是识图 Agent 误判\n建议: 先截图确认，如果确实存在再修\n文件: frontend/src/components/GroupedRows.tsx",
+      "dependencies": [],
+      "docs": []
     }
   ]
 }

@@ -1,0 +1,44 @@
+{
+  "tasks": [
+    {
+      "id": 1,
+      "category": "ui",
+      "priority": "medium",
+      "status": "open",
+      "title": "[视觉] mixed-tool-history: 面板大量留白",
+      "description": "截图: test-results/screenshots/mixed-tool-history.png\n问题: 只有一个 session 条目，但面板下方约 60% 面积是空的深色背景\n直觉: 用户会觉得\"这面板怎么这么大，就一个任务而已\"\n建议: 让面板高度根据内容自适应，或者在只有一个 session 时缩短面板",
+      "dependencies": [],
+      "docs": []
+    },
+    {
+      "id": 2,
+      "category": "ui",
+      "priority": "medium",
+      "status": "open",
+      "title": "[视觉] mixed-stale: 面板大量留白",
+      "description": "截图: test-results/screenshots/mixed-stale.png\n问题: 同上，只有一个已完成 session，面板下方大面积空白\n直觉: 用户会觉得\"空荡荡的，像加载没完成\"\n建议: 面板高度应跟随内容数量",
+      "dependencies": [],
+      "docs": []
+    },
+    {
+      "id": 3,
+      "category": "ui",
+      "priority": "medium",
+      "status": "open",
+      "title": "[视觉] mixed-all-agents: 列表末尾被截断",
+      "description": "截图: test-results/screenshots/mixed-all-agents.png\n问题: 第 6 个 session \"project-kimi\" 的名称和标签被底部状态栏遮挡，文字与 \"6 sessions\" 重叠\n直觉: 用户会觉得\"最后一个任务被切了，看不全\"\n建议: 确保列表在底部留出足够空间给 footer，或让最后一条完整显示后再截断",
+      "dependencies": [],
+      "docs": []
+    },
+    {
+      "id": 4,
+      "category": "ui",
+      "priority": "medium",
+      "status": "open",
+      "title": "[视觉] mixed-long-titles: COMPLETED 分组标题下无内容",
+      "description": "截图: test-results/screenshots/mixed-long-titles.png\n问题: \"JUST DONE\" 分组下有一个 session，紧接着出现 \"COMPLETED\" 分组标题但下面没有任何条目，底部还有一片空白\n直觉: 用户会觉得\"COMPLETED 是什么意思？下面什么都没有\"\n建议: 如果分组内没有 session 则不显示该分组标题，或者把空分组折叠/隐藏",
+      "dependencies": [],
+      "docs": []
+    }
+  ]
+}
