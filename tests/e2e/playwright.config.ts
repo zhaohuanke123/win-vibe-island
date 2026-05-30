@@ -10,6 +10,8 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:5187",
     trace: "on-first-retry",
+    channel: "chrome",
+    screenshot: "on",
   },
   timeout: 30000,
 });
