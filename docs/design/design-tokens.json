@@ -50,7 +50,7 @@
       "barHeight": { "value": 32, "unit": "px", "file": "frontend/src/store/config.ts", "line": 223 },
       "padding": { "value": 14, "unit": "px", "file": "frontend/src/store/config.ts", "line": 224 },
       "gap": { "value": 8, "unit": "px", "file": "frontend/src/store/config.ts", "line": 225 },
-      "statusDotSize": { "value": 9, "unit": "px", "file": "frontend/src/store/config.ts", "line": 226 }
+      "statusDotSize": { "value": 12, "unit": "px", "file": "frontend/src/store/config.ts", "line": 226 }
     }
   },
 

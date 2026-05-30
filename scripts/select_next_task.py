@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# DEPRECATED: 请使用 node scripts/task-commands.js next
+# 此文件将在 JS 版本稳定后删除。
 """Select the next incomplete task from task.json."""
 
 import json

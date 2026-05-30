@@ -37,6 +37,10 @@ Rust + TypeScript，注释使用中文。
 | 改UI、加个组件、调样式、改布局、前端开发、CSS | frontend-dev | 前端组件开发和样式 |
 | 启动应用、cargo tauri dev、运行、构建打包 | run | 启动和运行 Tauri 应用 |
 | Documentation Gate、文档门禁、先看什么文件、工作流程 | doc-gate | Gate 流程和文件导航 |
+| 继续、下一个任务、开发、任务选择、任务状态、批次规划 | barricade | 防线脚本调用流程 |
+| 配置同步、config-sync、设计合规、Rust前端同步、design-tokens | barricade | 配置双向同步检查 |
+| 发布、release、版本号、changelog、打 tag | barricade | 发布护航脚本 |
+| 跑一下防线、检查一下、验证一下 | barricade | 运行全部防线脚本 |
 
 ### 只读执行模式
 

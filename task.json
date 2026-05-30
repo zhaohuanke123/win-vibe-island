@@ -2084,6 +2084,8 @@
       "status": "open",
       "title": "[视觉] 面板大量留白（mixed-tool-history）",
       "description": "截图: test-results/screenshots/mixed-tool-history.png\n问题: 只有一个 session 条目，但面板下方约 60% 面积是空的深色背景\n根因: expandedMinHeight=400，即使内容只有 100-150px 也被 clamp 到 400px\n建议: 降低 expandedMinHeight 从 400 到 200，让面板更贴合内容\n文件: frontend/src/store/config.ts",
+      "requirement_ref": "docs/design/specs/overlay-panel-spec.md",
+      "design_ref": "frontend/src/store/config.ts",
       "dependencies": [],
       "docs": []
     },

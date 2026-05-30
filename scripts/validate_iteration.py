@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# DEPRECATED: 请使用 node scripts/task-commands.js validate <id>
+# 此文件将在 JS 版本稳定后删除。
 """Validate a task iteration before commit."""
 
 import json
