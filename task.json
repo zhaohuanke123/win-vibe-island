@@ -2118,6 +2118,33 @@
       "description": "截图: test-results/screenshots/mixed-long-titles.png\n问题: COMPLETED 分组标题下无内容，底部空白\n根因: GroupedRows.tsx 已有 .filter(g => g.sessions.length > 0) 过滤空分组，可能是识图 Agent 误判\n建议: 先截图确认，如果确实存在再修\n文件: frontend/src/components/GroupedRows.tsx",
       "dependencies": [],
       "docs": []
+    },
+    {
+      "id": 82,
+      "title": "Feature: Codex CLI Hooks 一等支持",
+      "description": "参考 Open Island 的 Codex CLI command hook 模式，默认安装生命周期 + 轻量工具活动 hooks 到 ~/.codex/hooks.json，并通过 vibe-island-hooks.exe --source codex 转发到 Named Pipe，使 Codex 会话以独立 agent 身份显示在 Overlay。",
+      "status": "completed",
+      "type": "feature",
+      "priority": "high",
+      "dependencies": [],
+      "requirement_ref": "docs/hooks/codex-hooks-setup.md",
+      "design_ref": "docs/hooks/codex-hooks-setup.md",
+      "docs_updated": true,
+      "implementation_done": true,
+      "verified": true,
+      "passes": true,
+      "files": [
+        "src-tauri/src/codex_hook_config.rs",
+        "src-tauri/src/adapters/codex_adapter.rs",
+        "src-tauri/src/bin/vibe-island-hooks.rs",
+        "src-tauri/src/pipe_server.rs",
+        "src-tauri/src/commands.rs",
+        "src-tauri/src/lib.rs",
+        "frontend/src/components/ControlCenter.tsx",
+        "frontend/src/components/ControlCenter.css",
+        "docs/hooks/codex-hooks-setup.md",
+        "architecture.md"
+      ]
     }
   ]
 }

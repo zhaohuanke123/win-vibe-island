@@ -34,6 +34,7 @@
 | 文档 | 说明 |
 |------|------|
 | [hooks/hooks-setup.md](hooks/hooks-setup.md) | Claude Code Hooks 配置指南 |
+| [hooks/codex-hooks-setup.md](hooks/codex-hooks-setup.md) | Codex CLI Hooks 配置指南 |
 | [hooks/claude-settings.example.json](hooks/claude-settings.example.json) | Claude Code settings 配置示例 |
 
 ## 测试

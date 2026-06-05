@@ -1,5 +1,45 @@
 # Progress Log
 
+## [2026-06-04] - Codex hook 活动事件修复 ✅
+
+### What was done:
+- Codex 默认安装事件从 3 个生命周期 hooks 扩展为 5 个：`SessionStart` / `UserPromptSubmit` / `PreToolUse` / `PostToolUse` / `Stop`。
+- `PreToolUse(*)` 用于刷新运行状态，`PostToolUse(*)` 用于记录工具历史，避免 Codex 会话看起来只在开始/结束时变化。
+- 修复 Codex hook 状态判断：只有指向 `vibe-island-hooks.exe --source codex` 的 hook 才算已安装；外部同名 hook 不再让 Control Center 显示 “All hooks installed”。
+- 同步更新 Codex hook 文档、架构说明和 hook-integration 技能说明。
+
+### Testing:
+- `cargo test --lib codex` 通过（7/7）
+- `cargo check` 通过（仅预存 warnings）
+- `cargo build --bin vibe-island-hooks` 通过（仅预存 warnings）
+- 已部署新 helper 到 `%APPDATA%/vibe-island/bin/vibe-island-hooks.exe`
+- 已刷新 `~/.codex/hooks.json` 为 5 个默认事件；新增 `PreToolUse` / `PostToolUse` 仍需在 Codex `/hooks` 中信任
+
+### Status: completed ✅
+
+## [2026-06-02] - Task #82: Codex CLI Hooks 一等支持 ✅
+
+### Documentation Gate:
+- Requirement ref: docs/hooks/codex-hooks-setup.md
+- Design ref: docs/hooks/codex-hooks-setup.md
+- Gate status: PASS
+
+### What was done:
+- 新增 Codex CLI hook 配置文档，明确默认仅安装 `SessionStart` / `UserPromptSubmit` / `Stop` 三个低噪声生命周期 hooks。
+- 新增 `codex_hook_config.rs`，写入 `~/.codex/hooks.json`，支持非破坏性 merge、timestamp backup、精确移除 Vibe Island Codex hook group。
+- `vibe-island-hooks.exe` 支持 `--source codex`，自动给 payload/envelope 补 `source` 和 `agent_type=codex`，保留默认 Claude 行为。
+- 新增 `CodexAdapter`，将 Codex hook payload 映射到统一 `AgentEvent`；`pipe_server.rs` 根据 source/agent_type 分流 Claude/Codex。
+- 新增 Tauri IPC：`check_codex_hook_config`、`install_codex_hooks`、`uninstall_codex_hooks`、`get_codex_hook_config_status`。
+- Control Center Hooks tab 增加 Claude Code / Codex CLI 两组独立状态与安装/移除按钮。
+- 更新 architecture/docs index/skill 路由说明，Codex CLI 从 fallback 提升为 command hooks 一等集成。
+
+### Testing:
+- `cargo check` 通过（仅预存 warnings）
+- `cargo test codex` 通过（8/8 Codex 相关测试）
+- `npm run build` 通过（首次沙箱运行被 Vite/esbuild 路径权限阻止，按权限规则用同命令非沙箱重跑通过；仅预存 chunk/dynamic import warnings）
+
+### Status: completed ✅
+
 ## [2026-05-27] - Task #77: 浏览器自动化 UI 测试 — 组件显示与自适应验证 ✅
 
 ### Documentation Gate:

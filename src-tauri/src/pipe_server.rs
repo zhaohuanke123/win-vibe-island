@@ -1,8 +1,8 @@
 //! Windows Named Pipe 服务器 — 监听 `\\.\pipe\VibeIsland`，接收 Agent SDK（Node.js/Python）推送的会话事件。
 //! 作为 HTTP Hook 的补充通道，支持非 Claude Code 工具（Codex CLI、自定义 agent）接入。
 
-use crate::config::get_config;
 use crate::agent_event::{JumpTarget, JumpTargetPayload};
+use crate::config::get_config;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -18,9 +18,16 @@ enum HookEventResult {
     /// Fire-and-forget: no response needed (e.g. SessionStart, Notification).
     FireAndForget,
     /// Respond immediately with an empty allow payload (PreToolUse).
-    RespondImmediately { request_id: String, event_name: String },
+    RespondImmediately {
+        request_id: String,
+        event_name: String,
+    },
     /// Wait for user approval/rejection before responding (PermissionRequest).
-    WaitForApproval { request_id: String, event_name: String, rx: oneshot::Receiver<crate::hook_server::PermissionDecision> },
+    WaitForApproval {
+        request_id: String,
+        event_name: String,
+        rx: oneshot::Receiver<crate::hook_server::PermissionDecision>,
+    },
 }
 
 /// Get the pipe name from configuration
@@ -268,8 +275,13 @@ async fn handle_connection(
                         if msg_type == "hook_event" {
                             match handle_hook_event(&app, &envelope) {
                                 HookEventResult::FireAndForget => {}
-                                HookEventResult::RespondImmediately { request_id, event_name } => {
-                                    let (tx, rx) = oneshot::channel::<crate::hook_server::PermissionDecision>();
+                                HookEventResult::RespondImmediately {
+                                    request_id,
+                                    event_name,
+                                } => {
+                                    let (tx, rx) = oneshot::channel::<
+                                        crate::hook_server::PermissionDecision,
+                                    >();
                                     let _ = tx.send(crate::hook_server::PermissionDecision {
                                         behavior: "allow".to_string(),
                                         message: None,
@@ -287,7 +299,11 @@ async fn handle_connection(
                                         break;
                                     }
                                 }
-                                HookEventResult::WaitForApproval { request_id, event_name, rx } => {
+                                HookEventResult::WaitForApproval {
+                                    request_id,
+                                    event_name,
+                                    rx,
+                                } => {
                                     if let Err(e) = write_pipe_response(
                                         &mut server,
                                         request_id,
@@ -348,10 +364,7 @@ async fn write_pipe_response(
 ) -> Result<(), String> {
     use tokio::io::AsyncWriteExt;
 
-    let decision = tokio::time::timeout(
-        tokio::time::Duration::from_secs(290),
-        rx,
-    ).await;
+    let decision = tokio::time::timeout(tokio::time::Duration::from_secs(290), rx).await;
 
     let decision = match decision {
         Ok(Ok(d)) => d,
@@ -411,11 +424,19 @@ async fn write_pipe_response(
     let message = serde_json::to_string(&envelope).unwrap_or_default();
     let framed = format!("{}\n", message);
 
-    log::info!("Writing pipe response ({} bytes): behavior={}", framed.len(), decision.behavior);
+    log::info!(
+        "Writing pipe response ({} bytes): behavior={}",
+        framed.len(),
+        decision.behavior
+    );
 
-    server.write_all(framed.as_bytes()).await
+    server
+        .write_all(framed.as_bytes())
+        .await
         .map_err(|e| format!("Pipe write error: {}", e))?;
-    server.flush().await
+    server
+        .flush()
+        .await
         .map_err(|e| format!("Pipe flush error: {}", e))?;
 
     log::info!("Pipe response written for request_id={}", request_id);
@@ -425,12 +446,19 @@ async fn write_pipe_response(
 /// 从 hooks envelope 的 PID 探测终端类型并构建 JumpTarget（V2：使用 terminal_jump::resolver）
 /// 返回 Option<JumpTarget>，可直接序列化到前端事件中。
 fn build_jump_target(envelope: &serde_json::Value, cwd: &str) -> Option<JumpTarget> {
-    let hooks_pid = envelope.get("pid").and_then(|v| v.as_u64()).map(|v| v as u32);
-    let hooks_ppid = envelope.get("ppid").and_then(|v| v.as_u64()).map(|v| v as u32);
+    let hooks_pid = envelope
+        .get("pid")
+        .and_then(|v| v.as_u64())
+        .map(|v| v as u32);
+    let hooks_ppid = envelope
+        .get("ppid")
+        .and_then(|v| v.as_u64())
+        .map(|v| v as u32);
 
     #[cfg(target_os = "windows")]
     {
-        let result = hooks_pid.map(|p| crate::terminal_jump::resolver::resolve_from_pid(p, Some(cwd), hooks_ppid));
+        let result = hooks_pid
+            .map(|p| crate::terminal_jump::resolver::resolve_from_pid(p, Some(cwd), hooks_ppid));
         log::info!(
             "[build_jump_target] hooks_pid={:?}, ppid={:?}, terminal_app={:?}",
             hooks_pid,
@@ -458,7 +486,7 @@ fn now_ts() -> i64 {
 /// Handle a hook event envelope from the CLI.
 /// Returns HookEventResult indicating whether the connection handler must send a response.
 fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEventResult {
-    use crate::adapters::claude_adapter::ClaudeCodeAdapter;
+    use crate::adapters::HookAdapter;
     use crate::session_state;
 
     let request_id = envelope
@@ -483,31 +511,33 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
         .unwrap_or("unknown")
         .to_string();
 
-    let cwd = payload
-        .get("cwd")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let cwd = payload.get("cwd").and_then(|v| v.as_str()).unwrap_or("");
+
+    let agent_type = detect_hook_agent_type(envelope, &payload);
+    let adapter = HookAdapter::from_agent_type(&agent_type);
+    let is_codex = agent_type == "codex";
 
     let label = cwd
         .rsplit(|c| c == '/' || c == '\\')
         .find(|s| !s.is_empty())
-        .unwrap_or("Claude Code")
+        .unwrap_or(if is_codex { "Codex" } else { "Claude Code" })
         .to_string();
 
-    log::info!(
-        "Hook event via pipe: {} session={}",
-        event_name,
-        session_id
-    );
+    log::info!("Hook event via pipe: {} session={}", event_name, session_id);
 
     match event_name {
         "SessionStart" => {
-            let hooks_pid = envelope.get("pid").and_then(|v| v.as_u64()).map(|v| v as u32);
+            let hooks_pid = envelope
+                .get("pid")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u32);
             let jump_target = build_jump_target(envelope, cwd);
 
             log::info!(
                 "[SessionStart] session_id={}, hooks_pid={:?}, jump_target={:?}",
-                session_id, hooks_pid, jump_target
+                session_id,
+                hooks_pid,
+                jump_target
             );
 
             let _ = app.emit(
@@ -518,21 +548,22 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
                     "cwd": cwd,
                     "source": payload.get("source"),
                     "model": payload.get("model"),
-                    "agent_type": payload.get("agent_type"),
+                    "agent_type": agent_type,
                     "pid": hooks_pid,
                     "jump_target": jump_target,
                 }),
             );
-            let event = ClaudeCodeAdapter::to_session_started(&payload);
+            let event = adapter.to_session_started(&payload);
             session_state::apply_event(&event);
 
             // 持久化 jump_target 到 session state（与 hook_server 对齐）
             if let Some(jt) = jump_target {
-                let jt_event = crate::agent_event::AgentEvent::JumpTargetUpdated(JumpTargetPayload {
-                    session_id: session_id.clone(),
-                    jump_target: jt,
-                    timestamp: now_ts(),
-                });
+                let jt_event =
+                    crate::agent_event::AgentEvent::JumpTargetUpdated(JumpTargetPayload {
+                        session_id: session_id.clone(),
+                        jump_target: jt,
+                        timestamp: now_ts(),
+                    });
                 session_state::apply_event(&jt_event);
             }
 
@@ -545,11 +576,16 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
         "PreToolUse" => {
             let pre_cwd = payload.get("cwd").and_then(|v| v.as_str()).unwrap_or(cwd);
             let jump_target = build_jump_target(envelope, pre_cwd);
-            let hooks_pid = envelope.get("pid").and_then(|v| v.as_u64()).map(|v| v as u32);
+            let hooks_pid = envelope
+                .get("pid")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u32);
 
             log::info!(
                 "[PreToolUse] session_id={}, hooks_pid={:?}, jump_target={:?}",
-                session_id, hooks_pid, jump_target
+                session_id,
+                hooks_pid,
+                jump_target
             );
 
             let _ = app.emit(
@@ -558,6 +594,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
                     "session_id": session_id,
                     "label": label,
                     "cwd": payload.get("cwd"),
+                    "agent_type": agent_type,
                     "pid": hooks_pid,
                     "jump_target": jump_target,
                 }),
@@ -571,24 +608,28 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
                     "tool_input": payload.get("tool_input"),
                 }),
             );
-            let thinking = ClaudeCodeAdapter::to_thinking_updated(&payload);
+            let thinking = adapter.to_thinking_updated(&payload);
             session_state::apply_event(&thinking);
-            let tool_started = ClaudeCodeAdapter::to_tool_use_started(&payload);
+            let tool_started = adapter.to_tool_use_started(&payload);
             session_state::apply_event(&tool_started);
 
             // 持久化 jump_target 到 session state（PreToolUse 可刷新终端信息）
             if let Some(jt) = jump_target {
-                let jt_event = crate::agent_event::AgentEvent::JumpTargetUpdated(JumpTargetPayload {
-                    session_id: session_id.clone(),
-                    jump_target: jt,
-                    timestamp: now_ts(),
-                });
+                let jt_event =
+                    crate::agent_event::AgentEvent::JumpTargetUpdated(JumpTargetPayload {
+                        session_id: session_id.clone(),
+                        jump_target: jt,
+                        timestamp: now_ts(),
+                    });
                 session_state::apply_event(&jt_event);
             }
 
             if let Some(tool_name) = payload.get("tool_name").and_then(|v| v.as_str()) {
                 let file_path = payload.get("tool_input").and_then(|input| {
-                    input.get("file_path").and_then(|v| v.as_str()).map(|s| s.to_string())
+                    input
+                        .get("file_path")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
                 });
                 let _ = app.emit(
                     "tool_use",
@@ -602,10 +643,13 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
             }
             // PreToolUse is blocking in the CLI but doesn't need user input —
             // acknowledge immediately so the agent continues without waiting.
-            HookEventResult::RespondImmediately { request_id, event_name: event_name.to_string() }
+            HookEventResult::RespondImmediately {
+                request_id,
+                event_name: event_name.to_string(),
+            }
         }
         "PostToolUse" => {
-            let event = ClaudeCodeAdapter::to_tool_use_completed(&payload);
+            let event = adapter.to_tool_use_completed(&payload);
             session_state::apply_event(&event);
             let _ = app.emit(
                 "tool_complete",
@@ -623,7 +667,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
             HookEventResult::FireAndForget
         }
         "PostToolUseFailure" => {
-            let event = ClaudeCodeAdapter::to_tool_use_completed(&payload);
+            let event = adapter.to_tool_use_completed(&payload);
             session_state::apply_event(&event);
             let _ = app.emit(
                 "tool_error",
@@ -641,7 +685,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
             HookEventResult::FireAndForget
         }
         "Notification" => {
-            let event = ClaudeCodeAdapter::to_notification_updated(&payload);
+            let event = adapter.to_notification_updated(&payload);
             session_state::apply_event(&event);
             match payload.get("notification_type").and_then(|v| v.as_str()) {
                 Some("permission_prompt") => {
@@ -682,7 +726,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
                     "reason": payload.get("reason"),
                 }),
             );
-            let event = ClaudeCodeAdapter::to_session_completed(&payload);
+            let event = adapter.to_session_completed(&payload);
             session_state::apply_event(&event);
             HookEventResult::FireAndForget
         }
@@ -698,7 +742,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
             HookEventResult::FireAndForget
         }
         "UserPromptSubmit" => {
-            let event = ClaudeCodeAdapter::to_user_prompt_submit(&payload);
+            let event = adapter.to_user_prompt_submit(&payload);
             session_state::apply_event(&event);
             let _ = app.emit(
                 "state_change",
@@ -711,7 +755,7 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
             HookEventResult::FireAndForget
         }
         "PermissionRequest" => {
-            let event = ClaudeCodeAdapter::to_permission_requested(&payload);
+            let event = adapter.to_permission_requested(&payload);
             session_state::apply_event(&event);
 
             let tool_use_id = payload
@@ -742,7 +786,10 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
             };
 
             let plan_content = if approval_type == approval_types::PLAN {
-                tool_input.get("plan").and_then(|v| v.as_str()).map(|s| s.to_string())
+                tool_input
+                    .get("plan")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
             } else {
                 None
             };
@@ -774,7 +821,11 @@ fn handle_hook_event(app: &AppHandle, envelope: &serde_json::Value) -> HookEvent
                 tool_name,
                 tool_input,
             );
-            HookEventResult::WaitForApproval { request_id, event_name: event_name.to_string(), rx }
+            HookEventResult::WaitForApproval {
+                request_id,
+                event_name: event_name.to_string(),
+                rx,
+            }
         }
         "PermissionDenied" => {
             let _ = app.emit(
@@ -852,23 +903,38 @@ fn format_tool_action(tool_name: &str, tool_input: &serde_json::Value) -> String
         }
         "Read" => format!(
             "Read file: {}",
-            tool_input.get("file_path").and_then(|v| v.as_str()).unwrap_or("unknown")
+            tool_input
+                .get("file_path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
         ),
         "Write" => format!(
             "Write file: {}",
-            tool_input.get("file_path").and_then(|v| v.as_str()).unwrap_or("unknown")
+            tool_input
+                .get("file_path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
         ),
         "Edit" => format!(
             "Edit file: {}",
-            tool_input.get("file_path").and_then(|v| v.as_str()).unwrap_or("unknown")
+            tool_input
+                .get("file_path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
         ),
         "Glob" => format!(
             "Find files: {}",
-            tool_input.get("pattern").and_then(|v| v.as_str()).unwrap_or("unknown")
+            tool_input
+                .get("pattern")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
         ),
         "Grep" => format!(
             "Search: {}",
-            tool_input.get("pattern").and_then(|v| v.as_str()).unwrap_or("unknown")
+            tool_input
+                .get("pattern")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
         ),
         _ => format!("Execute tool: {}", tool_name),
     }
@@ -917,9 +983,13 @@ fn extract_questions(tool_input: &serde_json::Value) -> Option<Vec<serde_json::V
         .map(|q| {
             let question = q.get("question").and_then(|v| v.as_str()).unwrap_or("");
             let header = q.get("header").and_then(|v| v.as_str()).unwrap_or("");
-            let multi_select = q.get("multiSelect").and_then(|v| v.as_bool()).unwrap_or(false);
+            let multi_select = q
+                .get("multiSelect")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
 
-            let options = q.get("options")
+            let options = q
+                .get("options")
                 .and_then(|v| v.as_array())
                 .map(|opts| {
                     opts.iter()
@@ -950,6 +1020,34 @@ fn extract_questions(tool_input: &serde_json::Value) -> Option<Vec<serde_json::V
     }
 }
 
+/// 根据 envelope/payload 中的字段判断 hook 来源 agent 类型。
+///
+/// 优先级：envelope.source（CLI --source 参数）> payload.agent_type > payload.source
+/// envelope.source 是最可靠的信号——由 vibe-island-hooks 注入，不受 agent 自身数据影响。
+/// Codex SessionStart 的 payload.source 是 "startup"/"resume" 等，不能作为 agent 类型判断依据。
+fn detect_hook_agent_type(envelope: &serde_json::Value, payload: &serde_json::Value) -> String {
+    for value in [
+        envelope.get("source"),
+        payload.get("agent_type"),
+        payload.get("source"),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if let Some(raw) = value.as_str() {
+            let lower = raw.to_lowercase();
+            if lower.contains("codex") {
+                return "codex".to_string();
+            }
+            if lower.contains("claude") {
+                return "claude".to_string();
+            }
+        }
+    }
+
+    "claude".to_string()
+}
+
 /// Handle legacy agent events (from SDK clients)
 fn handle_agent_event(app: &AppHandle, event: AgentEvent) {
     log::debug!("Received agent event: {:?}", event);
@@ -971,7 +1069,10 @@ fn handle_agent_event(app: &AppHandle, event: AgentEvent) {
                         .and_then(|v| v.as_str())
                         .unwrap_or("Agent Session")
                         .to_string();
-                    let pid = payload.get("pid").and_then(|v| v.as_u64()).map(|v| v as u32);
+                    let pid = payload
+                        .get("pid")
+                        .and_then(|v| v.as_u64())
+                        .map(|v| v as u32);
 
                     let _ = app.emit(
                         "session_start",
@@ -993,5 +1094,32 @@ fn handle_agent_event(app: &AppHandle, event: AgentEvent) {
                 _ => {}
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_detect_agent_prefers_envelope_source() {
+        // Codex SessionStart：payload.source 是 "startup"，envelope.source 是 "codex"
+        let envelope = serde_json::json!({ "source": "codex" });
+        let payload = serde_json::json!({ "source": "startup" });
+        assert_eq!(detect_hook_agent_type(&envelope, &payload), "codex");
+    }
+
+    #[test]
+    fn test_detect_agent_falls_back_to_payload_agent_type() {
+        let envelope = serde_json::json!({});
+        let payload = serde_json::json!({ "agent_type": "codex" });
+        assert_eq!(detect_hook_agent_type(&envelope, &payload), "codex");
+    }
+
+    #[test]
+    fn test_detect_agent_defaults_to_claude() {
+        let envelope = serde_json::json!({});
+        let payload = serde_json::json!({});
+        assert_eq!(detect_hook_agent_type(&envelope, &payload), "claude");
     }
 }

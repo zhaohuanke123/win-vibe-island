@@ -103,19 +103,23 @@ function hookStatusLabel(s: string): string {
 // ── Tab Content Components ──
 
 function HooksTab() {
-  const [hookStatus, setHookStatus] = useState<HookConfigStatus | null>(null);
+  const [claudeHookStatus, setClaudeHookStatus] = useState<HookConfigStatus | null>(null);
+  const [codexHookStatus, setCodexHookStatus] = useState<HookConfigStatus | null>(null);
 
   useEffect(() => {
     invoke<HookConfigStatus>("check_hook_config")
-      .then((status) => setHookStatus(status))
-      .catch((e) => logger.warn("HOOK_CONFIG_ERROR", "Failed to load hook status", { error: String(e) }));
+      .then((status) => setClaudeHookStatus(status))
+      .catch((e) => logger.warn("HOOK_CONFIG_ERROR", "Failed to load Claude hook status", { error: String(e) }));
+    invoke<HookConfigStatus>("check_codex_hook_config")
+      .then((status) => setCodexHookStatus(status))
+      .catch((e) => logger.warn("HOOK_CONFIG_ERROR", "Failed to load Codex hook status", { error: String(e) }));
   }, []);
 
   const handleInstallHooks = async () => {
     try {
       await invoke("install_hooks");
       const status = await invoke<HookConfigStatus>("check_hook_config");
-      setHookStatus(status);
+      setClaudeHookStatus(status);
     } catch (e) {
       logger.warn("HOOK_CONFIG_ERROR", "Failed to install hooks", { error: String(e) });
     }
@@ -125,13 +129,33 @@ function HooksTab() {
     try {
       await invoke("uninstall_hooks");
       const status = await invoke<HookConfigStatus>("check_hook_config");
-      setHookStatus(status);
+      setClaudeHookStatus(status);
     } catch (e) {
       logger.warn("HOOK_CONFIG_ERROR", "Failed to uninstall hooks", { error: String(e) });
     }
   };
 
-  if (!hookStatus) {
+  const handleInstallCodexHooks = async () => {
+    try {
+      await invoke("install_codex_hooks");
+      const status = await invoke<HookConfigStatus>("check_codex_hook_config");
+      setCodexHookStatus(status);
+    } catch (e) {
+      logger.warn("HOOK_CONFIG_ERROR", "Failed to install Codex hooks", { error: String(e) });
+    }
+  };
+
+  const handleUninstallCodexHooks = async () => {
+    try {
+      await invoke("uninstall_codex_hooks");
+      const status = await invoke<HookConfigStatus>("check_codex_hook_config");
+      setCodexHookStatus(status);
+    } catch (e) {
+      logger.warn("HOOK_CONFIG_ERROR", "Failed to uninstall Codex hooks", { error: String(e) });
+    }
+  };
+
+  if (!claudeHookStatus || !codexHookStatus) {
     return (
       <div className="cc-section">
         <span className="cc-badge cc-badge--missing">Loading...</span>
@@ -143,44 +167,84 @@ function HooksTab() {
     <div className="cc-section" data-testid="cc-hooks">
       <div className="cc-section__head">
         <span className="cc-label">Hook Status</span>
+      </div>
+      <HookAgentStatus
+        title="Claude Code"
+        status={claudeHookStatus}
+        installLabel="Install Claude"
+        removeLabel="Remove Claude"
+        onInstall={handleInstallHooks}
+        onRemove={handleUninstallHooks}
+      />
+      <HookAgentStatus
+        title="Codex CLI"
+        status={codexHookStatus}
+        installLabel="Install Codex"
+        removeLabel="Remove Codex"
+        onInstall={handleInstallCodexHooks}
+        onRemove={handleUninstallCodexHooks}
+      />
+    </div>
+  );
+}
+
+function HookAgentStatus({
+  title,
+  status,
+  installLabel,
+  removeLabel,
+  onInstall,
+  onRemove,
+}: {
+  title: string;
+  status: HookConfigStatus;
+  installLabel: string;
+  removeLabel: string;
+  onInstall: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="cc-hook-agent">
+      <div className="cc-hook-agent__head">
+        <span className="cc-hook-agent__title">{title}</span>
         <span
           className={`cc-badge ${
-            hookStatus.configured
+            status.configured
               ? "cc-badge--ok"
-              : hookStatus.partial
+              : status.partial
                 ? "cc-badge--partial"
                 : "cc-badge--missing"
           }`}
         >
-          {hookStatus.configured
+          {status.configured
             ? "All hooks installed"
-            : hookStatus.partial
-              ? `${hookStatus.missingHooks.length} missing`
+            : status.partial
+              ? `${status.missingHooks.length} missing`
               : "Not configured"}
         </span>
       </div>
-      {hookStatus.manifestPresent && (
-        <span className="cc-hint">Managed (v{hookStatus.manifestAppVersion})</span>
+      {status.manifestPresent && (
+        <span className="cc-hint">Managed (v{status.manifestAppVersion})</span>
       )}
-      {hookStatus.hookDetails.length > 0 && (
+      {status.hookDetails.length > 0 && (
         <div className="cc-hook-grid">
-          {hookStatus.hookDetails.map(([name, status]) => (
-            <div key={name} className={`cc-hook-item cc-hook-item--${hookStatusLabel(status)}`}>
+          {status.hookDetails.map(([name, itemStatus]) => (
+            <div key={name} className={`cc-hook-item cc-hook-item--${hookStatusLabel(itemStatus)}`}>
               <span className="cc-hook-item__dot" />
               <span className="cc-hook-item__name">{name}</span>
             </div>
           ))}
         </div>
       )}
-      {hookStatus.manifestInstalledAt && (
-        <span className="cc-hint">Installed: {formatTimestamp(hookStatus.manifestInstalledAt)}</span>
+      {status.manifestInstalledAt && (
+        <span className="cc-hint">Installed: {formatTimestamp(status.manifestInstalledAt)}</span>
       )}
       <div className="cc-hook-actions">
-        <button className="cc-btn" onClick={handleInstallHooks}>
-          Install Hooks
+        <button className="cc-btn" onClick={onInstall}>
+          {installLabel}
         </button>
-        <button className="cc-btn cc-btn--danger" onClick={handleUninstallHooks}>
-          Remove Hooks
+        <button className="cc-btn cc-btn--danger" onClick={onRemove}>
+          {removeLabel}
         </button>
       </div>
     </div>

@@ -21,6 +21,8 @@ const PERMISSION_TIMEOUT_SECS: u64 = 300;
 const BLOCKING_EVENTS: &[&str] = &["PermissionRequest", "PreToolUse"];
 
 fn main() {
+    let source = parse_source_arg(std::env::args().skip(1));
+
     // 1. Read payload from stdin
     let mut input = String::new();
     if let Err(_) = io::stdin().read_to_string(&mut input) {
@@ -33,17 +35,19 @@ fn main() {
     }
 
     // 2. Parse to extract event name
-    let payload: serde_json::Value = match serde_json::from_str(input) {
+    let mut payload: serde_json::Value = match serde_json::from_str(input) {
         Ok(v) => v,
         Err(_) => process::exit(0),
     };
+    enrich_payload_for_source(&mut payload, source);
 
     let event_name = payload
         .get("hook_event_name")
         .and_then(|v| v.as_str())
         .unwrap_or("");
+    let event_name = event_name.to_string();
 
-    let needs_response = BLOCKING_EVENTS.contains(&event_name);
+    let needs_response = BLOCKING_EVENTS.contains(&event_name.as_str());
 
     // 3. Build envelope with request_id for correlation
     let request_id = format!(
@@ -58,7 +62,8 @@ fn main() {
     let envelope = serde_json::json!({
         "type": "hook_event",
         "request_id": request_id,
-        "hook_event_name": event_name,
+        "hook_event_name": event_name.clone(),
+        "source": source,
         "pid": std::process::id(),
         "ppid": get_parent_pid(),
         "payload": payload,
@@ -74,11 +79,8 @@ fn main() {
 
     let result = rt.block_on(async {
         // Connect to Named Pipe with timeout
-        let client = tokio::time::timeout(
-            Duration::from_millis(CONNECT_TIMEOUT_MS),
-            connect_pipe(),
-        )
-        .await;
+        let client =
+            tokio::time::timeout(Duration::from_millis(CONNECT_TIMEOUT_MS), connect_pipe()).await;
 
         let mut client = match client {
             Ok(Ok(c)) => c,
@@ -126,8 +128,48 @@ fn main() {
     let _ = io::stdout().flush();
 }
 
+fn parse_source_arg<I>(args: I) -> &'static str
+where
+    I: IntoIterator<Item = String>,
+{
+    let mut iter = args.into_iter();
+    while let Some(arg) = iter.next() {
+        if let Some(source) = arg.strip_prefix("--source=") {
+            return normalize_source(source);
+        }
+        if arg == "--source" {
+            if let Some(source) = iter.next() {
+                return normalize_source(&source);
+            }
+        }
+    }
+    "claude"
+}
+
+fn normalize_source(source: &str) -> &'static str {
+    match source.to_lowercase().as_str() {
+        "codex" => "codex",
+        _ => "claude",
+    }
+}
+
+fn enrich_payload_for_source(payload: &mut serde_json::Value, source: &str) {
+    let Some(obj) = payload.as_object_mut() else {
+        return;
+    };
+
+    obj.entry("source".to_string())
+        .or_insert_with(|| serde_json::Value::String(source.to_string()));
+
+    if source == "codex" {
+        obj.entry("agent_type".to_string())
+            .or_insert_with(|| serde_json::Value::String("codex".to_string()));
+    }
+}
+
 #[cfg(target_os = "windows")]
-async fn connect_pipe() -> Result<tokio::net::windows::named_pipe::NamedPipeClient, Box<dyn std::error::Error>> {
+async fn connect_pipe(
+) -> Result<tokio::net::windows::named_pipe::NamedPipeClient, Box<dyn std::error::Error>> {
     use tokio::net::windows::named_pipe::ClientOptions;
     loop {
         match ClientOptions::new().open(PIPE_NAME) {
@@ -145,7 +187,9 @@ async fn connect_pipe() -> Result<tokio::net::windows::named_pipe::NamedPipeClie
 async fn connect_pipe() -> Result<tokio::net::UnixStream, Box<dyn std::error::Error>> {
     // Non-Windows: use Unix socket
     let socket_path = "/tmp/vibe-island.sock";
-    tokio::net::UnixStream::connect(socket_path).await.map_err(|e| e.into())
+    tokio::net::UnixStream::connect(socket_path)
+        .await
+        .map_err(|e| e.into())
 }
 
 async fn read_pipe_response(
@@ -169,11 +213,14 @@ async fn read_pipe_response(
 
                     if let Ok(envelope) = serde_json::from_str::<serde_json::Value>(&line) {
                         if envelope.get("type").and_then(|v| v.as_str()) == Some("hook_response")
-                            && envelope.get("request_id").and_then(|v| v.as_str()) == Some(expected_request_id)
+                            && envelope.get("request_id").and_then(|v| v.as_str())
+                                == Some(expected_request_id)
                         {
                             // Found our response — extract the stdout payload
                             if let Some(stdout_payload) = envelope.get("stdout_payload") {
-                                return Some(serde_json::to_string(stdout_payload).unwrap_or_default());
+                                return Some(
+                                    serde_json::to_string(stdout_payload).unwrap_or_default(),
+                                );
                             }
                             return Some(line.to_string());
                         }
@@ -220,4 +267,62 @@ fn get_parent_pid() -> u32 {
 #[cfg(not(target_os = "windows"))]
 fn get_parent_pid() -> u32 {
     0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_source_arg_defaults_to_claude() {
+        assert_eq!(parse_source_arg(Vec::<String>::new()), "claude");
+    }
+
+    #[test]
+    fn test_parse_source_arg_accepts_codex_forms() {
+        assert_eq!(
+            parse_source_arg(vec!["--source".to_string(), "codex".to_string()]),
+            "codex"
+        );
+        assert_eq!(
+            parse_source_arg(vec!["--source=codex".to_string()]),
+            "codex"
+        );
+    }
+
+    #[test]
+    fn test_enrich_payload_sets_codex_agent_type() {
+        let mut payload = serde_json::json!({
+            "hook_event_name": "SessionStart",
+            "session_id": "s1"
+        });
+        enrich_payload_for_source(&mut payload, "codex");
+
+        assert_eq!(
+            payload.get("source").and_then(|v| v.as_str()),
+            Some("codex")
+        );
+        assert_eq!(
+            payload.get("agent_type").and_then(|v| v.as_str()),
+            Some("codex")
+        );
+    }
+
+    #[test]
+    fn test_enrich_payload_preserves_explicit_agent_type() {
+        let mut payload = serde_json::json!({
+            "source": "custom",
+            "agent_type": "opencode"
+        });
+        enrich_payload_for_source(&mut payload, "codex");
+
+        assert_eq!(
+            payload.get("source").and_then(|v| v.as_str()),
+            Some("custom")
+        );
+        assert_eq!(
+            payload.get("agent_type").and_then(|v| v.as_str()),
+            Some("opencode")
+        );
+    }
 }

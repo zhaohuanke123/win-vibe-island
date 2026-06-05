@@ -4,6 +4,7 @@ mod agent_session;
 mod approval_types;
 mod audio;
 mod claude_usage;
+mod codex_hook_config;
 mod command_analyzer;
 mod commands;
 mod config;
@@ -11,16 +12,16 @@ mod events;
 mod hook_config;
 mod hook_manifest;
 mod hook_server;
+mod logger;
 mod overlay;
 mod pipe_server;
 mod process_watcher;
-mod logger;
-mod session_store;
 mod session_state;
+mod session_store;
 mod terminal_jump;
+mod transcript_discovery;
 mod window_focus;
 mod window_manager;
-mod transcript_discovery;
 
 use tauri::{
     menu::{CheckMenuItem, Menu, MenuItem, Submenu},
@@ -76,7 +77,12 @@ pub fn run() {
                         unsafe {
                             let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
                             let popup_only = style
-                                & !((WS_CAPTION.0 | WS_THICKFRAME.0 | WS_SYSMENU.0 | WS_MINIMIZEBOX.0 | WS_MAXIMIZEBOX.0) as isize);
+                                & !((WS_CAPTION.0
+                                    | WS_THICKFRAME.0
+                                    | WS_SYSMENU.0
+                                    | WS_MINIMIZEBOX.0
+                                    | WS_MAXIMIZEBOX.0)
+                                    as isize);
                             SetWindowLongPtrW(hwnd, GWL_STYLE, popup_only);
 
                             let margins = MARGINS {
@@ -98,8 +104,8 @@ pub fn run() {
                 // so devicePixelRatio matches system DPI instead of WebView2's inflated value
                 #[cfg(target_os = "windows")]
                 {
-                    use windows::Win32::Foundation::HWND;
                     use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Controller3;
+                    use windows::Win32::Foundation::HWND;
                     use windows_core::Interface;
 
                     let dpi_scale = if let Ok(hwnd_raw) = window.hwnd() {
@@ -114,10 +120,19 @@ pub fn run() {
                         match controller.cast::<ICoreWebView2Controller3>() {
                             Ok(c3) => {
                                 if let Err(e) = unsafe { c3.SetRasterizationScale(dpi_scale) } {
-                                    log::warn!("Failed to set WebView2 RasterizationScale to {}: {}", dpi_scale, e);
+                                    log::warn!(
+                                        "Failed to set WebView2 RasterizationScale to {}: {}",
+                                        dpi_scale,
+                                        e
+                                    );
                                 }
-                                if let Err(e) = unsafe { c3.SetShouldDetectMonitorScaleChanges(false) } {
-                                    log::warn!("Failed to disable WebView2 monitor scale detection: {}", e);
+                                if let Err(e) =
+                                    unsafe { c3.SetShouldDetectMonitorScaleChanges(false) }
+                                {
+                                    log::warn!(
+                                        "Failed to disable WebView2 monitor scale detection: {}",
+                                        e
+                                    );
                                 }
                                 log::info!("WebView2 RasterizationScale set to {}", dpi_scale);
                             }
@@ -134,10 +149,7 @@ pub fn run() {
                     let screen_width = monitor.size().width as i32;
 
                     // Use the ACTUAL window outer size for centering, not a hardcoded width.
-                    let window_width = window
-                        .outer_size()
-                        .map(|s| s.width as i32)
-                        .unwrap_or(420);
+                    let window_width = window.outer_size().map(|s| s.width as i32).unwrap_or(420);
 
                     // Read snap position preference from config
                     let snap_pos: window_manager::SnapPosition = {
@@ -165,7 +177,8 @@ pub fn run() {
                     } else {
                         // Fallback: center horizontally at top of screen
                         let x = (screen_width - window_width) / 2;
-                        let _ = window.set_position(Position::Physical(PhysicalPosition { x, y: 8 }));
+                        let _ =
+                            window.set_position(Position::Physical(PhysicalPosition { x, y: 8 }));
                     }
                 }
             }
@@ -381,6 +394,9 @@ pub fn run() {
             commands::install_hooks,
             commands::uninstall_hooks,
             commands::get_hook_config_status,
+            commands::check_codex_hook_config,
+            commands::install_codex_hooks,
+            commands::uninstall_codex_hooks,
             commands::set_hook_config_mode,
             commands::get_hook_config_mode,
             commands::play_notification_sound,

@@ -2,6 +2,8 @@
 //! 涵盖 Overlay 窗口、DPI、Hook 服务器、Hook 配置、Named Pipe、进程监控、审批响应、会话持久化、动画同步、窗口吸附、测试模拟等模块。
 //! 所有命令通过 `lib.rs` 的 `generate_handler![]` 注册。
 
+use crate::agent_event::JumpTarget;
+use crate::codex_hook_config;
 use crate::events::{self, SessionEnd, SessionStart, StateChange};
 use crate::hook_config;
 use crate::hook_server;
@@ -9,10 +11,9 @@ use crate::overlay::{self, DpiScale, OverlayConfig};
 use crate::pipe_server;
 use crate::process_watcher;
 use crate::session_store;
-use crate::window_manager::{self, SnapPosition, SnapResult};
-use crate::agent_event::JumpTarget;
 use crate::terminal_jump::JumpResult;
 use crate::window_focus;
+use crate::window_manager::{self, SnapPosition, SnapResult};
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use tauri::{AppHandle, Emitter, LogicalSize, Manager, Size, WebviewWindow};
@@ -45,7 +46,8 @@ fn apply_snap_aware_round_region(
         Some(window_manager::SnapPosition::Top) => 1,
         Some(window_manager::SnapPosition::Bottom) => 2,
     };
-    let key = ((phys_w as u64) << 48) | ((phys_h as u64) << 32) | ((radius as u64) << 16) | snap_bits;
+    let key =
+        ((phys_w as u64) << 48) | ((phys_h as u64) << 32) | ((radius as u64) << 16) | snap_bits;
     if key == LAST_REGION_KEY.load(Ordering::Relaxed) {
         return Ok(());
     }
@@ -267,7 +269,9 @@ pub fn focus_session_window(
     log::info!(
         "[focus_session_window] called with session_pid={:?}, jump_target={:?}, session_cwd={:?}",
         session_pid,
-        jump_target.as_ref().map(|t| (&t.terminal_app, &t.pid, &t.working_directory)),
+        jump_target
+            .as_ref()
+            .map(|t| (&t.terminal_app, &t.pid, &t.working_directory)),
         session_cwd
     );
 
@@ -453,7 +457,8 @@ pub fn set_window_size(
     {
         let radius = if height <= 80 { height / 2 } else { 18 };
         let snap = window_manager::current_snap_position();
-        let _ = apply_snap_aware_round_region(&window, snap, radius, physical_width, physical_height);
+        let _ =
+            apply_snap_aware_round_region(&window, snap, radius, physical_width, physical_height);
     }
 
     // Re-center horizontally at top of screen
@@ -631,6 +636,24 @@ pub fn get_hook_config_status() -> hook_config::HookConfigStatus {
     hook_config::check_hook_config()
 }
 
+/// 检查 Codex CLI hooks 是否已配置
+#[tauri::command]
+pub fn check_codex_hook_config() -> hook_config::HookConfigStatus {
+    codex_hook_config::check_codex_hook_config()
+}
+
+/// 安装 Vibe Island hooks 到 Codex CLI hooks.json
+#[tauri::command]
+pub fn install_codex_hooks() -> Result<String, String> {
+    codex_hook_config::install_codex_hooks()
+}
+
+/// 从 Codex CLI hooks.json 移除 Vibe Island hooks
+#[tauri::command]
+pub fn uninstall_codex_hooks() -> Result<(), String> {
+    codex_hook_config::uninstall_codex_hooks()
+}
+
 /// Set hook configuration mode (persisted to config file)
 #[tauri::command]
 pub fn set_hook_config_mode(mode: hook_config::HookConfigMode) -> Result<(), String> {
@@ -696,12 +719,15 @@ pub fn simulate_session_start(
     #[cfg(not(debug_assertions))]
     return Err("Test commands disabled in release build".into());
 
-    app.emit("session_start", serde_json::json!({
-        "session_id": session_id,
-        "label": label,
-        "cwd": cwd,
-        "source": "test",
-    }))
+    app.emit(
+        "session_start",
+        serde_json::json!({
+            "session_id": session_id,
+            "label": label,
+            "cwd": cwd,
+            "source": "test",
+        }),
+    )
     .map_err(|e| e.to_string())
 }
 
@@ -724,15 +750,18 @@ pub fn simulate_permission_request(
     let risk = risk_level.unwrap_or_else(|| "medium".into());
     let atype = approval_type.unwrap_or_else(|| "permission".into());
 
-    app.emit("permission_request", serde_json::json!({
-        "session_id": session_id,
-        "tool_use_id": tool_use_id,
-        "tool_name": tool_name,
-        "tool_input": tool_input_val,
-        "approval_type": atype,
-        "action": action.unwrap_or_default(),
-        "risk_level": risk,
-    }))
+    app.emit(
+        "permission_request",
+        serde_json::json!({
+            "session_id": session_id,
+            "tool_use_id": tool_use_id,
+            "tool_name": tool_name,
+            "tool_input": tool_input_val,
+            "approval_type": atype,
+            "action": action.unwrap_or_default(),
+            "risk_level": risk,
+        }),
+    )
     .map_err(|e| e.to_string())
 }
 
@@ -748,27 +777,30 @@ pub fn simulate_state_change(
     #[cfg(not(debug_assertions))]
     return Err("Test commands disabled in release build".into());
 
-    app.emit("state_change", serde_json::json!({
-        "session_id": session_id,
-        "state": state,
-        "tool_name": tool_name,
-        "tool_input": tool_input,
-    }))
+    app.emit(
+        "state_change",
+        serde_json::json!({
+            "session_id": session_id,
+            "state": state,
+            "tool_name": tool_name,
+            "tool_input": tool_input,
+        }),
+    )
     .map_err(|e| e.to_string())
 }
 
 /// Simulate a session_end event
 #[tauri::command]
-pub fn simulate_session_end(
-    app: AppHandle,
-    session_id: String,
-) -> Result<(), String> {
+pub fn simulate_session_end(app: AppHandle, session_id: String) -> Result<(), String> {
     #[cfg(not(debug_assertions))]
     return Err("Test commands disabled in release build".into());
 
-    app.emit("session_end", serde_json::json!({
-        "session_id": session_id,
-    }))
+    app.emit(
+        "session_end",
+        serde_json::json!({
+            "session_id": session_id,
+        }),
+    )
     .map_err(|e| e.to_string())
 }
 
@@ -981,7 +1013,12 @@ pub fn snap_overlay(
     let snap_pos = match position.as_str() {
         "top" => SnapPosition::Top,
         "bottom" => SnapPosition::Bottom,
-        other => return Err(format!("Invalid snap position: {}. Use 'top' or 'bottom'", other)),
+        other => {
+            return Err(format!(
+                "Invalid snap position: {}. Use 'top' or 'bottom'",
+                other
+            ))
+        }
     };
 
     let window = app
@@ -1018,7 +1055,11 @@ pub fn snap_overlay(
         let dpi_scale = window.scale_factor().unwrap_or(1.0);
         let phys_w = (logical_width as f64 * dpi_scale).round() as u32;
         let phys_h = (logical_height as f64 * dpi_scale).round() as u32;
-        let radius = if logical_height <= 80 { logical_height as u32 / 2 } else { 18 };
+        let radius = if logical_height <= 80 {
+            logical_height as u32 / 2
+        } else {
+            18
+        };
         let _ = apply_snap_aware_round_region(&window, Some(snap_pos), radius, phys_w, phys_h);
     }
 
@@ -1047,7 +1088,13 @@ pub fn smart_snap_overlay(app: AppHandle) -> Result<SnapResult, String> {
     // 不在任何边缘附近 → 保持当前位置，不吸附
     let Some(snap_pos) = detected else {
         window_manager::set_current_snap_position(None);
-        return Ok(SnapResult { x: pos.x, y: pos.y, monitor_index: 0, dpi_scale: scale, snap_position: None });
+        return Ok(SnapResult {
+            x: pos.x,
+            y: pos.y,
+            monitor_index: 0,
+            dpi_scale: scale,
+            snap_position: None,
+        });
     };
 
     let result = window_manager::calculate_snap_position(
@@ -1125,7 +1172,9 @@ pub fn move_overlay_drag(app: AppHandle, mouse_x: i32, mouse_y: i32) -> Result<(
     #[cfg(target_os = "windows")]
     {
         use windows::Win32::Foundation::HWND;
-        use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, SWP_NOSIZE, SWP_NOZORDER, SWP_NOACTIVATE};
+        use windows::Win32::UI::WindowsAndMessaging::{
+            SetWindowPos, SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER,
+        };
 
         let window = app
             .get_webview_window("main")

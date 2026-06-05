@@ -180,6 +180,32 @@
 
 /* ── Hook Grid ── */
 
+.cc-hook-agent {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.cc-section__head + .cc-hook-agent {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.cc-hook-agent__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cc-hook-agent__title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--paper);
+}
+
 .cc-hook-grid {
   display: flex;
   flex-wrap: wrap;
