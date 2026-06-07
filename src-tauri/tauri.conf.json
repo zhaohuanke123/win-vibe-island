@@ -6,7 +6,7 @@
   "build": {
     "frontendDist": "../frontend/dist",
     "devUrl": "http://localhost:5187",
-    "beforeDevCommand": "cmd /c \"echo %cd%\"",
+    "beforeDevCommand": "npm --prefix ../frontend run dev",
     "beforeBuildCommand": "npm --prefix ../frontend run build"
   },
   "app": {
