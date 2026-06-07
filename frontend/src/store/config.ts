@@ -130,7 +130,7 @@ export interface UiDimensions {
 
 export const OVERLAY_LAYOUT_MINIMUMS = {
   expandedWidth: 600,
-  expandedMinHeight: 400,
+  expandedMinHeight: 200,
   expandedMaxHeight: 720,
   approvalFocusWidth: 600,
   approvalFocusHeight: 720,
@@ -184,7 +184,7 @@ const DEFAULT_CONFIG: AppConfig = {
     compactWidth: 180,
     compactHeight: 32,
     expandedWidth: 600,
-    expandedMinHeight: 400,
+    expandedMinHeight: 200,
     expandedMaxHeight: 720,
     approvalFocusWidth: 600,
     approvalFocusHeight: 720,

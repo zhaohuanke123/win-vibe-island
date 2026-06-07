@@ -41,7 +41,7 @@
       "compactWidth": { "value": 180, "unit": "px", "file": "frontend/src/store/config.ts", "line": 184 },
       "compactHeight": { "value": 32, "unit": "px", "file": "frontend/src/store/config.ts", "line": 185 },
       "expandedWidth": { "value": 600, "unit": "px", "file": "frontend/src/store/config.ts", "line": 186 },
-      "expandedMinHeight": { "value": 400, "unit": "px", "file": "frontend/src/store/config.ts", "line": 187 },
+      "expandedMinHeight": { "value": 200, "unit": "px", "file": "frontend/src/store/config.ts", "line": 187 },
       "expandedMaxHeight": { "value": 720, "unit": "px", "file": "frontend/src/store/config.ts", "line": 188 },
       "compactBorderRadius": { "value": 16, "unit": "px", "file": "frontend/src/store/config.ts", "line": 192 },
       "expandedBorderRadius": { "value": 22, "unit": "px", "file": "frontend/src/store/config.ts", "line": 193 }

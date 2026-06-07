@@ -212,12 +212,12 @@ fn normalize_config_value(mut raw: serde_json::Value) -> serde_json::Value {
 
         if let Some(overlay) = obj.get_mut("overlay").and_then(|v| v.as_object_mut()) {
             ensure_i64_at_least(overlay, "expandedWidth", 600);
-            ensure_i64_at_least(overlay, "expandedMinHeight", 400);
+            ensure_i64_at_least(overlay, "expandedMinHeight", 200);
 
             let expanded_min = overlay
                 .get("expandedMinHeight")
                 .and_then(|v| v.as_i64())
-                .unwrap_or(400);
+                .unwrap_or(200);
             ensure_i64_at_least(overlay, "expandedMaxHeight", expanded_min.max(720));
 
             ensure_i64_at_least(overlay, "approvalFocusWidth", 600);
@@ -275,7 +275,7 @@ mod tests {
         assert_eq!(config.hook_server.port, 7878);
         assert_eq!(config.hook_server.approval_timeout_secs, 120);
         assert_eq!(config.pipe_server.buffer_size, 4096);
-        assert_eq!(config.overlay.expanded_min_height, 400);
+        assert_eq!(config.overlay.expanded_min_height, 200);
         assert_eq!(config.overlay.approval_focus_width, 600);
         assert_eq!(config.overlay.approval_focus_height, 720);
     }
@@ -314,7 +314,7 @@ mod tests {
         let normalized = normalize_config_value(raw);
 
         assert_eq!(normalized["overlay"]["expandedWidth"], 600);
-        assert_eq!(normalized["overlay"]["expandedMinHeight"], 400);
+        assert_eq!(normalized["overlay"]["expandedMinHeight"], 200);
         assert_eq!(normalized["overlay"]["expandedMaxHeight"], 720);
         assert_eq!(normalized["overlay"]["approvalFocusWidth"], 600);
         assert_eq!(normalized["overlay"]["approvalFocusHeight"], 720);

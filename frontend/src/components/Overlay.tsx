@@ -157,6 +157,7 @@ export function Overlay() {
   const hadApprovalRequestRef = useRef(false);
   const handledApprovalStateFocusKeyRef = useRef<string | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const [measuredHeight, setMeasuredHeight] = useState(EXPANDED_MIN as number);
 
   // v8 group sort state
@@ -341,20 +342,33 @@ export function Overlay() {
       raf = requestAnimationFrame(() => {
         if (!panelRef.current) return;
         const p = panelRef.current;
-        const saved = p.style.height;
-        p.style.height = 'auto';
-        const contentH = p.scrollHeight;
-        p.style.height = saved;
+        // 分层测量：chrome（固定部分）+ body（滚动内容区）
+        let chromeH = 0;
+        for (const child of Array.from(p.children)) {
+          const el = child as HTMLElement;
+          // 跳过滚动内容区，单独用 scrollHeight 测量
+          if (el === listRef.current) continue;
+          chromeH += el.offsetHeight || 0;
+        }
+        // 滚动内容区用 scrollHeight 读取完整内容高度（不受父级约束）
+        const bodyH = listRef.current?.scrollHeight ?? 0;
+        const contentH = chromeH + bodyH;
         const next = clampOverlayHeight(BAR_HEIGHT + contentH, EXPANDED_MIN, EXPANDED_MAX);
         setMeasuredHeight((h) => (Math.abs(h - next) < 1 ? h : next));
       });
     };
 
-    measure();
+    // 延迟首帧测量，等 AnimatePresence 挂载完成
+    const initTimer = setTimeout(() => measure(), 50);
     const observer = new ResizeObserver(() => measure());
     observer.observe(panel);
+    // 同时观察滚动内容区，内容变化时重新测量
+    const bindList = () => { if (listRef.current) observer.observe(listRef.current); };
+    const bindTimer = setTimeout(bindList, 80);
 
     return () => {
+      clearTimeout(initTimer);
+      clearTimeout(bindTimer);
       cancelAnimationFrame(raf);
       observer.disconnect();
     };
@@ -623,7 +637,7 @@ export function Overlay() {
                       }}
                       data-testid="panel-head"
                     />
-                    <div className="panel-list" data-testid="panel-list">
+                    <div className="panel-list" ref={listRef} data-testid="panel-list">
                       <div className="oi-list-controls" style={{
                         display: "flex",
                         gap: "6px",

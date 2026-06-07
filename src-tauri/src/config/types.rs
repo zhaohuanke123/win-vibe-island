@@ -221,7 +221,7 @@ fn default_overlay_y() -> i32 { 100 }
 fn default_compact_width() -> i32 { 180 }
 fn default_compact_height() -> i32 { 32 }
 fn default_expanded_width() -> i32 { 600 }
-fn default_expanded_min_height() -> i32 { 400 }
+fn default_expanded_min_height() -> i32 { 200 }
 fn default_expanded_max_height() -> i32 { 720 }
 fn default_approval_focus_width() -> i32 { 600 }
 fn default_approval_focus_height() -> i32 { 720 }
