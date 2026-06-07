@@ -655,6 +655,7 @@ fn build_process_name_map() -> std::collections::HashMap<u32, String> {
 ///
 /// 只匹配真正的终端模拟器（WindowsTerminal、WezTerm、Alacritty、Tabby），
 /// 排除 IDE（VSCode、Cursor、Windsurf），避免跳转到 IDE 窗口。
+#[allow(dead_code)]
 #[cfg(target_os = "windows")]
 pub fn focus_any_terminal() -> FocusResult {
     use windows::Win32::UI::WindowsAndMessaging::*;
@@ -731,6 +732,7 @@ pub fn focus_any_terminal() -> FocusResult {
     }
 }
 
+#[allow(dead_code)]
 #[cfg(not(target_os = "windows"))]
 pub fn focus_any_terminal() -> FocusResult {
     FocusResult::NotFound
