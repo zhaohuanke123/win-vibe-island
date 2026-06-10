@@ -157,6 +157,32 @@ impl Default for PipeServerConfig {
 // Overlay Configuration
 // ============================================================================
 
+/// 各面板视图的最大固定高度配置
+/// 内容低于此值时自适应，高于此值时固定在最大高度
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PanelMaxHeights {
+    /// Session List 视图最大高度
+    #[serde(default = "default_session_list_max_height")]
+    pub session_list: i32,
+
+    /// Session Detail 视图最大高度
+    #[serde(default = "default_session_detail_max_height")]
+    pub session_detail: i32,
+}
+
+fn default_session_list_max_height() -> i32 { 480 }
+fn default_session_detail_max_height() -> i32 { 600 }
+
+impl Default for PanelMaxHeights {
+    fn default() -> Self {
+        Self {
+            session_list: default_session_list_max_height(),
+            session_detail: default_session_detail_max_height(),
+        }
+    }
+}
+
 /// Overlay default configuration values
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -212,6 +238,10 @@ pub struct OverlayConfigDefaults {
     /// Screen edge snap position preference
     #[serde(default = "default_snap_position")]
     pub snap_position: String,
+
+    /// 各面板视图的最大固定高度，内容超过时固定不再增长
+    #[serde(default)]
+    pub panel_max_heights: PanelMaxHeights,
 }
 
 fn default_snap_position() -> String { "top".to_string() }
@@ -245,6 +275,7 @@ impl Default for OverlayConfigDefaults {
             compact_border_radius: default_compact_radius(),
             expanded_border_radius: default_expanded_radius(),
             snap_position: default_snap_position(),
+            panel_max_heights: PanelMaxHeights::default(),
         }
     }
 }

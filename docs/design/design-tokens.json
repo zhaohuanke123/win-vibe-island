@@ -43,7 +43,11 @@
       "expandedWidth": { "value": 600, "unit": "px", "file": "frontend/src/store/config.ts", "line": 186 },
       "expandedMinHeight": { "value": 200, "unit": "px", "file": "frontend/src/store/config.ts", "line": 187 },
       "expandedMaxHeight": { "value": 720, "unit": "px", "file": "frontend/src/store/config.ts", "line": 188 },
-      "compactBorderRadius": { "value": 16, "unit": "px", "file": "frontend/src/store/config.ts", "line": 192 },
+      "panelMaxHeights": {
+        "sessionList": { "value": 480, "unit": "px", "desc": "Session List 视图最大固定高度" },
+        "sessionDetail": { "value": 600, "unit": "px", "desc": "Session Detail 视图最大固定高度" }
+      },
+      "compactBorderRadius": { "value": 16, "unit": "px", "file": "frontend/src/store/config.ts", "line": 195 },
       "expandedBorderRadius": { "value": 22, "unit": "px", "file": "frontend/src/store/config.ts", "line": 193 }
     },
     "ui": {
