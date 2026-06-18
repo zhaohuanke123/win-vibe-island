@@ -1,2156 +1,411 @@
 {
-  "project": "Vibe Island (氛围岛)",
-  "description": "Windows desktop overlay app that monitors AI coding agent sessions (Claude Code, Codex) and displays their state as a floating overlay. Built with Tauri 2.0 (Rust + React).",
-  "version": "2.0.0",
   "tasks": [
     {
-      "id": 1,
-      "title": "Core Infrastructure: System Tray + Event Bridge",
-      "description": "Combined Phase 0 task: Add system tray with context menu AND establish Tauri event communication. These are foundational - without both, no other feature can be demoed or tested.",
-      "steps": [
-        "Add tauri-plugin-tray dependency to Cargo.toml",
-        "Configure tray icon in tauri.conf.json",
-        "Create tray icon asset (16x16 .ico)",
-        "Implement tray setup in lib.rs with context menu items (Show/Hide, Start/Stop monitoring, Quit)",
-        "Add tauri::AppHandle to Tauri managed state",
-        "Create Rust event types in new events.rs module: SessionStart, SessionEnd, StateChange",
-        "Implement event emission functions in events.rs",
-        "Create useAgentEvents React hook that listens to Tauri events via @tauri-apps/api/event",
-        "Wire up the hook in App.tsx to dispatch to Zustand store",
-        "Handle Show/Hide toggle to control overlay visibility via tray",
-        "Handle Quit to gracefully shut down the app",
-        "Test: tray icon appears, right-click shows menu, emit test event from backend, verify frontend store updates"
-      ],
-      "status": "completed",
+      "id": "HOOK-001",
+      "title": "PENDING_APPROVALS 预初始化",
+      "priority": "suggestion",
+      "status": "pending",
+      "source": "cron-review-hook-adapter 2026-06-13",
+      "file": "src-tauri/src/hook_server.rs",
+      "line": "107-111",
+      "description": "PENDING_APPROVALS 用 OnceLock 初始化，初始化条件是 ensure_pending_approvals() 被调用。如果前端的 submit_approval_response IPC 命令在 hook_server 从未收到过 PermissionRequest 时被调用，ensure_pending_approvals() 会正常初始化空 HashMap 并返回空匹配错误（L1241）。不是功能性 bug，但 startup 阶段可以预初始化以避免初次调用时的微小延迟。",
+      "fix": "在 startup 阶段（如 setup hook_server 时）调用 ensure_pending_approvals() 预初始化，或改为 lazy_static + 预填充空 HashMap。"
+    },
+    {
+      "id": "HOOK-002",
+      "title": "Review 范围中提及的目录/文件不存在",
+      "priority": "suggestion",
+      "status": "pending",
+      "source": "cron-review-hook-adapter 2026-06-13",
+      "file": "src-tauri/src/",
+      "description": "Review 范围中提到的 src-tauri/src/hooks/ 目录、hook_registry.rs、adapter_registry.rs 在代码库中都不存在。实际结构：Hook 相关代码是 hook_server.rs、hook_config.rs、hook_manifest.rs、codex_hook_config.rs 四个平铺文件；Adapter 在 adapters/ 目录下。如果是计划中的重构目标，当前还没做。",
+      "fix": "二选一：(1) 如果是计划中的重构，创建对应目录和文件，将平铺的 hook 代码迁入；(2) 如果不打算重构，更新 review prompt 中的范围描述以匹配实际代码结构。"
+    },
+    {
+      "id": "HOOK-003",
+      "title": "docs/hooks/hooks-setup.md 手动配置示例使用 HTTP hooks，但代码自动生成 command hooks",
       "priority": "critical",
-      "dependencies": [],
-      "requirement_ref": "architecture.md#Core Infrastructure",
-      "design_ref": "architecture.md#System Tray",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/src/lib.rs",
-        "src-tauri/src/events.rs",
-        "src-tauri/src/commands.rs",
-        "src-tauri/tauri.conf.json",
-        "frontend/src/hooks/useAgentEvents.ts",
-        "frontend/src/App.tsx"
-      ]
+      "status": "pending",
+      "source": "cron-review-hook-adapter 2026-06-14",
+      "file": "docs/hooks/hooks-setup.md",
+      "line": "L42-121",
+      "description": "hook_config.rs::generate_hook_config() 生成 type: 'command' 的 command hooks（指向 vibe-island-hooks.exe），但 docs/hooks/hooks-setup.md 的手动配置示例（L42-121）仍然显示 type: 'http' 的 HTTP hooks（URL 指向 localhost:7878/hooks/xxx）。如果用户按文档手动配置，会用 HTTP hook 路径走 hook_server.rs；而自动安装会用 command hook 路径走 vibe-island-hooks→Named Pipe→pipe_server.rs——两种不同的集成路径，行为可能不一致。",
+      "fix": "统一文档和代码的集成路径。如果主集成路径已改为 command hooks，则 (1) 更新 docs/hooks/hooks-setup.md 的手动配置示例为 command hook 格式，(2) 在说明中添加注释指出 type: 'http' 模式已不推荐。如果仍保留 HTTP hooks 为主，则更新 hook_config.rs 改回 HTTP hook format。"
     },
     {
-      "id": 2,
-      "title": "Demo/Mock Mode - REMOVED",
-      "description": "DELETED: Demo mode was removed to simplify the codebase. Testing should be done with real Claude Code hooks.",
-      "status": "removed",
-      "priority": "high",
-      "dependencies": [
-        1
-      ],
-      "files": []
-    },
-    {
-      "id": 3,
-      "title": "Named Pipe Server Foundation",
-      "description": "Implement async Named Pipe server (\\\\.\\pipe\\VibeIsland) for receiving agent events. This is the primary communication channel for the Agent SDK to push session state.",
-      "steps": [
-        "Add tokio dependency to Cargo.toml",
-        "Create src-tauri/src/pipe_server.rs with async pipe listener",
-        "Define AgentEvent struct: { session_id, state, payload } with serde",
-        "Implement pipe connection accept loop with JSON message parsing",
-        "CRITICAL: Use tokio::spawn for each connection to handle multiple concurrent clients (Claude Code + Codex running simultaneously)",
-        "Implement connection cleanup on client disconnect",
-        "Forward parsed events to Tauri event system via AppHandle",
-        "Start pipe server in Tauri setup hook",
-        "Add IPC command to check pipe server status",
-        "Test: use multiple simple clients to send JSON events concurrently and verify frontend updates"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        1
-      ],
-      "files": [
-        "src-tauri/src/pipe_server.rs",
-        "src-tauri/src/lib.rs",
-        "src-tauri/Cargo.toml"
-      ]
-    },
-    {
-      "id": 4,
-      "title": "Process Watcher - Agent Detection via Process Polling",
-      "description": "Enumerate running processes to detect known AI coding agents (Claude Code, Codex CLI) and track their lifecycle. This serves as a fallback state detection mechanism.",
-      "steps": [
-        "Add windows Win32_System_Threading feature to windows crate",
-        "Create src-tauri/src/process_watcher.rs",
-        "Implement process enumeration using EnumProcesses / CreateToolhelp32Snapshot",
-        "Match processes by known agent binary names (claude, codex, etc.)",
-        "Track process start/stop events, emit as Tauri events",
-        "Poll on a configurable interval (default: 5s)",
-        "Add IPC commands: start_process_watcher, stop_process_watcher, get_detected_processes",
-        "Test: start a known agent process, verify detection in overlay"
-      ],
-      "status": "completed",
-      "priority": "medium",
-      "dependencies": [
-        1
-      ],
-      "files": [
-        "src-tauri/src/process_watcher.rs",
-        "src-tauri/src/lib.rs",
-        "src-tauri/Cargo.toml"
-      ]
-    },
-    {
-      "id": 5,
-      "title": "Frontend - Approval Panel Component",
-      "description": "Create an ApprovalPanel component that displays approval requests from agents with action buttons. When an agent needs user approval, this panel shows the details and allows approve/reject.",
-      "steps": [
-        "Create frontend/src/components/ApprovalPanel.tsx",
-        "Display approval request details (session label, action description, risk level)",
-        "Add Approve and Reject action buttons with loading states",
-        "Emit approval response back to backend via Tauri invoke",
-        "Add IPC command in commands.rs to handle approval responses",
-        "Style the panel to match existing overlay design (glassmorphism, animations)",
-        "Add keyboard shortcuts for quick approval (Enter) and rejection (Escape)",
-        "Test: trigger PermissionRequest approval event, verify panel shows and buttons respond"
-      ],
-      "status": "completed",
-      "priority": "medium",
-      "dependencies": [
-        1
-      ],
-      "files": [
-        "frontend/src/components/ApprovalPanel.tsx",
-        "frontend/src/components/Overlay.tsx",
-        "src-tauri/src/commands.rs"
-      ]
-    },
-    {
-      "id": 6,
-      "title": "Window Focus Management",
-      "description": "Implement cross-application window focus. Allow users to click a session in the overlay to bring the corresponding agent terminal/editor window to the foreground.",
-      "steps": [
-        "Add required Win32 features (Win32_UI_WindowsAndMessaging, Win32_System_Threading)",
-        "Create src-tauri/src/window_focus.rs",
-        "Implement find_window_by_pid using EnumWindows + GetWindowThreadProcessId",
-        "Implement focus_window with fallback strategy:",
-        "  - Primary: SetForegroundWindow directly",
-        "  - Fallback 1: AttachThreadInput + SetForegroundWindow (steal focus)",
-        "  - Fallback 2: FlashWindowEx to flash taskbar if focus steal blocked by Windows 10/11",
-        "  - Fallback 3: ShowWindow(SW_RESTORE) if window is minimized",
-        "Add IPC command focus_session_window(session_pid) in commands.rs",
-        "Wire up session click in Overlay.tsx to call focus command",
-        "Test: click session in overlay, corresponding terminal window comes to front"
-      ],
-      "status": "completed",
-      "priority": "low",
-      "dependencies": [
-        1
-      ],
-      "files": [
-        "src-tauri/src/window_focus.rs",
-        "src-tauri/src/commands.rs",
-        "frontend/src/components/Overlay.tsx"
-      ]
-    },
-    {
-      "id": 7,
-      "title": "DPI & Multi-Monitor Support",
-      "description": "Handle per-monitor DPI scaling and multi-monitor setups. Overlay position calculation must work correctly across displays with different DPIs. Without this, overlay appears offset on high-DPI or multi-monitor configurations.",
-      "steps": [
-        "Add Win32_UI_HiDpi features to windows crate",
-        "Implement GetDpiForWindow and GetScaleFactorForMonitor wrappers",
-        "Store DPI scale factor with each overlay position",
-        "Update overlay position calculation to account for DPI",
-        "Handle monitor change events (WM_DPICHANGED, WM_DISPLAYCHANGE)",
-        "Test on multi-monitor setup with different DPIs",
-        "Test on 150% and 200% scaling",
-        "Verify overlay snaps to correct positions after DPI change"
-      ],
-      "status": "completed",
-      "priority": "medium",
-      "dependencies": [
-        1
-      ],
-      "files": [
-        "src-tauri/src/overlay.rs",
-        "src-tauri/src/lib.rs"
-      ]
-    },
-    {
-      "id": 8,
-      "title": "Agent SDK - Node.js (Claude Code)",
-      "description": "Create a lightweight Node.js SDK that injects into Claude Code sessions and communicates with Vibe Island via Named Pipe. Publishes session lifecycle events.",
-      "steps": [
-        "Create agent-sdk/node/ directory with package.json",
-        "Implement Named Pipe client using net.connect to \\\\.\\pipe\\VibeIsland",
-        "Define event types matching backend AgentEvent schema",
-        "Hook into Claude Code lifecycle: session start, state changes, session end",
-        "Add TypeScript type definitions",
-        "Add README with usage instructions and API documentation",
-        "Add npm publish configuration (package.json scripts, .npmignore)",
-        "Test: load SDK in a Node.js script, verify events appear in Vibe Island overlay",
-        "Create installation tarball for local testing: npm pack"
-      ],
-      "status": "completed",
-      "priority": "low",
-      "dependencies": [
-        3
-      ],
-      "files": [
-        "agent-sdk/node/"
-      ]
-    },
-    {
-      "id": 9,
-      "title": "Agent SDK - Python (Codex CLI)",
-      "description": "Create a lightweight Python SDK for Codex CLI that communicates with Vibe Island via Named Pipe. Mirrors the Node.js SDK functionality.",
-      "steps": [
-        "Create agent-sdk/python/ directory with pyproject.toml",
-        "Implement Named Pipe client using win32pipe / ctypes",
-        "Define event types matching backend AgentEvent schema",
-        "Hook into Codex CLI lifecycle events",
-        "Add README with usage instructions and API documentation",
-        "Add pip install configuration (setup.py or pyproject.toml)",
-        "Test: run SDK in a Python script, verify events appear in Vibe Island overlay",
-        "Create distribution package: python -m build"
-      ],
-      "status": "completed",
-      "priority": "low",
-      "dependencies": [
-        3
-      ],
-      "files": [
-        "agent-sdk/python/"
-      ]
-    },
-    {
-      "id": 10,
-      "title": "UI Polish and Production Readiness",
-      "description": "Polish the entire overlay UI with smooth transitions, proper animations, error states, and ensure production build works correctly.",
-      "steps": [
-        "Add CSS transitions for panel expand/collapse animation",
-        "Add smooth state change animations (color transitions on StatusDot)",
-        "Add error/loading states in the overlay UI",
-        "Ensure transparent background works correctly in WebView2",
-        "Verify overlay click-through toggle works smoothly",
-        "Run npm run lint && npm run build - no errors",
-        "Run cargo tauri build - production build succeeds",
-        "Test full end-to-end flow with real Claude Code hooks",
-        "Verify all features work on Windows 10 and Windows 11"
-      ],
-      "status": "completed",
-      "priority": "medium",
-      "dependencies": [
-        1,
-        5,
-        7
-      ],
-      "files": [
-        "frontend/src/"
-      ]
-    },
-    {
-      "id": 11,
-      "title": "Claude Code Integration via HTTP Hooks",
-      "description": "Integrate with Claude Code using its native Hooks system. Claude Code supports HTTP hooks that POST JSON to a local server on lifecycle events. Session tracking now uses session_id field properly.",
-      "steps": [
-        "Fix session_id extraction from hook payloads (use session_id field, not transcript_path)",
-        "Add SessionStart hook handler to properly create new sessions",
-        "Handle UserPromptSubmit hook for session resume detection",
-        "Map hook events to correct overlay states per session",
-        "Handle multiple concurrent Claude Code sessions (different terminals)",
-        "Use cwd to generate meaningful session labels (project name)",
-        "Test with multiple Claude Code instances running simultaneously"
-      ],
-      "status": "completed",
+      "id": "HOOK-004",
+      "title": "architecture.md 以 HTTP hooks 为假设描述，但代码实际使用 command hooks",
       "priority": "critical",
-      "dependencies": [
-        1
-      ],
-      "files": [
-        "src-tauri/src/hook_server.rs",
-        "frontend/src/hooks/useAgentEvents.ts",
-        "frontend/src/store/sessions.ts"
-      ]
+      "status": "pending",
+      "source": "cron-review-hook-adapter 2026-06-14",
+      "file": "architecture.md",
+      "line": "多处",
+      "description": "architecture.md 以 HTTP hooks 为主要集成路径描述系统行为，多处假设（如 L215 'Claude Code HTTP Hooks'、L378-398 HTTP Endpoints 路由表、L395 自动配置写入的 hooks 列表、启动流程中 HTTP server 的描述）。但 hook_config.rs::generate_hook_config() 实际写入的是 command hooks（vibe-island-hooks.exe→Named Pipe→pipe_server.rs）。当 command hooks 安装后，HTTP hook server 实际上收不到事件——事件流经过 pipe_server.rs。文档描述的主集成路径与代码实际路径根本不同。",
+      "fix": "重写 architecture.md 的相关部分反映当前真实架构：说明主集成路径是 command hooks（vibe-island-hooks.exe→Named Pipe→pipe_server.rs→session_state.rs），HTTP Hook server 现在是可选/备用路径。更新 L378-398 的 HTTP Endpoints 表注明为 legacy，补充 pipe 协议说明。"
     },
     {
-      "id": 12,
-      "title": "Claude Code Hook Configuration Guide",
-      "description": "Create user documentation for configuring Claude Code hooks. Users only need to add a few lines to .claude/settings.json - no SDK installation required.",
-      "steps": [
-        "Document hook configuration in README.md",
-        "Create example .claude/settings.json with all hook endpoints",
-        "Add setup instructions for first-time users",
-        "Include troubleshooting section",
-        "Test documentation with fresh Claude Code installation"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        11
-      ],
-      "files": [
-        "README.md",
-        "docs/hooks/hooks-setup.md"
-      ]
-    },
-    {
-      "id": 13,
-      "title": "Named Pipe SDK Support (Optional Fallback)",
-      "description": "Maintain Named Pipe + Agent SDK as an optional fallback for non-Claude Code agents (Codex CLI, custom tools). HTTP Hooks are the primary integration for Claude Code, but Named Pipe remains useful for other tools.",
-      "steps": [
-        "Keep existing Named Pipe server running on \\\\.\\pipe\\VibeIsland",
-        "Document Agent SDK usage for non-Claude Code tools",
-        "Test with custom Node.js/Python scripts",
-        "Note: Claude Code users should prefer HTTP Hooks (Task 11)"
-      ],
-      "status": "completed",
-      "priority": "low",
-      "dependencies": [
-        3
-      ],
-      "files": [
-        "agent-sdk/node/",
-        "agent-sdk/python/"
-      ]
-    },
-    {
-      "id": 14,
-      "title": "Diff Viewer - Approval Panel Enhancement",
-      "description": "Add code diff preview to the Approval Panel, showing what changes the agent is proposing before user approves. Uses PreToolUse hook data for real tool preview.",
-      "steps": [
-        "Add diff field to ApprovalRequest type",
-        "Create DiffViewer component with +/- line highlighting",
-        "Add syntax highlighting (optional)",
-        "Style: red background for deletions, green for additions",
-        "Integrate with PreToolUse hook data for real-time diff preview",
-        "Test with PermissionRequest fixtures containing diff data"
-      ],
-      "status": "completed",
+      "id": "HOOK-005",
+      "title": "architecture.md Hook 配置存储路径描述错误",
       "priority": "medium",
-      "dependencies": [
-        5,
-        11
-      ],
-      "files": [
-        "frontend/src/components/DiffViewer.tsx",
-        "frontend/src/components/ApprovalPanel.tsx"
-      ]
+      "status": "pending",
+      "source": "cron-review-hook-adapter 2026-06-14",
+      "file": "architecture.md",
+      "line": 407,
+      "description": "architecture.md 写 '配置文件存储在系统配置目录下的 vibe-island/config.json'。实际代码（hook_config.rs L727-732）使用 ~/.claude/vibe-island-config.json。路径完全不同，如果用户需要手动编辑配置可能找不到文件。",
+      "fix": "将 architecture.md L407 改为 '配置文件存储在 ~/.claude/vibe-island-config.json'。"
     },
     {
-      "id": 15,
-      "title": "Production Build and Distribution",
-      "description": "Prepare for production release: build installer, configure code signing, test on clean Windows machines, create release documentation.",
-      "steps": [
-        "Run cargo tauri build - verify production build succeeds",
-        "Apply EV code signing certificate with signtool",
-        "Verify SmartScreen does not show warning after signing",
-        "Test installer on Windows 10 and Windows 11",
-        "Create user documentation (README with screenshots)",
-        "Add version number and update mechanism",
-        "Create GitHub release with signed installer"
-      ],
-      "status": "completed",
-      "priority": "low",
-      "dependencies": [
-        10,
-        11,
-        12
-      ],
-      "files": [
-        "README.md",
-        "src-tauri/tauri.conf.json",
-        "CHANGELOG.md",
-        "docs/operations/release-process.md"
-      ]
+      "id": "HOOK-006",
+      "title": "architecture.md 说审批超时 120 秒，但代码三处路径都不一致",
+      "priority": "medium",
+      "status": "pending",
+      "source": "cron-review-hook-adapter 2026-06-14",
+      "file": "hook_server.rs",
+      "line": "926",
+      "description": "architecture.md L211 写 '审批后端等待时间常量 120 秒'，但实际：HTTP 路径（hook_server.rs L926）直接 .await 无超时，无限等待；Pipe 路径（pipe_server.rs L367）使用 290 秒超时；vibe-island-hooks（bin L107-111）使用 300 秒 PermissionRequest 超时、3 秒 PreToolUse 超时。三处数值与文档都不一致。HTTP 无超时是潜在的死锁风险——如果前端 crash，HTTP handler 永远不返回。",
+      "fix": "(1) 为 hook_server.rs 的 PermissionRequest handler 添加超时，默认 120 秒；(2) 更新 pipe_server.rs 的超时以对齐；(3) 更新 architecture.md 为准确的值。"
     },
     {
-      "id": 16,
-      "title": "Session Management Fix - Proper Session Tracking",
-      "description": "Fix the core issue where all Claude Code conversations are mixed together. Each terminal/session should appear as a separate entry in the overlay.",
-      "steps": [
-        "Update hook_server.rs to use session_id from Claude Code hooks",
-        "Add SessionStart hook endpoint (/hooks/session-start)",
-        "Add UserPromptSubmit hook endpoint (/hooks/user-prompt-submit)",
-        "Update frontend useAgentEvents.ts to handle new event structure",
-        "Update sessions store to properly track sessions by session_id",
-        "Generate session labels from cwd (project folder name)",
-        "Handle session cleanup when Claude Code exits",
-        "Test: run multiple Claude Code instances, verify each appears as separate session"
-      ],
-      "status": "completed",
+      "id": "HOOK-007",
+      "title": "README.md 仍显示旧的 7 态模型",
+      "priority": "medium",
+      "status": "pending",
+      "source": "cron-review-hook-adapter 2026-06-14",
+      "file": "README.md",
+      "line": "L10-16",
+      "description": "README.md 的 'Tool activity states' 段落仍列出 idle/thinking/running/streaming/approval/error/done 旧 7 态模型。但代码已迁移到 4-phase 模型（idle/running/waitingForApproval/waitingForAnswer/completed）。这会误导新用户或寻求快速文档的用户。",
+      "fix": "更新 README.md 的 Overlay States 表格为 4-phase 模型，并注明旧 7 态已合并。"
+    },
+    {
+      "id": "HOOK-008",
+      "title": "hook_server.rs 和 pipe_server.rs 有 4 个重复的辅助函数",
+      "priority": "medium",
+      "status": "pending",
+      "source": "cron-review-hook-adapter 2026-06-14",
+      "file": "src-tauri/src/pipe_server.rs",
+      "line": "L844-1021",
+      "description": "determine_risk_level、format_tool_action、extract_diff_data、extract_questions 四个函数在 hook_server.rs（L981-1163）和 pipe_server.rs（L844-1021）各有一份完全相同的实现，总共 ~200 行重复代码。修复其中一个不会自动同步到另一个，已导致小差异：pipe_server.rs 的 format_tool_action 没有 description 参数等。",
+      "fix": "将四个函数抽取到公共模块（例如 hook_helpers.rs 或 approval_helpers.rs），hook_server.rs 和 pipe_server.rs 都引用这个模块。"
+    },
+    {
+      "id": "HOOK-009",
+      "title": "Claude Code command hook 未显式指定 --source 参数",
+      "priority": "suggestion",
+      "status": "pending",
+      "source": "cron-review-hook-adapter 2026-06-14",
+      "file": "src-tauri/src/hook_config.rs",
+      "line": "L360-437",
+      "description": "hook_config.rs::generate_hook_config() 生成的 command hook 命令不包含 --source 参数，依赖 vibe-island-hooks 内部默认为 'claude'。而 codex_hook_config.rs 显式使用 --source codex。尽管当前默认正确路由到 ClaudeCodeAdapter，但如果将来修改默认行为或新增 agent 类型，没有显式声明 --source 的配置会成为 bug 隐患。",
+      "fix": "为 Claude Code 的 command hook 添加 --source claude 参数，与 Codex 的 --source codex 对称。修改 hook_config.rs::generate_hook_config() 中的 command 字符串为 format!('\"{}\" --source claude', hooks_bin_str)。"
+    },
+    {
+      "id": "RUST-001",
+      "title": "on_session_started 对已存在 session 设置 phase=Completed 逻辑错误",
+      "priority": "medium",
+      "status": "pending",
+      "source": "cron-review-rust-core 2026-06-14",
+      "file": "src-tauri/src/session_state.rs",
+      "line": 96,
+      "description": "on_session_started() 中对已存在 session（resume/refresh）的分支里，在设置了 is_completed=false、is_interrupted=false 后，却把 phase 设置为 SessionPhase::Completed。当一个 session 被恢复时，phase 应该为 Running（至少是活跃状态），而不是 Completed。这会导致前端显示 resumed session 为 completed 状态，直到下一条 ActivityUpdated/ToolUseStarted 事件到来才更正。",
+      "fix": "将 session_state.rs L96 的 `existing.phase = SessionPhase::Completed;` 改为 `existing.phase = SessionPhase::Running;`。同时对 L97-110 的 else 分支（新建 session）在创建 AgentSession 后也设置 phase = Running。"
+    },
+    {
+      "id": "RUST-002",
+      "title": "architecture.md Tauri Events 表缺少统一 agent_event 事件",
+      "priority": "medium",
+      "status": "pending",
+      "source": "cron-review-rust-core 2026-06-14",
+      "file": "architecture.md",
+      "line": "361-374",
+      "description": "architecture.md 的 Tauri Events 表格只列出了旧的事件名（session_start, session_end, state_change 等），但代码中 session_state.rs 会发射统一的新事件 \"agent_event\"（包含 AgentEvent 枚举的变体）。这个新事件是 v2 Open Island 架构的核心事件载体，在文档中完全缺失。旧事件和新事件并存，但文档只反映了一部分。",
+      "fix": "在 architecture.md Tauri Events 表中新增一行：`agent_event | session_state.rs (apply) | 统一 AgentEvent 枚举（SessionStarted/ActivityUpdated/PermissionRequested/QuestionAsked/SessionCompleted/ToolUseStarted/ToolUseCompleted/JumpTargetUpdated/ErrorOccurred）`。可考虑标注旧事件为 legacy。"
+    },
+    {
+      "id": "RUST-003",
+      "title": "architecture.md Hook Configuration 命令表缺少 Codex CLI 命令",
+      "priority": "medium",
+      "status": "pending",
+      "source": "cron-review-rust-core 2026-06-14",
+      "file": "architecture.md",
+      "line": "336-343",
+      "description": "architecture.md 中的 Hook Configuration IPC Commands 表格缺少 commit 39a22df 新增的三个命令：check_codex_hook_config、install_codex_hooks、uninstall_codex_hooks。这三个命令已注册并可用，但不在文档中。",
+      "fix": "在 architecture.md #Hook Configuration 表格中新增三行：check_codex_hook_config | 检查 Codex CLI hooks 是否已配置；install_codex_hooks | 安装 Vibe Island hooks 到 Codex CLI hooks.json；uninstall_codex_hooks | 从 Codex CLI hooks.json 移除 Vibe Island hooks。"
+    },
+    {
+      "id": "RUST-004",
+      "title": "architecture.md 误称 debug 模式启用 tauri-plugin-log",
+      "priority": "medium",
+      "status": "pending",
+      "source": "cron-review-rust-core 2026-06-14",
+      "file": "architecture.md",
+      "line": 186,
+      "description": "architecture.md 启动流程第3步描述 'debug 模式启用 tauri-plugin-log'，但实际代码（lib.rs）中并未使用 tauri-plugin-log。Rust 端日志通过自定义 JsonlLogger（logger.rs）实现，通过 log crate 的 set_boxed_logger 注入，没有使用 tauri-plugin-log crate。这是过时的文档引用。",
+      "fix": "删除或更新 architecture.md L186 中关于 'tauri-plugin-log' 的描述。实际日志系统是：JsonlLogger（logger.rs）通过 log crate 的 set_boxed_logger 在 setup 阶段初始化，输出到 %APPDATA%/com.vibe-island.app/logs/YYYY-MM-DD.jsonl。"
+    },
+    {
+      "id": "RUST-005",
+      "title": "focus_any_terminal() 是死代码（#[allow(dead_code)] 抑制警告）",
+      "priority": "suggestion",
+      "status": "pending",
+      "source": "cron-review-rust-core 2026-06-14",
+      "file": "src-tauri/src/window_focus.rs",
+      "line": "658, 735",
+      "description": "focus_any_terminal() 函数（Windows 和非 Windows 实现）均被标注了 #[allow(dead_code)]。自 commit c62b4d9 起，该函数不再被任何代码调用。它是一个包含完整 EnumWindows 轮询和 KNOWN_TERMINALS 注册表过滤的复杂函数，但处于未使用状态。",
+      "fix": "二选一：(1) 如果计划使用，添加调用点；(2) 如果已废弃，移除整个函数及相关 #[allow(dead_code)] 注解。"
+    },
+    {
+      "id": "RUST-006",
+      "title": "claude_usage.rs 存在 4 次重复的 early-return 模式",
+      "priority": "suggestion",
+      "status": "pending",
+      "source": "cron-review-rust-core 2026-06-14",
+      "file": "src-tauri/src/claude_usage.rs",
+      "line": "67-109",
+      "description": "get_claude_usage() 函数有 4 个 early-return 路径，每个都返回相同的 ClaudeUsage { five_hour_percent: None, seven_day_percent: None, five_hour_reset_at: None, seven_day_reset_at: None, available: false }。产生了大量重复代码。",
+      "fix": "抽取一个辅助函数 fn unavailable() -> ClaudeUsage { ... }，将 4 个 early-return 替换为 return unavailable()。"
+    },
+    {
+      "id": "RUST-007",
+      "title": "states-and-flows.md 仍使用旧 7 态模型，未更新到 4-phase 模型",
+      "priority": "medium",
+      "status": "pending",
+      "source": "cron-review-rust-core 2026-06-15",
+      "file": "docs/architecture/states-and-flows.md",
+      "line": "L14-87",
+      "description": "states-and-flows.md 全文仍描述旧 7-state 模型（idle/running/thinking/streaming/approval/error/done），包括转换图（L28-87）、颜色定义（L16-24）、Hook 事件流程（L138-191）都基于旧模型。但代码已迁移到 4-phase 模型（Running/WaitingForApproval/WaitingForAnswer/Completed）。main architecture.md（L273-297）已有正确的 4-phase 描述，但子文档 states-and-flows.md 从未更新，会导致新开发者读到矛盾的信息。",
+      "fix": "重写 states-and-flows.md：(1) 状态定义改为 4-phase 表格，注明旧 7 态到新 4-phase 的映射关系；(2) 转换图更新为 4-phase 图（Running→WaitingForApproval→WaitingForAnswer→Completed）；(3) Hook 事件流程表更新 phase 映射；(4) 事件汇总表更新为实际发射的事件（agent_event 等）。可以利用 architecture.md §Session Phases 的映射表作为基础。"
+    },
+    {
+      "id": "RUST-008",
+      "title": "events.rs 是遗留模块，仅保留 3 个旧事件类型",
+      "priority": "suggestion",
+      "status": "pending",
+      "source": "cron-review-rust-core 2026-06-15",
+      "file": "src-tauri/src/events.rs",
+      "line": "1-38",
+      "description": "events.rs 只定义了 3 个旧事件类型（SessionStart, SessionEnd, StateChange）和对应的 emit_* 辅助函数。但主事件流现在由 session_state.rs 通过统一的 'agent_event' Tauri 事件（携带 AgentEvent 枚举的 9 个变体）推送。events.rs 中三个函数仅在 commands.rs 的 emit_test_event 命令中被调用（测试用途）。events.rs 没有标注为 deprecated，易误导新开发者认为这是主事件通道。",
+      "fix": "在 events.rs 文件顶部添加注释标注 @deprecated，说明主事件流已迁移到 session_state::apply() 的统一 agent_event 通道。同时更新 architecture.md 的 Tauri Events 表：将旧事件标记为 legacy/仅测试用，添加 agent_event 作为主事件。"
+    },
+    {
+      "id": "RUST-009",
+      "title": "approval_types.rs 嵌套 pub mod 导致双命名空间",
+      "priority": "suggestion",
+      "status": "pending",
+      "source": "cron-review-rust-core 2026-06-15",
+      "file": "src-tauri/src/approval_types.rs",
+      "line": "1-19",
+      "description": "approval_types.rs 文件本身被 lib.rs 以 mod approval_types 引入，但文件内又包裹了一层 pub mod approval_types { ... }。导致实际路径为 crate::approval_types::approval_types::from_tool_name()。hook_server.rs（L16）和 pipe_server.rs（L776）使用 'use crate::approval_types::approval_types' 来绕开。虽能编译运行，但增加了不必要的命名深度，对新开发者不直观。",
+      "fix": "移除 approval_types.rs 中的外层 pub mod approval_types { ... } 包裹，将内容直接放在文件顶层。然后更新 hook_server.rs 和 pipe_server.rs 的 use 语句为 'use crate::approval_types::{from_tool_name, PERMISSION, QUESTION, PLAN};'。"
+    },
+    {
+      "id": "REACT-001",
+      "title": "useAgentEvents.ts 非 Tauri 环境使用 console.warn 替代 logger",
       "priority": "critical",
-      "dependencies": [
-        1
-      ],
-      "files": [
-        "src-tauri/src/hook_server.rs",
-        "frontend/src/hooks/useAgentEvents.ts",
-        "frontend/src/store/sessions.ts"
-      ]
+      "status": "pending",
+      "source": "cron-review-react 2026-06-14",
+      "file": "frontend/src/hooks/useAgentEvents.ts",
+      "line": 169,
+      "description": "违反 ErrorHandlingConvention.md 禁止使用 console.log/console.warn 记录错误的规定。L169 在检测到非 Tauri 环境时使用 console.warn 记录一条消息，应使用 logger.warn() 替代，以保证日志走结构化路径。",
+      "fix": "将 `console.warn(\"Tauri API not found. Running in browser mode. Event listeners disabled.\");` 替换为 `logger.warn(\"HOOK_LISTENER_ERROR\", \"Tauri API not found\", { mode: \"browser\" });`"
     },
     {
-      "id": 17,
-      "title": "Fix Approval Panel Window Height",
-      "description": "When approval request appears, the overlay window does not resize properly to show the approval buttons. Users cannot see or click the approve/reject buttons.",
-      "steps": [
-        "Calculate correct approval panel height in Overlay.tsx",
-        "Account for diff viewer height when present",
-        "Base approval panel height: ~180px",
-        "With diff viewer: add ~220px (max-height)",
-        "Test: trigger approval request, verify window expands to show all buttons"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        5
-      ],
-      "files": [
-        "frontend/src/components/Overlay.tsx"
-      ]
-    },
-    {
-      "id": 18,
-      "title": "Implement Real Approval Flow via PermissionRequest Hook",
-      "description": "Current approval system only displays approval requests but does NOT actually block tool execution. PreToolUse hook returns 200 OK immediately, allowing tools to execute without waiting for user approval. Need to implement proper approval flow using Claude Code's PermissionRequest hook.",
-      "steps": [
-        "Add PermissionRequest hook endpoint (/hooks/permission-request)",
-        "Parse permission_suggestions from hook payload",
-        "Store pending approval request with tool_use_id for correlation",
-        "Wait for user approval/rejection from frontend",
-        "Return JSON response with permissionDecision (allow/deny/ask)",
-        "Update ApprovalPanel to show actual permission request details",
-        "Handle approval timeout (default: 30s)",
-        "Test: trigger a Bash command that requires permission, verify approval panel blocks execution until user responds"
-      ],
-      "status": "completed",
+      "id": "REACT-002",
+      "title": "多处 catch(() => {}) 静默吞错误",
       "priority": "critical",
-      "dependencies": [
-        11,
-        17
-      ],
-      "files": [
-        "src-tauri/src/hook_server.rs",
-        "frontend/src/hooks/useAgentEvents.ts",
-        "frontend/src/components/ApprovalPanel.tsx",
-        "frontend/src/store/sessions.ts"
-      ]
+      "status": "pending",
+      "source": "cron-review-react 2026-06-14",
+      "file": "frontend/src/components/Overlay.tsx",
+      "line": "200, 203-209, 216, 439, 460, 476, 479-483",
+      "description": "违反 ErrorHandlingConvention.md 禁止 'catch 后吞掉错误不处理' 的规定。Overlay.tsx 有多处 catch(() => {}) 或 catch { /* non-blocking */ } 模式。虽然某些场景确实不需要打断用户（如通知请求失败、拖拽失败），但至少应使用 logger.warn() 记录而不是完全静默。影响文件还包括 logger.ts L56 和 useSessionPersistence.ts L102。",
+      "fix": "将所有 catch(() => {}) 替换为 catch((e) => logger.warn('TAURI_IPC_ERROR', context, { error: String(e) }))。对于 flash_taskbar、requestNotification 等非关键失败，使用 logger.warn 记录即可，不需要展示给用户。"
     },
     {
-      "id": 19,
-      "title": "Approval Response Correlation System",
-      "description": "Implement a system to correlate user approval responses with the original PermissionRequest hook calls. This requires storing pending requests and matching responses.",
-      "steps": [
-        "Create pending_approvals storage in hook_server.rs (Mutex<HashMap>)",
-        "Store tool_use_id, session_id, and timestamp for each pending request",
-        "Implement approval waiting mechanism (async channel or condition variable)",
-        "Match submit_approval_response to pending request by session_id",
-        "Clean up expired pending requests (timeout cleanup)",
-        "Add IPC command to get pending approvals status",
-        "Test: multiple concurrent approval requests, verify each response matches correct request"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        18
-      ],
-      "files": [
-        "src-tauri/src/hook_server.rs",
-        "src-tauri/src/commands.rs"
-      ]
-    },
-    {
-      "id": 20,
-      "title": "Update Hook Configuration Documentation",
-      "description": "Update hooks-setup.md to include PermissionRequest hook configuration. Users need to add this hook to their .claude/settings.json for approval flow to work.",
-      "steps": [
-        "Add PermissionRequest hook to example settings.json",
-        "Document the approval flow behavior",
-        "Explain how Vibe Island intercepts and processes permission requests",
-        "Add troubleshooting for approval not working",
-        "Test: fresh Claude Code setup with new hook config, verify approval works"
-      ],
-      "status": "completed",
+      "id": "REACT-003",
+      "title": "architecture.md IPC Commands 表缺少 12 个前端调用的命令",
       "priority": "medium",
-      "dependencies": [
-        18
-      ],
-      "files": [
-        "docs/hooks/hooks-setup.md",
-        "README.md"
-      ]
+      "status": "pending",
+      "source": "cron-review-react 2026-06-14",
+      "file": "architecture.md",
+      "line": "300-356",
+      "description": "architecture.md IPC Commands 表缺失以下由前端直接 invoke 的命令：play_notification_sound、flash_taskbar、open_control_center、start_manual_drag、move_overlay_drag、end_manual_drag、smart_snap_overlay、save_sessions、load_sessions、log_entry、get_app_config、update_app_config、reset_app_config。这些命令已实现在 src-tauri/src/ 中并被前端调用，但不在文档中。导致文档无法作为 API 参考使用。",
+      "fix": "在 architecture.md IPC Commands 表中补全所有缺失命令。可按功能分组：Audio（play_notification_sound）、Overlay Drag（start/end_manual_drag, move_overlay_drag, smart_snap_overlay）、Config（get/update/reset_app_config）、Persistence（save/load_sessions）、Logging（log_entry）、Notification（flash_taskbar）、Nav（open_control_center）。"
     },
     {
-      "id": 21,
-      "title": "调研 macOS 灵动岛动画实现方案",
-      "description": "调研 macOS 灵动岛(Dynamic Island)的动画效果实现方案，包括：动画类型、过渡效果、弹性动画参数、系统级动画API。为 Vibe Island 的动画设计提供参考。",
-      "steps": [
-        "研究 macOS Dynamic Island 的动画类型（展开/收缩/状态切换）",
-        "分析弹性动画参数（阻尼、刚度、质量）",
-        "研究 Core Animation API 的弹簧动画实现",
-        "记录关键动画时长和曲线参数",
-        "整理可借鉴的动画设计模式"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [],
-      "files": [
-        "docs/research-dynamic-island-animation.md"
-      ]
+      "id": "REACT-004",
+      "title": "architecture.md Tauri Events 表缺少 permission_resolved/test_reset 事件",
+      "priority": "medium",
+      "status": "pending",
+      "source": "cron-review-react 2026-06-14",
+      "file": "architecture.md",
+      "line": "361-374",
+      "description": "architecture.md 的 Tauri Events 表缺少前端实际监听的 permission_resolved（自动审批通过后的清理事件）和 test_reset（测试环境重置会话事件）。这两个事件已在 useAgentEvents.ts 中注册 listener，但不在文档中。需要注意 RUST-002 已覆盖 agent_event 缺失，本 task 只补充剩余缺失。",
+      "fix": "在 architecture.md Tauri Events 表中新增两行：(1) permission_resolved | hook_server.rs / pipe_server.rs | 自动审批通过后通知前端清理 (2) test_reset | emit_test_event 命令 | 测试用，清除所有会话和审批状态。"
     },
     {
-      "id": 22,
-      "title": "调研 Windows 窗口管理方案",
-      "description": "调研 Windows 平台的窗口管理方案，包括：Win32 窗口层级管理、多显示器支持、窗口状态同步、与其他应用的窗口交互、点击穿透与交互模式切换的最佳实践。",
-      "steps": [
-        "研究 Win32 窗口层级 API（SetWindowPos, Z-order）",
-        "分析多显示器场景下的窗口定位策略",
-        "研究窗口状态同步机制",
-        "分析点击穿透与交互模式切换的实现方式",
-        "整理 Windows 10/11 的窗口管理最佳实践"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [],
-      "files": [
-        "docs/research-windows-window-management.md"
-      ]
+      "id": "REACT-005",
+      "title": "architecture.md update_overlay_size 命令参数与实际不匹配",
+      "priority": "medium",
+      "status": "pending",
+      "source": "cron-review-react 2026-06-14",
+      "file": "architecture.md",
+      "line": "312",
+      "description": "architecture.md 描述 update_overlay_size 只接受 width/height/anchorCenter，但 AnimatedOverlay.tsx L122-129 实际调用时还传递了 webviewScaleFactor、borderRadius、snapPosition 三个附加参数。这些参数在 Overlay.tsx L312-320 审批聚焦尺寸同步中也用到。文档描述的接口签名落后于实现。",
+      "fix": "更新 architecture.md 中 update_overlay_size 命令的参数列表，增加 webviewScaleFactor（number，注入 window.devicePixelRatio）、borderRadius（number，窗口圆角）、snapPosition（string|null，吸附方向）。"
     },
     {
-      "id": 23,
-      "title": "制定 Vibe Island 实际落地技术方案",
-      "description": "基于调研结果，制定 Vibe Island 的实际落地技术方案，包括：动画系统架构、Win32 动画实现方式、性能优化策略、与现有 Tauri 架构的集成方式。",
-      "steps": [
-        "整合 macOS 动画调研结果",
-        "整合 Windows 窗口管理调研结果",
-        "设计动画系统架构（前后端分工）",
-        "确定 Win32 动画实现方式（定时器/动画API）",
-        "制定性能优化策略",
-        "设计 Tauri 集成方案",
-        "输出完整技术方案文档"
-      ],
-      "status": "completed",
+      "id": "REACT-006",
+      "title": "SessionContextMenu 视口裁剪注释与实际不符",
+      "priority": "suggestion",
+      "status": "pending",
+      "source": "cron-review-react 2026-06-14",
+      "file": "frontend/src/components/SessionContextMenu.tsx",
+      "line": "46-48",
+      "description": "SessionContextMenu.tsx L46-48 注释写 'Clamp position to viewport' 但下一行直接 `const menuStyle = { left: position.x, top: position.y };` 没有任何裁剪逻辑。如果右键位置靠近屏幕边缘，右键菜单可能溢出视口而不可见。",
+      "fix": "实现实际的视口裁剪：`const menuStyle = { left: Math.min(position.x, window.innerWidth - 180), top: Math.min(position.y, window.innerHeight - 200) };` 或使用更精确的 bounding rect 计算。"
+    },
+    {
+      "id": "REACT-007",
+      "title": "animation.ts 配置 getter 在动态更新时可能产生过期值",
+      "priority": "suggestion",
+      "status": "pending",
+      "source": "cron-review-react 2026-06-14",
+      "file": "frontend/src/config/animation.ts",
+      "line": "6-45",
+      "description": "SPRING_CONFIG 和 OVERLAY_DIMENSIONS 使用 getter 每次访问都调用 useConfigStore.getState()，但不会触发 React 重渲染。如果用户在运行时通过 SettingsPanel 修改 spring 参数或 overlay 尺寸，getter 返回新值但组件不会感知到变化（没有 useState/useStore selector 驱动 re-render）。Framer Motion 已经使用这些值创建动画，可能导致新旧参数混合的视觉不一致。",
+      "fix": "两种方案：(1) 将 SPRING_CONFIG/OVERLAY_DIMENSIONS 改为从组件内部 select config.ui.animation.spring / config.overlay.* 直接读取，这样 Zustand subscription 会自动触发重渲染；(2) 或者建立一个轻量的事件系统在 config 变化时通知关键组件。推荐方案 (1)，因为 Zustand 的 selector 模式本身就能解决这个问题。"
+    },
+    {
+      "id": "HOOK-010",
+      "title": "try_refresh_title 在 Stop 后回退 session 状态为 running",
       "priority": "critical",
-      "dependencies": [
-        21,
-        22
-      ],
-      "files": [
-        "docs/animation-design.md",
-        "docs/research-dynamic-island-animation.md",
-        "docs/research-windows-window-management.md"
-      ]
+      "status": "pending",
+      "source": "cron-review-hook-adapter 2026-06-15",
+      "file": "src-tauri/src/hook_server.rs",
+      "line": "L353-372, L755-764",
+      "description": "try_refresh_title() 硬编码 phase: SessionPhase::Running 并发射 state_change: 'running'。在 handle_stop 的延迟任务中被调用时（200ms 后，L755-764），会在 session 已经通过 handle_stop 设置为 'completed' 后，又将状态回退到 'running'。流程：handle_stop → state_change: completed & SessionCompleted → 200ms → try_refresh_title → ActivityUpdated(Running) & state_change: running。前端会看到已完成 session 短暂闪烁回运行状态。",
+      "fix": "在 try_refresh_title 签名中添加 opt_phase: Option<SessionPhase> 参数，Stop 路径传入 Some(SessionPhase::Completed)，其他路径传入 None 以使用默认 SessionPhase::Running。"
     },
     {
-      "id": 24,
-      "title": "添加 Framer Motion 动画依赖",
-      "description": "在 frontend 项目中添加 Framer Motion 依赖，配置动画参数常量文件。",
-      "steps": [
-        "npm install framer-motion",
-        "创建 frontend/src/config/animation.ts 配置文件",
-        "定义弹簧动画参数（stiffness, damping, mass）",
-        "定义缓动曲线常量",
-        "定义动画时长常量",
-        "验证依赖安装成功"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        23
-      ],
-      "files": [
-        "frontend/package.json",
-        "frontend/src/config/animation.ts"
-      ]
-    },
-    {
-      "id": 25,
-      "title": "实现 AnimatedOverlay 组件",
-      "description": "创建支持弹簧动画的 Overlay 组件，包含展开/收缩动画和 IPC 尺寸同步。",
-      "steps": [
-        "创建 frontend/src/components/AnimatedOverlay.tsx",
-        "实现展开/收缩动画 variants",
-        "添加 onUpdate 回调同步窗口尺寸",
-        "实现 useThrottledCallback hook（16ms 节流）",
-        "集成到现有 Overlay.tsx",
-        "测试动画流畅性"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        24
-      ],
-      "files": [
-        "frontend/src/components/AnimatedOverlay.tsx",
-        "frontend/src/components/Overlay.tsx",
-        "frontend/src/hooks/useThrottledCallback.ts"
-      ]
-    },
-    {
-      "id": 26,
-      "title": "实现后端 update_overlay_size 命令",
-      "description": "在 Rust 后端实现 update_overlay_size IPC 命令，包含节流检查和 Win32 SetWindowPos 调用。",
-      "steps": [
-        "在 commands.rs 添加 update_overlay_size 命令",
-        "实现节流检查（16ms 最小间隔）",
-        "调用 SetWindowPos 更新窗口尺寸",
-        "添加错误处理",
-        "注册命令到 Tauri builder",
-        "测试 IPC 调用正确性"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        23
-      ],
-      "files": [
-        "src-tauri/src/commands.rs",
-        "src-tauri/src/lib.rs"
-      ]
-    },
-    {
-      "id": 27,
-      "title": "实现点击穿透自动切换",
-      "description": "根据 Overlay 状态自动切换点击穿透模式：紧凑状态启用穿透，展开状态禁用穿透。",
-      "steps": [
-        "扩展 set_click_through 函数",
-        "添加 update_interactive_mode 命令",
-        "前端在状态变化时调用命令",
-        "处理审批请求时的强制交互模式",
-        "测试点击穿透切换正确性"
-      ],
-      "status": "completed",
+      "id": "HOOK-011",
+      "title": "时间戳精度不一致（秒 vs 毫秒）",
       "priority": "medium",
-      "dependencies": [
-        25,
-        26
-      ],
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/src/overlay.rs",
-        "src-tauri/src/commands.rs",
-        "frontend/src/components/Overlay.tsx"
-      ]
+      "status": "pending",
+      "source": "cron-review-hook-adapter 2026-06-15",
+      "file": "src-tauri/src/hook_server.rs, src-tauri/src/adapters/claude_adapter.rs",
+      "line": "hook_server.rs L1361-1366, claude_adapter.rs L14-19",
+      "description": "代码中存在两个时间戳函数，精度不同：chrono_timestamp()（hook_server.rs L1361）返回秒级时间戳（as_secs），now_ms()（claude_adapter.rs L14）返回毫秒级时间戳（as_millis）。HookErrorLog.timestamp 使用 chrono_timestamp()（秒），AgentEvent.*.timestamp 使用 now_ms()（毫秒）。try_refresh_title（L361）意外使用了 chrono_timestamp() 填充 ActivityUpdatedPayload.timestamp（其他事件用毫秒），导致该事件时间戳比其他同类型事件小约 1000 倍。",
+      "fix": "统一到毫秒精度。移除 chrono_timestamp()，所有时间戳改用 now_ms()（或提取公共函数到 utils/timestamp.rs）。"
     },
     {
-      "id": 28,
-      "title": "实现 StatusDot 状态动画",
-      "description": "为状态指示点添加动画效果：颜色过渡动画、思考状态的脉动动画。",
-      "steps": [
-        "更新 StatusDot.tsx 使用 Framer Motion",
-        "实现颜色过渡动画",
-        "实现思考状态的 scale 脉动动画",
-        "添加动画配置参数",
-        "测试各状态动画效果"
-      ],
-      "status": "completed",
+      "id": "HOOK-012",
+      "title": "PendingApproval 结构体 5/6 字段被 #[allow(dead_code)] 抑制",
       "priority": "medium",
-      "dependencies": [
-        24
-      ],
-      "files": [
-        "frontend/src/components/StatusDot.tsx"
-      ]
+      "status": "pending",
+      "source": "cron-review-hook-adapter 2026-06-15",
+      "file": "src-tauri/src/hook_server.rs",
+      "line": "L85-103",
+      "description": "PendingApproval 结构体有 6 个字段，其中 5 个标注了 #[allow(dead_code)]（tool_use_id、session_id、tool_name、tool_input、created_at）。实际只有 response_tx 被消费。tool_use_id 同时是 HashMap key 和 struct 字段，冗余的。其他字段从未被读取。",
+      "fix": "移除不必要字段（session_id、tool_name、tool_input、created_at），仅保留 response_tx。或移除所有 #[allow(dead_code)] 并改为实际使用这些字段。推荐方案 A。"
     },
     {
-      "id": 29,
-      "title": "实现 Windows 11 圆角窗口",
-      "description": "使用 DWM API 为 Overlay 窗口设置圆角，匹配灵动岛视觉效果。",
-      "steps": [
-        "在 overlay.rs 添加 set_rounded_corners 函数",
-        "使用 DWMWA_WINDOW_CORNER_PREFERENCE 属性",
-        "在窗口创建时调用圆角设置",
-        "处理 Windows 10 兼容性（不支持时静默失败）",
-        "测试圆角显示效果"
-      ],
-      "status": "completed",
-      "priority": "low",
-      "dependencies": [
-        26
-      ],
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/src/overlay.rs",
-        "src-tauri/Cargo.toml"
-      ]
+      "id": "HOOK-013",
+      "title": "hook_server.rs 绕过 HookAdapter 分发，直接使用 ClaudeCodeAdapter",
+      "priority": "suggestion",
+      "status": "pending",
+      "source": "cron-review-hook-adapter 2026-06-15",
+      "file": "src-tauri/src/hook_server.rs",
+      "line": "L15（以及贯穿全文）",
+      "description": "hook_server.rs 直接导入 ClaudeCodeAdapter 并将所有事件硬编码路由到它。HookAdapter 分发 enum（adapters/mod.rs）仅在 pipe_server.rs 中使用。detect_agent_from_payload()（L377-396）检测到的 agent 类型仅在 handle_session_start 中被使用，其他 handler 忽略检测结果。如果非 Claude agent 通过 HTTP 路径发送事件，会以错误 adapter 处理。",
+      "fix": "让 hook_server.rs 的所有 handler 通过 HookAdapter 分发路由，与 pipe_server.rs 保持一致。"
     },
     {
-      "id": 30,
-      "title": "动画性能优化",
-      "description": "优化动画性能，确保 60fps 流畅度和低 CPU 占用。",
-      "steps": [
-        "添加 CSS will-change 提示 GPU 加速",
-        "使用 transform 替代 width/height（如可行）",
-        "优化 IPC 调用频率",
-        "添加性能监控日志",
-        "测试动画帧率和 CPU 占用"
-      ],
-      "status": "completed",
+      "id": "REACT-008",
+      "title": "useAgentEvents.ts tool_complete conditionally drops executions without duration_ms",
       "priority": "medium",
-      "dependencies": [
-        25,
-        26,
-        27,
-        28
-      ],
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/Overlay.css",
-        "frontend/src/components/StatusDot.css"
-      ]
+      "status": "pending",
+      "source": "cron-review-react 2026-06-15",
+      "file": "frontend/src/hooks/useAgentEvents.ts",
+      "line": 323,
+      "description": "tool_complete 事件处理器中，执行记录添加到 toolHistory 的入口条件是 `if (tool_name && duration_ms)`。如果 duration_ms 缺失（interface 标记为 optional），执行不会被记录到 history 中，但 currentTool 仍然被清空。用户会看到工具突然消失而没有记录。这是一个静默的 tool execution 丢失，影响用户对代理活动历史的信任。",
+      "fix": "将条件改为仅 `if (tool_name)`，去除 duration_ms 依赖。如果 duration_ms 不存在，记录执行但不含 duration 字段。或者将 duration 默认设为 0。"
     },
     {
-      "id": 31,
-      "title": "动画系统测试和文档",
-      "description": "编写动画系统测试用例，更新项目文档。",
-      "steps": [
-        "编写前端动画组件测试",
-        "编写后端 IPC 命令测试",
-        "测试多显示器场景",
-        "测试高 DPI 场景",
-        "更新 CLAUDE.md 添加动画系统说明",
-        "更新 progress.txt 记录开发进度"
-      ],
-      "status": "completed",
+      "id": "REACT-009",
+      "title": "useSessionPersistence.ts restoreSessions 空 catch 吞掉所有错误",
       "priority": "medium",
-      "dependencies": [
-        30
-      ],
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "CLAUDE.md",
-        "progress.txt"
-      ]
+      "status": "pending",
+      "source": "cron-review-react 2026-06-15",
+      "file": "frontend/src/hooks/useSessionPersistence.ts",
+      "line": 82,
+      "description": "restoreSessions() 的 catch 块完全为空（`catch (e) {}`）。与 persistSessions() 不同（后者使用 logger.warn 记录错误），restoreSessions 中的 JSON 解析失败、IPC 失败、或任何异常都被静默吞掉。虽然 session 恢复是 best-effort 操作，但错误信息对调试仍有价值。违反 ErrorHandlingConvention.md 「catch 后吞掉错误不处理」的规定。",
+      "fix": "在 catch 块中添加 `logger.warn('SESSION_PARSE_ERROR', 'Failed to restore sessions', { error: String(e) });`，与 persistSessions 保持一致。"
     },
     {
-      "id": 32,
-      "title": "Hook Server 健康监控",
-      "description": "添加心跳检测机制，前端显示连接状态（已连接/断开/错误），自动重连逻辑，错误日志面板。",
-      "steps": [
-        "在 hook_server.rs 添加心跳检测机制",
-        "定义 HookConnectionState 枚举: connected, disconnected, error",
-        "前端添加 HookStatus 组件显示连接状态（绿/红/灰）",
-        "实现自动重连逻辑（指数退避）",
-        "添加错误日志存储和展示",
-        "添加 IPC 命令: get_hook_health, get_hook_errors, clear_hook_errors",
-        "测试: 模拟 Hook server 断开，验证前端状态更新"
-      ],
-      "status": "completed",
-      "priority": "critical",
-      "dependencies": [
-        11
-      ],
-      "files": [
-        "src-tauri/src/hook_server.rs",
-        "src-tauri/src/commands.rs",
-        "frontend/src/components/HookStatus.tsx",
-        "frontend/src/components/HookStatus.css",
-        "frontend/src/store/sessions.ts"
-      ]
+      "id": "REACT-010",
+      "title": "SessionRow.tsx stale 状态非响应式，行不会自动折叠",
+      "priority": "suggestion",
+      "status": "pending",
+      "source": "cron-review-react 2026-06-15",
+      "file": "frontend/src/components/SessionRow.tsx",
+      "line": "60-61",
+      "description": "stale 变量在每次渲染时重新计算，但仅作为 useState(!stale) 的初始化器（只在挂载时计算一次）。已完成会话在 5 分钟后应该被视为 stale 并折叠详细视图，但已经在展开状态的会话永远不会自动折叠——即使用户离开一段时间后回来。useState 不会随 stale 变化而更新。",
+      "fix": "使用 useMemo 或 useEffect 监听 stale 变化并自动折叠：`useEffect(() => { if (stale) setExpanded(false); }, [stale]);`。或完全移除 initial stale check，统一使用 useEffect 响应式处理。"
     },
     {
-      "id": 33,
-      "title": "Hook 事件增强",
-      "description": "新增 thinking、error、streaming 状态，添加工具执行耗时统计。",
-      "steps": [
-        "扩展 AgentState 枚举: thinking, streaming, error",
-        "解析 Claude Code hook 事件映射到新状态",
-        "添加工具执行开始时间记录",
-        "计算工具执行耗时并显示",
-        "前端状态切换添加动画过渡",
-        "更新 StatusDot 组件支持新状态颜色",
-        "测试: 验证各状态正确显示"
-      ],
-      "status": "completed",
-      "priority": "critical",
-      "dependencies": [
-        32
-      ],
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/src/hook_server.rs",
-        "frontend/src/store/sessions.ts",
-        "frontend/src/components/StatusDot.tsx",
-        "frontend/src/hooks/useAgentEvents.ts"
-      ]
+      "id": "REACT-011",
+      "title": "SessionList.tsx 是死代码（未在应用树中使用）",
+      "priority": "suggestion",
+      "status": "pending",
+      "source": "cron-review-react 2026-06-15",
+      "file": "frontend/src/components/SessionList.tsx",
+      "line": "1-116",
+      "description": "SessionList 组件完整实现了搜索、分组选择器和排序选择器，但在主应用树中未被使用。Overlay.tsx 直接渲染 GroupedRows 组件和内联控件，不引用 SessionList。SessionList 未被任何其他文件 import。属于可安全删除的 dead code，但包含有价值的引用逻辑（搜索、分组、排序）。",
+      "fix": "方案 A：如果确定不再使用，删除 SessionList.tsx、SessionList.css 及其测试引用。方案 B：将 Overlay.tsx 中的内联控制逻辑替换为使用 SessionList 组件，消除重复。"
     },
     {
-      "id": 34,
-      "title": "Session 详情面板",
-      "description": "点击 session 展开详情，显示完整 cwd 路径、创建时间、最近活动时间、工具执行历史。",
-      "steps": [
-        "创建 SessionDetail 组件",
-        "显示 session 基本信息（cwd, 创建时间, 最近活动）",
-        "添加工具执行历史列表（最近 10 条）",
-        "显示当前工具信息（名称、输入、耗时）",
-        "添加折叠/展开动画",
-        "集成到 Overlay 组件",
-        "测试: 点击 session 验证详情面板显示"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        33
-      ],
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/SessionDetail.tsx",
-        "frontend/src/components/SessionDetail.css",
-        "frontend/src/components/Overlay.tsx"
-      ]
+      "id": "REACT-012",
+      "title": "GroupedRows.tsx 重复定义 isStale 函数（与 phase-colors.ts 重复）",
+      "priority": "suggestion",
+      "status": "pending",
+      "source": "cron-review-react 2026-06-15",
+      "file": "frontend/src/components/GroupedRows.tsx",
+      "line": "19-22",
+      "description": "GroupedRows.tsx 内部定义了一个与 phase-colors.ts 导出的 isStale() 功能相同的函数，但实现有细微差异：phase-colors.ts 版本通过 getAttachmentState 检测 detached 状态，GroupedRows 版本只检测 completed + 超时。两个版本使用相同的 300 秒阈值。重复代码可能导致将来修复阈值时只更新一处。",
+      "fix": "从 phase-colors.ts 导入 isStale 替代本地定义：`import { isStale } from '../shared/phase-colors';`。如果 detached 检测语义不合需要，可以明确区分命名（如 isStaleInactive）。"
     },
     {
-      "id": 35,
-      "title": "Session 分组与搜索",
-      "description": "按项目（cwd）分组，按状态筛选，搜索框，排序选项。",
-      "steps": [
-        "实现按 cwd 分组逻辑",
-        "添加状态筛选下拉（running/idle/approval）",
-        "添加搜索框（按 label 搜索）",
-        "添加排序选项（最近活动/创建时间）",
-        "更新 SessionList 组件支持分组显示",
-        "添加分组折叠功能",
-        "测试: 多个项目 session 验证分组和筛选"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        34
-      ],
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/SessionList.tsx",
-        "frontend/src/components/SessionList.css",
-        "frontend/src/components/Overlay.tsx"
-      ]
-    },
-    {
-      "id": 36,
-      "title": "Session 持久化",
-      "description": "保存 session 历史到本地，重启后恢复 session 列表，清理过期 session。",
-      "steps": [
-        "定义 session 持久化格式",
-        "后端添加 save_sessions / load_sessions 命令",
-        "应用启动时加载历史 sessions",
-        "定期保存 sessions 到文件",
-        "实现过期清理逻辑（7 天无活动）",
-        "前端恢复 session 列表状态",
-        "测试: 重启应用验证 session 恢复"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        35
-      ],
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/src/session_store.rs",
-        "src-tauri/src/commands.rs",
-        "src-tauri/src/lib.rs",
-        "frontend/src/hooks/useSessionPersistence.ts",
-        "frontend/src/App.tsx"
-      ]
-    },
-    {
-      "id": 37,
-      "title": "工具执行详情",
-      "description": "显示工具输入参数（可折叠）、输出摘要、执行耗时、错误信息高亮。",
-      "steps": [
-        "扩展 ToolExecution 类型包含完整信息",
-        "创建 ToolExecutionDetail 组件",
-        "显示工具输入参数（JSON 格式化）",
-        "显示工具输出摘要（截断处理）",
-        "错误信息红色高亮显示",
-        "添加折叠/展开功能",
-        "测试: 验证工具详情正确显示"
-      ],
-      "status": "completed",
+      "id": "REACT-013",
+      "title": "architecture.md Session Data Model 字段名 `phase` 应为 `state`",
       "priority": "medium",
-      "dependencies": [
-        34
-      ],
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/ToolExecutionDetail.tsx",
-        "frontend/src/components/ToolExecutionDetail.css",
-        "frontend/src/components/SessionDetail.tsx"
-      ]
+      "status": "pending",
+      "source": "cron-review-react 2026-06-15",
+      "file": "architecture.md",
+      "line": "233-245",
+      "description": "architecture.md 的 Session 数据模型表描述字段名为 `phase`（如 `phase: idle/running/waitingForApproval/waitingForAnswer/completed`），但实际前端 Session 接口（sessions.ts L83-132）使用字段名 `state: UIPhase`。`phase` 是 reducer 中的概念名（SessionPhase 枚举），但在 Session 类型中的字段是 `state`。",
+      "fix": "将 architecture.md Session 表中的 `phase` 字段名更正为 `state`，或注明 `phase` 是别名/公有接口名称，内部字段为 `state`。"
     },
     {
-      "id": 38,
-      "title": "活动时间线",
-      "description": "记录所有工具调用，时间线视图展示，点击可查看详情，支持导出日志。",
-      "steps": [
-        "创建 ActivityTimeline 组件",
-        "按时间顺序显示工具调用",
-        "每个条目显示: 时间、工具名、状态、耗时",
-        "点击条目展开详情",
-        "添加导出日志按钮（JSON/Markdown）",
-        "添加时间范围筛选",
-        "测试: 多次工具调用验证时间线"
-      ],
-      "status": "completed",
+      "id": "REACT-014",
+      "title": "architecture.md ApprovalRequest Data Model 缺少 4 个字段",
       "priority": "medium",
-      "dependencies": [
-        37
-      ],
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/ActivityTimeline.tsx",
-        "frontend/src/components/ActivityTimeline.css",
-        "frontend/src/store/timeline.ts",
-        "frontend/src/components/Overlay.tsx"
-      ]
+      "status": "pending",
+      "source": "cron-review-react 2026-06-15",
+      "file": "architecture.md",
+      "line": "262-269",
+      "description": "architecture.md 的 ApprovalRequest 数据模型表只列出了 toolUseId/sessionId/sessionLabel/toolName/action/riskLevel/diff 7 个字段，但实际前端类型（sessions.ts L140-159）还包含 approvalType、timestamp、toolInput、questions、planContent 共 5 个额外字段。文档缺失近一半的字段定义。",
+      "fix": "在 architecture.md ApprovalRequest 表中补充 approvalType（permission/question/plan）、timestamp、toolInput、questions（Question[]）、planContent（string）字段。"
     },
     {
-      "id": 39,
-      "title": "DiffViewer 自适应高度 + 自动化测试",
-      "description": "移除 DiffViewer 硬编码 max-height:200px 截断和 maxLines=100 行数截断，改为内容自适应高度。增加 Vitest 单元测试和 Playwright E2E 覆盖。",
-      "steps": [
-        "去除 DiffViewer.css 的 max-height:200px 和 overflow-y:auto",
-        "将 maxLines 默认值从 100 提高到 10000（或移除此参数）",
-        "验证父容器 .approval-panel__body 已正确管理溢出滚动",
-        "编写 DiffViewer.test.tsx（空内容、小 diff、大 diff、文件名、新增/删除文件）",
-        "编写 tests/e2e/specs/diff-viewer.spec.ts（小 diff 无滚动、大 diff 可滚动、空 diff 不可见）",
-        "npm run build + cargo check 验证无编译错误",
-        "人工 Tauri 回归验证：curl 发送含大 diff 的 permission_request，确认自适应和无双重滚动条",
-        "更新 progress.txt 记录变更和测试结果"
-      ],
-      "status": "completed",
-      "priority": "medium",
-      "dependencies": [
-        14
-      ],
-      "requirement_ref": "docs/diffviewer-spec.md",
-      "design_ref": "docs/diffviewer-spec.md#3-自适应行为定义",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/DiffViewer.tsx",
-        "frontend/src/components/DiffViewer.css",
-        "frontend/src/__tests__/components/DiffViewer.test.tsx",
-        "tests/e2e/specs/diff-viewer.spec.ts"
-      ]
-    },
-    {
-      "id": 40,
-      "title": "Session Bar: Tool Context + Running Duration",
-      "description": "Sprint 1.1+1.2: Session list 已显示 tool name，补充运行时长（elapsed time，非相对时间）和 tool operation 简述。",
-      "steps": [
-        "SessionList renderSession: 将 formatTime(lastActivity) 替换为 elapsed duration（startTime → now）",
-        "SessionList renderSession: currentTool 旁显示简短描述（toolName + 关键参数摘要）",
-        "Compact overlay capsule: 在 active session bar 上叠加 tool 简述（单行截断）",
-        "npm run build 验证无编译错误"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [],
-      "requirement_ref": "docs/ux-optimization-prd.md#11-tool-context-on-session-bar",
-      "design_ref": "docs/ux-optimization-prd.md#11-tool-context-on-session-bar",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/SessionList.tsx",
-        "frontend/src/components/Overlay.tsx"
-      ]
-    },
-    {
-      "id": 41,
-      "title": "Tool Category: Color + Icon Mapping",
-      "description": "Sprint 1.3: 根据 toolName 映射 tool category（search/write/bash/test/approval），Session bar 用不同颜色/图标区分。",
-      "steps": [
-        "创建 shared/tool-category.ts: 定义 ToolCategory 类型 + toolName→category 映射",
-        "SessionList renderSession: 在 StatusDot 旁或 tool name 前添加 category icon（emoji）",
-        "StatusDot: 增加可选的 category prop，覆盖默认 state 颜色",
-        "npm run build 验证编译"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        40
-      ],
-      "requirement_ref": "docs/ux-optimization-prd.md#13-多-session-视觉区分",
-      "design_ref": "docs/ux-optimization-prd.md#13-多-session-视觉区分",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/shared/tool-category.ts",
-        "frontend/src/components/SessionList.tsx",
-        "frontend/src/components/StatusDot.tsx"
-      ]
-    },
-    {
-      "id": 42,
-      "title": "Approval Notification: Windows Toast + Taskbar Flash",
-      "description": "Sprint 2.1+2.2: Approval 到达且窗口非焦点时，发 Windows 系统通知 + 任务栏闪烁。",
-      "steps": [
-        "Tauri: 添加 tauri-plugin-notification 依赖到 Cargo.toml",
-        "Tauri: lib.rs 注册 notification plugin",
-        "Tauri: lib.rs 添加 request_user_attention 到 Window",
-        "前端: Overlay.tsx 监听 approval 事件，检测 document.hasFocus()",
-        "前端: 非焦点时 invoke Tauri notification（标题=session label，正文=tool+action）",
-        "前端: 有 pending approval 时 invoke request_user_attention（闪烁任务栏）",
-        "npm run build + cargo check 验证编译",
-        "SettingsPanel: 添加 notification 开关 toggle"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        40
-      ],
-      "requirement_ref": "docs/ux-optimization-prd.md#phase-2审批通知增强-优先级-p0",
-      "design_ref": "docs/ux-optimization-prd.md#21-windows-系统通知",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/Cargo.toml",
-        "src-tauri/src/lib.rs",
-        "src-tauri/tauri.conf.json",
-        "frontend/src/components/Overlay.tsx",
-        "frontend/src/components/SettingsPanel.tsx",
-        "frontend/src/store/config.ts"
-      ]
-    },
-    {
-      "id": 43,
-      "title": "AgentEvent 统一事件枚举",
-      "description": "Phase 1.1: 创建统一的 AgentEvent enum 替代分散的事件类型。所有 agent (Claude Code/Codex/OpenCode/Cursor) 通过 adapter 转换为统一事件。",
-      "steps": [
-        "创建 src-tauri/src/agent_event.rs，定义 AgentEvent enum 及所有 payload 结构体",
-        "定义 SessionStartedPayload, ActivityUpdatedPayload, PermissionRequestPayload, QuestionAskedPayload, SessionCompletedPayload, ToolUseStartedPayload, ToolUseCompletedPayload, JumpTargetPayload, ErrorOccurredPayload",
-        "实现 Serialize/Deserialize for AgentEvent（tagged enum JSON）",
-        "创建 src-tauri/src/adapters/ 目录 + claude_adapter.rs",
-        "实现 ClaudeCodeAdapter: Claude Code hook payload → AgentEvent 转换",
-        "更新 hook_server.rs 使用 adapter 替代内联映射",
-        "保留旧 events.rs 向后兼容（deprecate），新事件通过 agent_event 模块发射",
-        "更新 lib.rs 注册新模块",
-        "npm run build + cargo check 验证"
-      ],
-      "status": "completed",
-      "priority": "critical",
-      "dependencies": [],
-      "requirement_ref": "docs/open-island-alignment-prd.md#11-agentevent-统一事件枚举",
-      "design_ref": "docs/open-island-alignment-prd.md#11-agentevent-统一事件枚举",
-      "files": [
-        "src-tauri/src/agent_event.rs",
-        "src-tauri/src/adapters/claude_adapter.rs",
-        "src-tauri/src/hook_server.rs",
-        "src-tauri/src/events.rs",
-        "src-tauri/src/lib.rs"
-      ],
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true
-    },
-    {
-      "id": 44,
-      "title": "SessionState 纯 Reducer（后端）",
-      "description": "Phase 1.2: 创建 Rust 端 SessionState::apply() 纯 reducer，作为 session 状态变更的单一真相源。",
-      "steps": [
-        "创建 src-tauri/src/agent_session.rs，定义 AgentSession 结构体（对齐前端类型）",
-        "创建 src-tauri/src/session_state.rs，定义 SessionState + apply(event) 方法",
-        "实现所有 AgentEvent variant 的 apply 逻辑（create/update/complete/phases）",
-        "SessionState 内嵌 HashMap<SessionId, AgentSession> + 派生 computed 属性",
-        "从 SessionState emit Tauri events 通知前端更新",
-        "更新 hook_server.rs 使用 SessionState::apply()",
-        "npm run build + cargo check 验证"
-      ],
-      "status": "completed",
-      "priority": "critical",
-      "dependencies": [
-        43
-      ],
-      "requirement_ref": "docs/open-island-alignment-prd.md#12-sessionstate-纯-reducer",
-      "design_ref": "docs/open-island-alignment-prd.md#12-sessionstate-纯-reducer",
-      "files": [
-        "src-tauri/src/agent_session.rs",
-        "src-tauri/src/session_state.rs",
-        "src-tauri/src/hook_server.rs",
-        "src-tauri/src/lib.rs"
-      ],
-      "passes": true,
-      "implementation_done": true
-    },
-    {
-      "id": 45,
-      "title": "SessionState 前端镜像 Reducer",
-      "description": "Phase 1.2 (前端): 创建 TypeScript 端 sessionReducer 镜像 Rust 的 apply 逻辑，Zustand store 瘦身。",
-      "steps": [
-        "创建 frontend/src/shared/session-reducer.ts，定义 sessionReducer(state, event)",
-        "迁移 sessions.ts store 中的 session 创建/更新/完成逻辑到 reducer",
-        "Zustand store 简化为: sessionState + dispatch(event) → reducer → setState",
-        "保持现有组件 API 不变（SessionList, Overlay, ApprovalPanel 继续工作）",
-        "npm run build 验证编译"
-      ],
-      "status": "completed",
-      "priority": "critical",
-      "dependencies": [
-        44
-      ],
-      "requirement_ref": "docs/open-island-alignment-prd.md#12-sessionstate-纯-reducer",
-      "design_ref": "docs/open-island-alignment-prd.md#12-sessionstate-纯-reducer",
-      "files": [
-        "frontend/src/shared/session-reducer.ts",
-        "frontend/src/store/sessions.ts",
-        "frontend/src/hooks/useAgentEvents.ts"
-      ],
-      "passes": true,
-      "implementation_done": true
-    },
-    {
-      "id": 46,
-      "title": "Fail-Open 硬保证 + 超时保护",
-      "description": "Phase 1.3: 确保 hook handler 超时返回 allow 而非挂起，pipe 断开不影响 agent。",
-      "steps": [
-        "hook_server.rs: 所有 PermissionRequest handler 加 5 秒全局超时（tokio::time::timeout）",
-        "超时后返回 {\"permissionDecision\": \"allow\"} + log warning",
-        "pipe_server.rs: accept 失败时静默重试而非 panic",
-        "添加 --dry-run 检测：hook CLI 无法连接时静默退出（exit 0）",
-        "添加 integration test: 模拟超时场景验证 fail-open 行为",
-        "cargo check 验证"
-      ],
-      "status": "completed",
-      "priority": "critical",
-      "dependencies": [],
-      "requirement_ref": "docs/open-island-alignment-prd.md#13-fail-open-硬保证",
-      "design_ref": "docs/open-island-alignment-prd.md#13-fail-open-硬保证",
-      "files": [
-        "src-tauri/src/hook_server.rs",
-        "src-tauri/src/pipe_server.rs"
-      ],
-      "passes": true,
-      "implementation_done": true
-    },
-    {
-      "id": 47,
-      "title": "Hook Manifest 清单机制",
-      "description": "Phase 2.1: 引入 HookManifest 跟踪安装记录，支持安全卸载、状态查询、去重安装。",
-      "steps": [
-        "创建 src-tauri/src/hook_manifest.rs: HookManifest 结构体（安装命令, 时间, hook 列表, 版本）",
-        "实现 manifest 读写（~/.claude/vibe-island-manifest.json）",
-        "重构 hook_config.rs: install 前检查 manifest 去重",
-        "重构 hook_config.rs: uninstall 仅删除 manifest 中记录的 hooks",
-        "备份策略: 每次变更前备份 settings.json（时间戳标 suffix），保留最近 3 个备份",
-        "添加 check_hook_config() 返回 manifest 信息（不是仅扫描 URL）",
-        "SettingsPanel 新增 Hook Status 区域：显示 installed/missing/managed_by_vibe",
-        "npm run build + cargo check 验证"
-      ],
-      "status": "completed",
-      "priority": "critical",
-      "dependencies": [],
-      "requirement_ref": "docs/open-island-alignment-prd.md#21-manifest-清单机制",
-      "design_ref": "docs/open-island-alignment-prd.md#21-manifest-清单机制",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/src/hook_manifest.rs",
-        "src-tauri/src/hook_config.rs",
-        "src-tauri/src/lib.rs",
-        "frontend/src/components/SettingsPanel.tsx",
-        "frontend/src/components/SettingsPanel.css",
-        "frontend/src/shared/error-dictionary.ts"
-      ]
-    },
-    {
-      "id": 48,
-      "title": "Transcript 扫描与 Session 恢复",
-      "description": "Phase 3.1: 扫描 Claude Code JSONL transcript 文件恢复历史 session。",
-      "steps": [
-        "创建 src-tauri/src/transcript_discovery.rs",
-        "扫描 ~/.claude/projects/ 下 *.jsonl 文件（最近 24h，最多 40 文件）",
-        "流式解析 JSONL（BufReader 逐行读，不一次性加载到内存）",
-        "提取: session_id, cwd, 最后用户 prompt, 模型名, timestamp",
-        "构建 AgentSession 列表 → merge 到 session_store 缓存",
-        "启动时自动运行，合并已有 registry 数据",
-        "cargo check + npm run build 验证"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        44
-      ],
-      "requirement_ref": "docs/open-island-alignment-prd.md#31-transcript-扫描",
-      "design_ref": "docs/open-island-alignment-prd.md#31-transcript-扫描",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/src/transcript_discovery.rs",
-        "src-tauri/src/session_state.rs",
-        "src-tauri/src/commands.rs",
-        "src-tauri/src/lib.rs"
-      ]
-    },
-    {
-      "id": 49,
-      "title": "终端跳回增强：多终端精确聚焦",
-      "description": "Phase 4.1: 扩展 window_focus.rs 支持 Windows Terminal/VS Code/Cursor 的精确跳回。",
-      "steps": [
-        "扩展 AgentSession 添加 JumpTarget 字段（terminal_type, workspace_path, tab_info）",
-        "hook_server.rs: 从 hook payload 提取终端环境信息（窗口标题, cwd）",
-        "window_focus.rs: 添加 per-terminal 策略注册表",
-        "实现 Windows Terminal 策略: wt -w 0 focus-tab",
-        "实现 VS Code 策略: code -r <workspace>",
-        "实现 Cursor 策略: cursor -r <workspace>",
-        "保留现有 PID→SetForegroundWindow 作为 fallback",
-        "前端: session 点击时传递 jumpTarget 而非仅 PID",
-        "npm run build + cargo check 验证"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        44
-      ],
-      "requirement_ref": "docs/open-island-alignment-prd.md#41-windows-终端精确跳回",
-      "design_ref": "docs/open-island-alignment-prd.md#41-windows-终端精确跳回",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/src/window_focus.rs",
-        "src-tauri/src/hook_server.rs",
-        "src-tauri/src/commands.rs",
-        "src-tauri/src/agent_session.rs",
-        "frontend/src/store/sessions.ts",
-        "frontend/src/components/Overlay.tsx",
-        "frontend/src/shared/session-reducer.ts"
-      ]
-    },
-    {
-      "id": 50,
-      "title": "Claude Code Usage Dashboard",
-      "description": "Phase 5.1: Settings 面板新增 Usage 标签，显示 Claude Code 的 5h/7d 用量。",
-      "steps": [
-        "src-tauri: 读取 Claude Code 用量缓存文件（已知路径: 通过环境/配置文件定位）",
-        "解析 5 小时 / 7 天使用百分比 + 重置时间",
-        "添加 IPC 命令: get_claude_usage",
-        "SettingsPanel: 新增 Usage 标签页，显示两个进度条（5h / 7d）",
-        "npm run build + cargo check 验证"
-      ],
-      "status": "completed",
-      "priority": "low",
-      "dependencies": [],
-      "requirement_ref": "docs/open-island-alignment-prd.md#51-claude-code-用量面板",
-      "design_ref": "docs/open-island-alignment-prd.md#51-claude-code-用量面板",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/src/claude_usage.rs",
-        "src-tauri/src/commands.rs",
-        "src-tauri/src/lib.rs",
-        "frontend/src/components/SettingsPanel.tsx",
-        "frontend/src/components/SettingsPanel.css"
-      ]
-    },
-    {
-      "id": 51,
-      "title": "Phase Model Migration: 7 states → 4 phases + idle",
-      "description": "Migrate from current 7-state model (idle/thinking/running/streaming/approval/error/done) to reference's 4-phase model (running/waitingForApproval/waitingForAnswer/completed) + UI-only idle. Maps: thinking→running, streaming→running, approval→waitingForApproval|waitingForAnswer, error→completed(with error), done→completed.",
-      "steps": [
-        "Update frontend/src/shared/session-reducer.ts: replace PHASE_TO_STATE with AgentPhase type ('running'|'waitingForApproval'|'waitingForAnswer'|'completed'), add UIPhase = AgentPhase|'idle'",
-        "Update frontend/src/store/sessions.ts: Session.state from 7-string union to AgentPhase",
-        "Update src-tauri/src/agent_session.rs: SessionPhase enum to 4 cases",
-        "Update hook_server.rs event-to-phase mapping for new model",
-        "Update useAgentEvents.ts: permissionRequested→waitingForApproval, questionAsked→waitingForAnswer",
-        "Verify all existing components still work with phase names",
-        "npm run build + cargo check"
-      ],
-      "status": "completed",
-      "priority": "critical",
-      "dependencies": [],
-      "requirement_ref": "docs/v8-migration-plan.md#A1",
-      "design_ref": "docs/v8-migration-plan.md#A1",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/shared/session-reducer.ts",
-        "frontend/src/store/sessions.ts",
-        "frontend/src/shared/state-machine.ts",
-        "src-tauri/src/agent_event.rs",
-        "src-tauri/src/agent_session.rs",
-        "src-tauri/src/session_state.rs",
-        "src-tauri/src/adapters/claude_adapter.rs",
-        "src-tauri/src/hook_server.rs",
-        "src-tauri/src/pipe_server.rs",
-        "src-tauri/src/session_store.rs",
-        "frontend/src/hooks/useAgentEvents.ts",
-        "frontend/src/components/StatusDot.tsx",
-        "frontend/src/components/Overlay.tsx",
-        "frontend/src/components/SessionList.tsx",
-        "frontend/src/store/config.ts",
-        "frontend/src/hooks/useSessionPersistence.ts",
-        "frontend/src/test-bridge.ts"
-      ]
-    },
-    {
-      "id": 52,
-      "title": "Agent Brand System: 10 agents with brand colors",
-      "description": "Define agent taxonomy with brand color hex, CLI names, and short codes. Add agent field to Session type. Create hexA() tint helper.",
-      "steps": [
-        "Create frontend/src/shared/agents.ts: AGENTS map (claude/codex/cursor/gemini/kimi/opencode/qoder/qwen/factory/codebuddy) with color, cli, name, short",
-        "Add hexA(hex, alpha) helper for tinted backgrounds",
-        "Add AgentType to Session type in sessions.ts",
-        "Update hook_server.rs to extract agent type from process name or config path",
-        "Add CSS .agent-dot.{type} rules for each agent color",
-        "npm run build"
-      ],
-      "status": "completed",
-      "priority": "critical",
-      "dependencies": [
-        51
-      ],
-      "requirement_ref": "docs/v8-migration-plan.md#A2",
-      "design_ref": "docs/v8-migration-plan.md#A2",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/shared/agents.ts",
-        "frontend/src/store/sessions.ts",
-        "frontend/src/shared/session-reducer.ts",
-        "frontend/src/components/AgentDot.css",
-        "src-tauri/src/agent_event.rs",
-        "src-tauri/src/adapters/claude_adapter.rs",
-        "src-tauri/src/hook_server.rs",
-        "src-tauri/src/process_watcher.rs"
-      ]
-    },
-    {
-      "id": 53,
-      "title": "Phase Color System: semantic phase colors",
-      "description": "Define 5 semantic phase colors (approval #f4a4a4, answer #ffd58a, running #6ea7ff, completed #6fb982, idle #9a958a) distinct from agent brand colors.",
-      "steps": [
-        "Create frontend/src/shared/phase-colors.ts: PHASE_COLOR map + phaseColor() helper",
-        "Add phasePriority mapping and isAttentionPhase() helper",
-        "Add fmtAge() relative time helper",
-        "Update session-reducer.ts to use phaseColor for state rendering",
-        "npm run build"
-      ],
-      "status": "completed",
-      "priority": "critical",
-      "dependencies": [
-        51
-      ],
-      "requirement_ref": "docs/v8-migration-plan.md#A3",
-      "design_ref": "docs/v8-migration-plan.md#A3",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/shared/phase-colors.ts"
-      ]
-    },
-    {
-      "id": 54,
-      "title": "UnifiedBars Glyph: replace StatusDot with animated 3-bar glyph",
-      "description": "Replace StatusDot component with BarsGlyph — 3-bar animated SVG glyph. 4 visual modes: idle (middle breathing), running (wave 0.9s), waiting (outer cross-pulse), done (stroke-draw tick). Accepts both raw glyph modes and phase names.",
-      "steps": [
-        "Create frontend/src/components/BarsGlyph.tsx: SVG component with 3 rect bars",
-        "Implement idle animation: middle bar breathing (CSS keyframes, scale 0.7↔1.0, 3s)",
-        "Implement running animation: 3-bar wave (SMIL animate, 0.9s, staggered 0.2s)",
-        "Implement waiting animation: outer bars cross-pulse (CSS keyframes, 1.2s)",
-        "Implement done animation: stroke-draw tick (SVG stroke-dasharray, 0.4s, fill=freeze)",
-        "Create BarsGlyph.css with all animation definitions",
-        "Add phaseGlyph() helper to map phase names to glyph modes",
-        "npm run build"
-      ],
-      "status": "completed",
-      "priority": "critical",
-      "dependencies": [
-        53
-      ],
-      "requirement_ref": "docs/v8-migration-plan.md#B1",
-      "design_ref": "docs/v8-migration-plan.md#B1",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/BarsGlyph.tsx",
-        "frontend/src/components/BarsGlyph.css"
-      ]
-    },
-    {
-      "id": 55,
-      "title": "Pill Shell & Notch Row: pill container with 3 modes",
-      "description": "Implement the pill container that transforms between notch (compact 32px), panel (expanded session list), and notif (notification card) modes. Flat-top, semicircle-bottom shape.",
-      "steps": [
-        "Create frontend/src/components/Pill.tsx: shell with mode prop (notch/panel/notif)",
-        "Create frontend/src/components/NotchRow.tsx: compact row with BarsGlyph + agent dot + label + right slot",
-        "Implement pill CSS: flat-top border-radius 0, bottom semicircle 20px, ink background",
-        "Framer Motion spring transition between modes (height, width)",
-        "Integrate Pill into AnimatedOverlay.tsx replacing current shell",
-        "npm run build"
-      ],
-      "status": "completed",
-      "priority": "critical",
-      "dependencies": [
-        54
-      ],
-      "requirement_ref": "docs/v8-migration-plan.md#B2",
-      "design_ref": "docs/v8-migration-plan.md#B2",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/Pill.tsx",
-        "frontend/src/components/Pill.css",
-        "frontend/src/components/NotchRow.tsx",
-        "frontend/src/components/AnimatedOverlay.tsx"
-      ]
-    },
-    {
-      "id": 56,
-      "title": "State Indicator Variants: dot/bar/glyph/tint",
-      "description": "Implement 4 visual styles for session row state indicators. dot=colored circle, bar=left-edge strip, glyph=mini BarsGlyph, tint=phase color on project text. Configurable via settings.",
-      "steps": [
-        "Create frontend/src/components/StateIndicator.tsx with kind+phase props",
-        "Implement dot mode: colored circle with phaseColor()",
-        "Implement bar mode: ::before pseudo-element on wrapper with --phase-color CSS var",
-        "Implement glyph mode: miniaturized BarsGlyph 16x16, idle→static dim dot",
-        "Implement tint mode: phaseColor on project name text, no leading indicator",
-        "Add CSS for all variants (.ind-dot/.ind-bar/.ind-glyph/.ind-tint)",
-        "Add stateIndicator setting to config store",
-        "npm run build"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        54
-      ],
-      "requirement_ref": "docs/v8-migration-plan.md#B3",
-      "design_ref": "docs/v8-migration-plan.md#B3",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/StateIndicator.tsx",
-        "frontend/src/components/StateIndicator.css",
-        "frontend/src/store/config.ts"
-      ]
-    },
-    {
-      "id": 57,
-      "title": "Session Row Redesign: spatial split + expanded detail",
-      "description": "Redesign session row with jump-first click semantics. Row body = jump to terminal (primary), trailing chevron = expand inline detail (secondary). Shows project, branch, msg, agent chip, terminal badge, age. Expanded detail shows NotifBody or running info.",
-      "steps": [
-        "Create frontend/src/components/SessionRow.tsx: redesigned row component",
-        "Implement spatial split: row body onClick → onJump, chevron onClick → toggle expanded",
-        "Implement row layout: StateIndicator + project·branch·msg + agent chip + terminal + age + chevron",
-        "Implement expanded detail block with NotifBody or running info",
-        "Add staleness logic: isStale(s) for completed >5min, auto-collapse",
-        "Create SessionRow.css with all row styles",
-        "npm run build"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        52,
-        53,
-        56
-      ],
-      "requirement_ref": "docs/v8-migration-plan.md#C1",
-      "design_ref": "docs/v8-migration-plan.md#C1",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/SessionRow.tsx",
-        "frontend/src/components/SessionRow.css"
-      ]
-    },
-    {
-      "id": 58,
-      "title": "Grouped Session List: groupBy + sort orthogonal knobs",
-      "description": "Implement groupBy (none/state/agent/project) and sort (attention/updated) orthogonal knobs. Replace current filter/sort UI. State groups ordered by priority, agent groups by AGENTS key order, project groups alphabetical.",
-      "steps": [
-        "Create frontend/src/components/GroupedRows.tsx: generic grouper with groupBy+sort props",
-        "Implement 'none' mode: flat sorted list",
-        "Implement 'state' mode: STATE_GROUP_DEFS priority groups, idle collapses by default",
-        "Implement 'agent' mode: groups by agent type, brand-colored headers",
-        "Implement 'project' mode: groups by cwd, alphabetical",
-        "Implement attention sort: phase priority → stale sinks → tiebreaker",
-        "Implement updated sort: pure last-activity recency",
-        "Replace SessionList.tsx internals with GroupedRows",
-        "npm run build"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        52,
-        57
-      ],
-      "requirement_ref": "docs/v8-migration-plan.md#C2",
-      "design_ref": "docs/v8-migration-plan.md#C2",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/GroupedRows.tsx",
-        "frontend/src/components/SessionList.tsx"
-      ]
-    },
-    {
-      "id": 59,
-      "title": "Panel Head & Footer: chips + session summary",
-      "description": "Add PanelHead with session count + waiting/running chips + gear icon. Add PanelFooter with session count summary + keyboard shortcut hint. Panel list constrained to max-height 380px with thin scrollbar.",
-      "steps": [
-        "Create frontend/src/components/PanelHead.tsx: session count + waiting/running chips + gear icon",
-        "Add PanelFooter to pill bottom: count summary + shortcut hint",
-        "Apply max-height 380px to session list area with 6px thin scrollbar",
-        "Integrate into Pill panel mode replacing current Overlay header/footer",
-        "npm run build"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        55,
-        58
-      ],
-      "requirement_ref": "docs/v8-migration-plan.md#C3",
-      "design_ref": "docs/v8-migration-plan.md#C3",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/PanelHead.tsx",
-        "frontend/src/components/Overlay.tsx"
-      ]
-    },
-    {
-      "id": 60,
-      "title": "Notification Cards: 4 kinds (two/three/jump/done)",
-      "description": "Implement 4 notification card kinds: two-way permission (2 buttons), three-way permission (3+ buttons), jump/answer (pick list + freeform), done (reply + jump). Works as standalone notif or embedded in expanded row.",
-      "steps": [
-        "Create frontend/src/components/NotifBody.tsx: unified notif body with kind prop",
-        "Implement 'two' kind: code block + 2 action buttons + keyboard hint",
-        "Implement 'three' kind: code block + 3+ action buttons + 1/2/3 keyboard",
-        "Implement 'jump' kind: options pick list + freeform input + send/dismiss",
-        "Implement 'done' kind: reply text + quick reply input + jump back button",
-        "Add notifKind field to Session type",
-        "Map permissionRequested → 'two'|'three', questionAsked → 'jump', completed → 'done'",
-        "Create NotifBody.css with notification card styles",
-        "npm run build"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [
-        57
-      ],
-      "requirement_ref": "docs/v8-migration-plan.md#D1",
-      "design_ref": "docs/v8-migration-plan.md#D1",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/NotifBody.tsx",
-        "frontend/src/components/NotifBody.css",
-        "frontend/src/store/sessions.ts",
-        "frontend/src/shared/session-reducer.ts"
-      ]
-    },
-    {
-      "id": 61,
-      "title": "Spring Physics Alignment: match v8 timing",
-      "description": "Align Framer Motion spring parameters with v8's CSS transition feel. Expand ~300ms, collapse ~250ms, state changes 120-200ms. Keep Framer Motion for window resize, use CSS transitions for row-level.",
-      "steps": [
-        "Update frontend/src/config/animation.ts: soften springs (stiffness 200/280)",
-        "Add CSS transition constants: 120ms ease (hover), 160ms ease (chevron), 300ms ease (expand)",
-        "Remove per-row Framer Motion, use CSS transitions instead",
-        "Verify AnimatedOverlay spring still syncs window size correctly",
-        "npm run build"
-      ],
-      "status": "completed",
-      "priority": "medium",
-      "dependencies": [
-        55
-      ],
-      "requirement_ref": "docs/v8-migration-plan.md#E1",
-      "design_ref": "docs/v8-migration-plan.md#E1",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/config/animation.ts",
-        "frontend/src/components/AnimatedOverlay.tsx"
-      ]
-    },
-    {
-      "id": 62,
-      "title": "Color Palette & Typography: v8 design system",
-      "description": "Apply v8 color palette (ink #0d0d0f, paper #f1ead9) and typography (Inter + JetBrains Mono). Replace current CSS variables.",
-      "steps": [
-        "Update CSS custom properties: --ink, --paper, --ink-soft, --ink-mute, --line, --bg-soft",
-        "Apply ink background to pill/overlay surface",
-        "Apply paper color to all text and icons",
-        "Set Inter as primary font, JetBrains Mono for mono labels",
-        "Update section header styles: uppercase, 10.5px, letter-spacing 0.12em",
-        "Update border colors to rgba(255,255,255,0.06-0.12)",
-        "npm run build"
-      ],
-      "status": "completed",
-      "priority": "medium",
-      "dependencies": [
-        55
-      ],
-      "requirement_ref": "docs/v8-migration-plan.md#E2",
-      "design_ref": "docs/v8-migration-plan.md#E2",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/Overlay.css",
-        "frontend/src/App.css",
-        "frontend/src/components/Pill.css"
-      ]
-    },
-    {
-      "id": 63,
-      "title": "Jump Toast: visual feedback for terminal jump",
-      "description": "Add toast notification that appears for 1.5s when user clicks a session row to jump to terminal. Shows terminal name, fade in/out animation.",
-      "steps": [
-        "Add toast state to Overlay/Pill component",
-        "Create toast element: position absolute top-right, ink background, paper text",
-        "Implement oi-toast-fade animation: 0→10% fade in, 10→80% hold, 80→100% fade out",
-        "Show toast on row jump click with terminal name",
-        "pointer-events: none so toast doesn't block interaction",
-        "npm run build"
-      ],
-      "status": "completed",
-      "priority": "low",
-      "dependencies": [
-        57
-      ],
-      "requirement_ref": "docs/v8-migration-plan.md#F1",
-      "design_ref": "docs/v8-migration-plan.md#F1",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/Pill.tsx",
-        "frontend/src/components/Pill.css"
-      ]
-    },
-    {
-      "id": 64,
-      "title": "Density Mode: comfortable/compact toggle",
-      "description": "Add compact density mode for power users. Comfortable: full row (~48px) with all fields. Compact: reduced row (~32px), no branch/You line, smaller fonts.",
-      "steps": [
-        "Add density setting to config store ('comfortable'|'compact')",
-        "SessionRow: accept density prop, conditionally hide branch/You/fields in compact",
-        "Compact: smaller fonts (10px agent chip, 10.5px labels), tighter padding, 20x20 chevron",
-        "Add density toggle to Control Center settings",
-        "npm run build"
-      ],
-      "status": "completed",
-      "priority": "low",
-      "dependencies": [
-        57
-      ],
-      "requirement_ref": "docs/v8-migration-plan.md#F2",
-      "design_ref": "docs/v8-migration-plan.md#F2",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/SessionRow.tsx",
-        "frontend/src/store/config.ts"
-      ]
-    },
-    {
-      "id": 65,
-      "title": "Detached Session Handling: visual differentiation",
-      "description": "Add visual cues for sessions whose process has exited. attached=full opacity, stale(completed>5min)=0.7, detached(process gone)=0.55.",
-      "steps": [
-        "Add attachmentState field to Session type ('attached'|'stale'|'detached')",
-        "Detect process exit via process_watcher → mark session detached",
-        "Add isStale() derivation: completed && updatedAt > 300s",
-        "CSS: .detached opacity 0.55, .stale opacity 0.7",
-        "Bar indicator wrapper ::before also dims for detached/stale",
-        "npm run build"
-      ],
-      "status": "completed",
-      "priority": "low",
-      "dependencies": [
-        57
-      ],
-      "requirement_ref": "docs/v8-migration-plan.md#F3",
-      "design_ref": "docs/v8-migration-plan.md#F3",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/store/sessions.ts",
-        "frontend/src/components/SessionRow.tsx",
-        "src-tauri/src/process_watcher.rs"
-      ]
-    },
-    {
-      "id": 66,
-      "title": "Control Center Window: dedicated settings window",
-      "description": "Move settings from in-overlay panel to a dedicated Control Center window (560px) with tabs: Hooks, Usage, Terminals, Settings, Shortcuts. Overlay keeps only gear icon to open it.",
-      "steps": [
-        "Add Control Center window config to tauri.conf.json",
-        "Create frontend/src/components/ControlCenter.tsx: window shell with tabs",
-        "Implement Hooks tab: per-agent hook install status",
-        "Implement Usage tab: Claude Code 5h/7d usage bars",
-        "Implement Terminals tab: grid of supported terminals",
-        "Implement Settings tab: density, state indicator, notifications, language",
-        "Implement Shortcuts tab: keyboard shortcut reference",
-        "Migrate SettingsPanel.tsx content to Control Center tabs",
-        "Replace Overlay settings button with gear icon → open Control Center",
-        "npm run build + cargo check"
-      ],
-      "status": "completed",
-      "priority": "low",
-      "dependencies": [
-        59,
-        60
-      ],
-      "requirement_ref": "docs/v8-migration-plan.md#G1",
-      "design_ref": "docs/v8-migration-plan.md#G1",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/ControlCenter.tsx",
-        "frontend/src/components/ControlCenter.css",
-        "frontend/src/components/Overlay.tsx",
-        "src-tauri/tauri.conf.json",
-        "src-tauri/src/lib.rs"
-      ]
-    },
-    {
-      "id": 67,
-      "title": "Session 标题策略：三段式标题读取与显示",
-      "description": "实现 Session 标题的多阶段读取策略：UserPromptSubmit 用 prompt 做临时标题，PostToolUse/Stop 扫描 transcript JSONL 提取 custom-title/ai-title 作为最终标题。SessionRow 主标题改为 lastPrompt，按 groupBy 决定是否显示项目名（避免与项目分组组头重复）。NotchRow 胶囊标题同步更新。",
-      "steps": [
-        "后端 agent_event.rs：ActivityUpdatedPayload 加 prompt + title 字段",
-        "后端 claude_adapter.rs：UserPromptSubmit 设置 prompt 字段",
-        "前端 session-reducer.ts：applyActivityUpdated 存 lastPrompt 和 title",
-        "前端 SessionRow.tsx：主标题改为 lastPrompt/lastTitle，按 groupBy 条件显示项目名",
-        "前端 GroupedRows.tsx：透传 groupBy 给 SessionRow",
-        "前端 Overlay.tsx：NotchRow 标题优先 title > lastPrompt > label",
-        "后端 hook_server.rs：PostToolUse 节流扫描 transcript 提取标题",
-        "后端 hook_server.rs：Stop 延迟 200ms 扫描 transcript 提取最终标题",
-        "npm run build + cargo check"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [],
-      "files": [
-        "src-tauri/src/agent_event.rs",
-        "src-tauri/src/adapters/claude_adapter.rs",
-        "src-tauri/src/hook_server.rs",
-        "src-tauri/src/transcript_discovery.rs",
-        "frontend/src/shared/session-reducer.ts",
-        "frontend/src/components/SessionRow.tsx",
-        "frontend/src/components/GroupedRows.tsx",
-        "frontend/src/components/Overlay.tsx"
-      ]
-    },
-    {
-      "id": 68,
-      "title": "声明式命令注册表 — 重构 command_analyzer.rs",
-      "description": "将手写的 8 个 explain_xxx_arg() 函数替换为 TOML 声明式命令规格系统。通用解释器从 TOML 配置读取命令参数定义，全局风险模式表提供跨命令风险检测。",
-      "steps": [
-        "创建 docs/command-registry-design.md 设计文档",
-        "添加 toml + regex 依赖到 Cargo.toml",
-        "定义 CommandSpec 数据结构（CommandSpecFile/CommandDef/SubcommandDef/OptionDef/RiskPatternDef）",
-        "创建 9 个 TOML 规格文件（rm/git/package/download/chmod/chown/find/mv/cp）",
-        "创建全局风险模式文件 _risk_patterns.toml",
-        "实现 CommandRegistry + OnceLock 单例 + include_str! 编译时嵌入",
-        "实现通用解释器 explain_arg_from_spec() 替代 8 个手写函数",
-        "实现数据驱动的风险检测（spec risk_patterns + global patterns）",
-        "保留复合风险检测器（rm -rf、git reset --hard 等跨参数组合）",
-        "现有 26 个测试全部通过 + 3 个新测试",
-        "更新 architecture.md 目录结构"
-      ],
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [],
-      "requirement_ref": "docs/command-registry-design.md",
-      "design_ref": "docs/command-registry-design.md",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/src/command_analyzer.rs",
-        "src-tauri/src/command_specs/rm.toml",
-        "src-tauri/src/command_specs/git.toml",
-        "src-tauri/src/command_specs/package.toml",
-        "src-tauri/src/command_specs/download.toml",
-        "src-tauri/src/command_specs/chmod.toml",
-        "src-tauri/src/command_specs/chown.toml",
-        "src-tauri/src/command_specs/find.toml",
-        "src-tauri/src/command_specs/mv.toml",
-        "src-tauri/src/command_specs/cp.toml",
-        "src-tauri/src/command_specs/_risk_patterns.toml",
-        "src-tauri/Cargo.toml",
-        "docs/command-registry-design.md",
-        "architecture.md"
-      ]
-    },
-    {
-      "id": 69,
-      "title": "Bugfix: DiffViewer scrollbar padding and bottom fade clipping",
-      "description": "当在 Approval 弹出大体积文件及过长代码行审批（如 30 行+ 的 Diff）时，代码框底部区域受到主容器 Footer 固定容器叠加干扰被轻微裁切；且自定义代码内的滚动条 padding 不足以完全避让右侧边缘，导致交互阻滞。",
-      "status": "completed",
-      "type": "bug",
-      "requirement_ref": "docs/architecture/states-and-flows.md 5.1 Overlay",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/components/ApprovalPanel.css",
-        "frontend/src/components/DiffViewer.css"
-      ]
-    },
-    {
-      "id": 70,
-      "title": "Bugfix: AskUserQuestion Preview property missing or misaligned",
-      "description": "在进行 'Question Layout Test' 并传递了带有代码 preview 配置参数的选项 ('XState') 时，页面虽成功渲染了单选与长文本选项组，但被指定含有 preview: '```typescript...```' 选项却完全没有渲染出副卡片或者代码结构（如 screenshot-04 所示只显示了 Label）。",
-      "status": "completed",
-      "type": "bug",
-      "requirement_ref": "frontend/src/store/sessions.ts (QuestionOption interface)",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/src/agent_event.rs",
-        "frontend/src/shared/session-reducer.ts",
-        "frontend/src/components/ApprovalPanel.tsx",
-        "frontend/src/components/ApprovalPanel.css",
-        "frontend/src/components/NotifBody.tsx",
-        "frontend/src/components/NotifBody.css"
-      ]
-    },
-    {
-      "id": 71,
-      "title": "Feature: Integrate VibeTestBridge Playwright automation suite into repo",
-      "description": "既然我们已修补了非 Tauri 环境保护并证实 __VIBE_TEST_BRIDGE__ 的健壮性，应利用其构造系统的视觉回归自动化组（Coverage included: Thinking mode, Diff overflow and AskUserQuestion rendering）。",
-      "status": "completed",
-      "type": "feature",
-      "requirement_ref": "docs/testing/testing.md: Layer 2 & Bridge",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "tests/e2e/specs/thinking-mode.spec.ts",
-        "tests/e2e/specs/diff-overflow.spec.ts",
-        "tests/e2e/specs/ask-user-question-preview.spec.ts",
-        "tests/e2e/setup/test-helpers.ts"
-      ]
-    },
-    {
-      "id": 72,
-      "title": "Feature: Screen Edge Snapping (自动吸附屏幕顶部与底部及刘海屏适配)",
-      "description": "对齐 macOS Open Island，在 Windows 端实现窗口自动吸附在屏幕顶部（刘海 Notch 区域）和底部的物理边界与智能吸附逻辑，支持多显示器及 DPI 动态缩放适配。",
-      "steps": [
-        "研究并实现 Win32 API 窗口定位逻辑，检测物理屏幕工作区（MonitorInfo / MonitorWorkArea）",
-        "在 tauri.conf.json 中配置透明与无边框窗口，并支持点击穿透（Click-through）与非穿透的动态切换",
-        "实现自动吸附逻辑：窗口拖动至屏幕顶部边缘（或底部边缘）特定阈值内时，自动吸附居中，并自适应 Notch/刘海高度",
-        "处理 Windows DPI 缩放改变事件（Scale Factor / DPI Changed）以及多显示器热插拔，确保吸附坐标计算准确",
-        "提供吸附偏好设置（Top/Bottom/Notch），并持久化到 config store 中"
-      ],
-      "status": "completed",
-      "type": "feature",
-      "priority": "high",
-      "dependencies": [
-        66
-      ],
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/src/lib.rs",
-        "src-tauri/src/window_manager.rs",
-        "src-tauri/src/commands.rs",
-        "src-tauri/src/config/types.rs",
-        "frontend/src/store/config.ts"
-      ]
-    },
-    {
-      "id": 73,
-      "title": "Feature: UI Design Alignment (Open Island 视觉与几何属性对齐)",
-      "description": "将 win-vibe-island 的 UI 精细化对齐 macOS 版本的 Open Island。包括颜色 Token、系统级 UI 字体、高精度药丸几何形状（Pill Shape）、极简/紧凑的 NotchRow 布局。",
-      "steps": [
-        "更新 frontend/src/index.css，定义与 macOS 统一的暗色和高斯模糊/毛玻璃效果（backdrop-filter/glassmorphism）CSS Token",
-        "采用现代系统字体栈（Segoe UI/Segoe UI Variable, Inter, Outfit），微调全局字号与字重（10px 至 13px）",
-        "调整 NotchRow 和胶囊边框圆角（border-radius: 9999px）与高精度微距边框阴影，确保在 Windows 各种壁纸下均有极佳反差",
-        "重构 NotchRow 的内容展示层，精简信息密度，提升小屏下的排版美感"
-      ],
-      "status": "completed",
-      "type": "feature",
-      "priority": "medium",
-      "dependencies": [
-        67
-      ],
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/index.css",
-        "frontend/src/components/Pill.css",
-        "frontend/src/components/NotchRow.css",
-        "frontend/src/components/Overlay.tsx",
-        "frontend/src/components/SessionRow.tsx"
-      ]
-    },
-    {
-      "id": 74,
-      "title": "Feature: Animation Alignment (Framer Motion 弹性动画与物理效果对齐)",
-      "description": "对齐 SwiftUI 的交互动画物理特性。利用 Framer Motion 微调 Spring（弹簧物理）参数，实现丝滑的多状态形态流转与高度/宽度变形 morph 动画。",
-      "steps": [
-        "在前端引入 Framer Motion 并为 NotchRow 的展开、收起、形态切换配置统一 of spring 物理参数（stiffness, damping, mass）",
-        "对齐 macOS Spring 物理模型参数，微调 stiffness = 300, damping = 30 左右，消除抖动与生硬感",
-        "实现胶囊从 compact (Notch) 到 full overlay (展开面板) 的 Layout Morphing（共享布局动画 layoutId）",
-        "添加交互微交互（如 hover 缩放、按压回弹、呼吸状态灯微动画），提升操作质感"
-      ],
-      "status": "completed",
-      "type": "feature",
-      "priority": "high",
-      "dependencies": [
-        73
-      ],
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/config/animation.ts",
-        "frontend/src/store/config.ts",
-        "src-tauri/src/config/types.rs",
-        "frontend/src/components/Overlay.tsx",
-        "frontend/src/components/AnimatedNotch.tsx"
-      ]
-    },
-    {
-      "id": 75,
-      "title": "Bugfix: Hook JSON output validation failed — 非阻塞事件 stdout 为空 + PreToolUse 响应格式错误",
-      "description": "Claude Code 报 'Hook JSON output validation failed — (root): Invalid input'。根因1: vibe-island-hooks.exe 对非阻塞事件(SessionStart/Notification等)直接 exit 0 但不写 stdout，CC 要求 exit 0 时 stdout 必须有合法 JSON。根因2: pipe_server.rs 对 PreToolUse 返回 {\"decision\":\"allow\"}，但 CC 文档要求用 hookSpecificOutput 包装格式 {\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\"}}。",
-      "steps": [
-        "vibe-island-hooks.rs: 非阻塞事件 exit 前输出 {\"continue\":true} 到 stdout",
-        "pipe_server.rs: PreToolUse 响应改用 hookSpecificOutput 包装格式，permissionDecision 字段",
-        "cargo check 验证编译",
-        "手动测试: 触发各 hook 事件确认不再报 JSON validation 错误"
-      ],
-      "status": "completed",
-      "type": "bug",
-      "priority": "high",
-      "dependencies": [],
-      "files": [
-        "src-tauri/src/bin/vibe-island-hooks.rs",
-        "src-tauri/src/pipe_server.rs"
-      ]
-    },
-    {
-      "id": 76,
-      "title": "Review 项目与文档统一性",
-      "description": "审查整体项目代码与文档的一致性。检查 architecture.md、CLAUDE.md、WORKFLOW.md、docs/ 下的文档是否与实际代码实现同步，找出文档过时、缺失或矛盾的地方。",
-      "steps": [
-        "读取 architecture.md，逐项检查技术栈、目录结构、模块描述是否与实际代码一致",
-        "检查 CLAUDE.md 中的配置治理表（状态颜色、弹簧参数、动画时长、UI 尺寸、Overlay 尺寸）是否与 types.rs 和 config.ts 同步",
-        "检查 docs/ 下的设计规格文档是否反映当前组件实现",
-        "检查 WORKFLOW.md 中的工作流程是否与 .claude/workflows/ 下的实际脚本一致",
-        "检查 .claude/rules/ 下的编码规范是否被实际代码遵循",
-        "列出所有不一致项，按优先级排序",
-        "修复高优先级不一致项",
-        "更新 progress.txt 记录审查结果"
-      ],
-      "status": "completed",
-      "type": "review",
-      "priority": "high",
-      "dependencies": [],
-      "requirement_ref": "CLAUDE.md, WORKFLOW.md, architecture.md",
-      "design_ref": "docs/",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "frontend/src/store/config.ts",
-        "src-tauri/src/config/types.rs",
-        ".claude/rules/ArchitectureConstraints.md",
-        "architecture.md",
-        "WORKFLOW.md",
-        "progress.txt"
-      ]
-    },
-    {
-      "id": 77,
-      "title": "浏览器自动化 UI 测试 — 组件显示与自适应验证",
-      "description": "使用 Playwright 编写浏览器自动化测试，验证每个界面、每个组件的正确显示、UI 尺寸和自适应布局。覆盖 Overlay、SessionRow、ApprovalPanel、DiffViewer、StatusDot、BarsGlyph 等核心组件。",
-      "steps": [
-        "检查现有 Playwright 测试基础设施（playwright.config.ts、fixtures）",
-        "为 Overlay 组件编写测试：紧凑态/展开态尺寸、圆角、动画过渡",
-        "为 SessionRow 组件编写测试：不同状态颜色、标题截断、时间显示",
-        "为 ApprovalPanel 组件编写测试：按钮布局、超时倒计时、Diff 预览",
-        "为 StatusDot 组件编写测试：各状态颜色、脉动动画、尺寸",
-        "为 BarsGlyph 组件编写测试：进度条动画、颜色渐变",
-        "编写响应式测试：不同窗口尺寸下组件自适应",
-        "编写 DPI 缩放测试：高 DPI 下组件尺寸正确",
-        "运行全部测试并修复失败用例",
-        "更新 progress.txt 记录测试覆盖情况"
-      ],
-      "status": "completed",
-      "type": "test",
-      "priority": "high",
-      "dependencies": [
-        76
-      ],
-      "requirement_ref": "docs/testing/testing.md",
-      "design_ref": "docs/design/specs/",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "tests/e2e/specs/status-dot.spec.ts",
-        "tests/e2e/specs/bars-glyph.spec.ts",
-        "tests/e2e/specs/overlay-dimensions.spec.ts",
-        "tests/e2e/specs/session-row-states.spec.ts",
-        "tests/e2e/specs/responsive-layout.spec.ts"
-      ]
-    },
-    {
-      "id": 78,
-      "category": "ui",
-      "priority": "medium",
-      "status": "open",
-      "title": "[视觉] 面板大量留白（mixed-tool-history）",
-      "description": "截图: test-results/screenshots/mixed-tool-history.png\n问题: 只有一个 session 条目，但面板下方约 60% 面积是空的深色背景\n根因: expandedMinHeight=400，即使内容只有 100-150px 也被 clamp 到 400px\n建议: 降低 expandedMinHeight 从 400 到 200，让面板更贴合内容\n文件: frontend/src/store/config.ts",
-      "requirement_ref": "docs/design/specs/overlay-spec.md",
-      "design_ref": "frontend/src/store/config.ts",
-      "dependencies": [],
-      "docs": []
-    },
-    {
-      "id": 79,
-      "category": "ui",
-      "priority": "medium",
-      "status": "open",
-      "title": "[视觉] 面板大量留白（mixed-stale）",
-      "description": "截图: test-results/screenshots/mixed-stale.png\n问题: 同上，只有一个已完成 session，面板下方大面积空白\n根因: 同上，expandedMinHeight=400\n建议: 同上，降低最小高度\n文件: frontend/src/store/config.ts",
-      "dependencies": [],
-      "docs": []
-    },
-    {
-      "id": 80,
-      "category": "ui",
-      "priority": "medium",
-      "status": "open",
-      "title": "[视觉] 列表末尾被截断（mixed-all-agents）",
-      "description": "截图: test-results/screenshots/mixed-all-agents.png\n问题: 第 6 个 session 被底部状态栏遮挡，文字与 sessions 数量重叠\n根因: PanelHead.css 中 .panel-list 有 max-height:380px，6 个 session 超过此高度\n建议: 移除 max-height:380px，让列表用 flex:1 自然填充可用空间\n文件: frontend/src/components/PanelHead.css",
-      "dependencies": [],
-      "docs": []
-    },
-    {
-      "id": 81,
-      "category": "ui",
-      "priority": "medium",
-      "status": "open",
-      "title": "[视觉] 空分组标题仍显示（mixed-long-titles）",
-      "description": "截图: test-results/screenshots/mixed-long-titles.png\n问题: COMPLETED 分组标题下无内容，底部空白\n根因: GroupedRows.tsx 已有 .filter(g => g.sessions.length > 0) 过滤空分组，可能是识图 Agent 误判\n建议: 先截图确认，如果确实存在再修\n文件: frontend/src/components/GroupedRows.tsx",
-      "dependencies": [],
-      "docs": []
-    },
-    {
-      "id": 82,
-      "title": "Feature: Codex CLI Hooks 一等支持",
-      "description": "参考 Open Island 的 Codex CLI command hook 模式，默认安装生命周期 + 轻量工具活动 hooks 到 ~/.codex/hooks.json，并通过 vibe-island-hooks.exe --source codex 转发到 Named Pipe，使 Codex 会话以独立 agent 身份显示在 Overlay。",
-      "status": "completed",
-      "type": "feature",
-      "priority": "high",
-      "dependencies": [],
-      "requirement_ref": "docs/hooks/codex-hooks-setup.md",
-      "design_ref": "docs/hooks/codex-hooks-setup.md",
-      "docs_updated": true,
-      "implementation_done": true,
-      "verified": true,
-      "passes": true,
-      "files": [
-        "src-tauri/src/codex_hook_config.rs",
-        "src-tauri/src/adapters/codex_adapter.rs",
-        "src-tauri/src/bin/vibe-island-hooks.rs",
-        "src-tauri/src/pipe_server.rs",
-        "src-tauri/src/commands.rs",
-        "src-tauri/src/lib.rs",
-        "frontend/src/components/ControlCenter.tsx",
-        "frontend/src/components/ControlCenter.css",
-        "docs/hooks/codex-hooks-setup.md",
-        "architecture.md"
-      ]
+      "id": "REACT-015",
+      "title": "architecture.md 紧凑胶囊高度描述错误（60px vs 32px）",
+      "priority": "suggestion",
+      "status": "pending",
+      "source": "cron-review-react 2026-06-15",
+      "file": "architecture.md",
+      "line": 195,
+      "description": "architecture.md L195 描述「初始化窗口为紧凑胶囊（60px 高）」，但实际代码中 compactHeight 默认值为 32（config.ts L185）、barHeight 默认值也为 32（config.ts L223）。Overlay.tsx L133 使用 `config.ui.dimensions.barHeight`（默认 32）作为 BAR_HEIGHT。60px 是旧值或笔误。",
+      "fix": "将 architecture.md L195 中的「60px 高」改为「32px 高」（对应默认 barHeight）。同时更新对尺寸的描述以匹配实际 config.ts 默认值。"
     }
-  ]
+  ],
+  "last_updated": "2026-06-15"
 }
