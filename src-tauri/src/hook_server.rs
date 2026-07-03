@@ -319,6 +319,7 @@ fn try_refresh_title(
     transcript_path: &Option<String>,
     title_scan_timestamps: &Mutex<std::collections::HashMap<String, u64>>,
     min_interval_ms: u64,
+    opt_phase: Option<SessionPhase>,
 ) {
     let path = match transcript_path {
         Some(p) if !p.is_empty() => p.clone(),
@@ -350,10 +351,17 @@ fn try_refresh_title(
     if let Some((title, _source)) =
         crate::transcript_discovery::extract_title_from_transcript(&path, 100)
     {
+        let phase = opt_phase.unwrap_or(SessionPhase::Running);
+        let state_str = match &phase {
+            SessionPhase::Running => "running",
+            SessionPhase::WaitingForApproval => "waitingForApproval",
+            SessionPhase::WaitingForAnswer => "waitingForAnswer",
+            SessionPhase::Completed => "completed",
+        };
         let event = AgentEvent::ActivityUpdated(ActivityUpdatedPayload {
             session_id: session_id.to_string(),
             summary: String::new(),
-            phase: SessionPhase::Running,
+            phase,
             tool_name: None,
             tool_input: None,
             prompt: None,
@@ -366,7 +374,7 @@ fn try_refresh_title(
             "state_change",
             &serde_json::json!({
                 "session_id": session_id,
-                "state": "running",
+                "state": state_str,
                 "title": title,
             }),
         );
@@ -595,6 +603,7 @@ async fn handle_post_tool_use(
         &payload.transcript_path,
         &state.title_scan_timestamps,
         2000,
+        None,
     );
 
     Ok(StatusCode::OK)
@@ -760,6 +769,7 @@ async fn handle_stop(
             &transcript_path,
             &state_clone.title_scan_timestamps,
             0, // no throttle for Stop — always scan
+            Some(SessionPhase::Completed),
         );
     });
 
