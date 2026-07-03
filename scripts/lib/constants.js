@@ -15,7 +15,7 @@ module.exports = {
   // ── 文件路径 ──────────────────────────────────────────────
   PATHS: {
     TASK_JSON:        path.join(ROOT, "task.json"),
-    PROGRESS_TXT:     path.join(ROOT, "progress.txt"),
+    PROGRESS_TXT:     path.join(ROOT, "docs", "history", "progress.txt"),
     DESIGN_TOKENS:    path.join(ROOT, "docs/design/design-tokens.json"),
     RUST_CONFIG:      path.join(ROOT, "src-tauri/src/config/types.rs"),
     FRONTEND_CONFIG:  path.join(ROOT, "frontend/src/store/config.ts"),

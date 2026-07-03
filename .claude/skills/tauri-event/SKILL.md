@@ -13,7 +13,7 @@ description: |
 
 ## 前置检查
 
-- 确认 Documentation Gate 已通过
+- 确认有活跃 OpenSpec change（spec-first gate，见 WORKFLOW.md）
 - 确认事件名不与现有事件冲突（检查 `events.rs`）
 
 ## 步骤

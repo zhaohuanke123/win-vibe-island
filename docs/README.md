@@ -9,7 +9,7 @@
 | 文档 | 说明 |
 |------|------|
 | [CLAUDE.md](../CLAUDE.md) | 项目配置、读取顺序、文件导航、Memory 规则 **（入口）** |
-| [WORKFLOW.md](../WORKFLOW.md) | 工作流程和 Documentation Gate |
+| [WORKFLOW.md](../WORKFLOW.md) | 工作流程和 OpenSpec 生命周期 |
 | [architecture.md](../architecture.md) | 架构约束、启动流程、IPC 命令、路由表、已知边界 |
 
 ## 架构与设计
@@ -69,8 +69,9 @@
 
 | 文件 | 说明 |
 |------|------|
-| [task.json](../task.json) | 任务定义、依赖、文档引用 |
-| [progress.txt](../progress.txt) | 开发历史、文档更新、测试证据 |
+| [openspec/](../openspec/) | 行为规格（specs/）+ 活跃 change（changes/）— 任务生命周期真相源 |
+| [docs/backlog.md](backlog.md) | 历史发现积压（迁移自 Task.json，按需升级为 OpenSpec change） |
+| [docs/history/progress.txt](history/progress.txt) | 开发历史归档（只读，原 progress.txt） |
 
 ## 归档文档
 

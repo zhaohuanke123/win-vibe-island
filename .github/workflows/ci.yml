@@ -58,5 +58,5 @@ jobs:
       - name: Config sync check (Barricade)
         run: node scripts/config-sync.js --strict
 
-      - name: Documentation gate (Barricade)
-        run: node scripts/doc-gate.js --ci
+      - name: OpenSpec validate
+        run: npx -y @fission-ai/openspec@1.5.0 validate --all

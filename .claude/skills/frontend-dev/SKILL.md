@@ -61,7 +61,7 @@ frontend/src/
 
 ## 设计驱动开发
 
-当 task 的 `design_ref` 指向 `docs/design/specs/` 下的设计规格文件时：
+当 OpenSpec change 的 design.md 或 `docs/design/specs/` 指向设计规格文件时：
 
 1. **先读取设计规格。** 规格文档是视觉参数和交互行为的权威来源。
 2. **严格遵循规格中的数值。** 颜色使用规格 2.2 指定的 CSS 变量，尺寸使用规格 2.1 的 px 值，动画使用规格 4.1 的 spring 参数。
@@ -70,7 +70,7 @@ frontend/src/
 
 ## 修改现有组件
 
-1. 先确认 Documentation Gate 通过
+1. 先确认有活跃 OpenSpec change（spec-first gate）
 2. 如果存在对应的设计规格，先读取规格确认当前视觉参数
 3. 确认组件的 data-testid 不被其他测试依赖
 4. 修改后运行 `npm run build` 验证编译

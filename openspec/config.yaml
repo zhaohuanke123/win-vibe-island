@@ -1,0 +1,59 @@
+schema: spec-driven
+
+# 项目上下文 — 创建 artifact 时展示给 AI
+context: |
+  Vibe Island：Windows 桌面悬浮 Overlay 应用，监控 AI 编程助手会话（Claude Code、Codex、自定义 agent）。
+  技术栈：Tauri 2.0（Rust 后端 src-tauri/ + React 19 / TypeScript / Zustand / Framer Motion 前端 frontend/）。
+
+  平台约束（硬性，详见 .claude/rules/ArchitectureConstraints.md）：
+  - Windows 优先：所有 Win32 专用代码必须在 #[cfg(target_os = "windows")] 下，并为非 Windows 平台提供 stub。
+  - HWND 必须序列化为字符串跨 Tauri IPC（format!("{:?}", hwnd)），禁止传 raw 指针。
+  - Overlay 原生窗口必须保留 WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE。
+  - Tauri 主窗口保持 transparent: true、decorations: false、alwaysOnTop: true。
+  - Hook 自动配置非破坏性：不得覆盖用户已有的非 Vibe Island hook。
+  - 审批响应必须通过 tool_use_id 匹配 pending approval，不能只按 session 匹配。
+
+  配置治理（Rust ↔ 前端双默认值，改任一端必须同步另一端）：
+  - 状态色 / 弹簧参数 / 动画时长 / UI 尺寸 / Overlay 尺寸
+  - Rust：src-tauri/src/config/types.rs；前端：frontend/src/store/config.ts
+  - 验证：cargo check && npm run build && node scripts/config-sync.js --strict
+  - 完整 5 类映射表见 .claude/rules/ArchitectureConstraints.md 第 6 条。
+
+  编码规范（所有代码贡献必读）：
+  - .claude/rules/RustConvention.md（命名、条件编译、错误处理、HWND 序列化、日志）
+  - .claude/rules/FrontendConvention.md（组件/Hook/Store 命名、Zustand、IPC 封装、Framer Motion）
+  - .claude/rules/TauriIPCConvention.md（命令/事件命名、节流、注册流程）
+  - .claude/rules/ErrorHandlingConvention.md（AppError、logger、结构化 error code）
+  - 注释使用中文。
+
+  架构高层概览见 architecture.md；行为真相源为 openspec/specs/。
+  本仓库保留域内确定性门禁：scripts/config-sync.js（双配置不变量）、scripts/release.js（版本同步）。
+  任务生命周期走 OpenSpec：/opsx:propose → /opsx:apply → /opsx:sync → /opsx:archive。
+
+# 各 artifact 写作规则
+rules:
+  proposal:
+    - 先写 Why（动机 + 解决什么问题），再写 What Changes（具体行为变更）
+    - 明确写出 Non-Goals（本 change 不做什么），避免范围蔓延
+    - 引用真实源码路径（如 src-tauri/src/hook_config.rs）而非泛泛描述
+    - 控制在 500 字以内，细节放 design.md
+  design:
+    - 列出 2 个以上候选方案并给出取舍理由，不要只写一个答案
+    - 必须有 Risks / Trade-offs 段落
+    - 涉及 IPC / 状态机 / 配置治理的方案必须显式说明对 .claude/rules/ 硬约束的影响
+  tasks:
+    - 用有序编号分组（## 1. / ## 2.），每组内 - [ ] 步骤可独立完成并验证
+    - 每步描述要能被单次实现执行，不写"优化整体性能"这类模糊任务
+    - 收尾组必须包含验证步骤：cargo check / npm run build / config-sync.js --strict（按相关项）
+  spec-delta:
+    - 用 ## ADDED Requirements / ## MODIFIED Requirements / ## REMOVED Requirements 块组织
+    - 不要整篇重写现有 spec，只写差异
+    - 每个 Requirement 至少配一个 #### Scenario，用 - **WHEN** / - **THEN** 格式
+  spec:
+    - 主规格文件结构：## Purpose → ### Requirement: <名称> → #### Scenario: <名称>
+    - Requirement 描述"系统必须做什么"，Scenario 描述"在什么条件下应产生什么结果"
+    - 只承载行为不变量，不写实现细节（实现细节属于 architecture.md 和源码）
+  shared:
+    - 所有 artifact 必须遵守 .claude/rules/ 下 5 个规范文件的硬约束
+    - 涉及配置默认值变更时，proposal 必须同时提及 Rust 端和前端端两个文件
+    - 涉及 Win32 行为时，必须说明 #[cfg(target_os = "windows")] 边界与非 Windows stub
