@@ -68,6 +68,15 @@
 - **WHEN** reducer 收到一个未经过 `session_start` 的 session_id 事件
 - **THEN** 必须 (MUST)先补建 session 记录（按需 auto-create）或丢弃并记 WARN，不得静默写入孤儿状态
 
+### Requirement: Approval Response Correlation
+
+审批响应 MUST (MUST) 通过 `tool_use_id` 匹配对应的 pending approval，不得只按 `session_id` 匹配。`submit_approval_response` 命令 MUST (MUST) 接受 `tool_use_id` 参数定位正确的 pending 项。
+
+#### Scenario: 同一 session 多个 pending approval
+
+- **WHEN** 同一 session 先后产生两个 PermissionRequest（不同 `tool_use_id`），用户响应第二个
+- **THEN** MUST 用 `tool_use_id` 精确匹配第二个，不得误把响应应用到第一个或按 session 模糊匹配
+
 ### Requirement: Adding a New Event Adapter
 
 新增 Agent 事件类型必须 (MUST)按以下完整步骤实现，任何一步缺失视为不完整：
