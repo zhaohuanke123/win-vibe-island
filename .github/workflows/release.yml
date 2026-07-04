@@ -40,7 +40,8 @@ jobs:
             windows-nsis-
 
       - name: Install frontend dependencies
-        run: npm --prefix frontend install
+        run: npm install
+        working-directory: frontend
 
       - name: Build & Release
         uses: tauri-apps/tauri-action@v0

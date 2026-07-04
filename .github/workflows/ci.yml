@@ -41,16 +41,20 @@ jobs:
             ci-node-
 
       - name: Install frontend dependencies
-        run: npm --prefix frontend install
+        run: npm install
+        working-directory: frontend
 
       - name: Frontend lint
-        run: npm --prefix frontend run lint
+        run: npm run lint
+        working-directory: frontend
 
       - name: Frontend build (tsc + vite)
-        run: npm --prefix frontend run build
+        run: npm run build
+        working-directory: frontend
 
       - name: Frontend unit tests (vitest)
-        run: npm --prefix frontend run test
+        run: npm run test
+        working-directory: frontend
 
       - name: Rust cargo check
         run: cargo check --manifest-path src-tauri/Cargo.toml
