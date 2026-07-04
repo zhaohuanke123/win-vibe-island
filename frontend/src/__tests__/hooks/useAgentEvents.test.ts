@@ -32,6 +32,8 @@ vi.mock('@tauri-apps/api/event', () => ({
 
 describe('useAgentEvents', () => {
   beforeEach(() => {
+    // 模拟 Tauri 运行时,否则 useAgentEvents 的 setupListeners 会因 !window.__TAURI_INTERNALS__ 早返回
+    (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
     // Reset store state
     useSessionsStore.setState({
       sessions: [],
@@ -624,7 +626,9 @@ describe('useAgentEvents', () => {
         })
       })
 
-      expect(useSessionsStore.getState().sessions).toHaveLength(0)
+      const sessions = useSessionsStore.getState().sessions
+      expect(sessions).toHaveLength(1)
+      expect(sessions[0].detached).toBe(true)
     })
   })
 })

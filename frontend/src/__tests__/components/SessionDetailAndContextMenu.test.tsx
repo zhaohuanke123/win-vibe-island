@@ -23,6 +23,10 @@ import { useConfigStore } from "../../store/config";
 import type { Session } from "../../store/sessions";
 import type { AppConfig } from "../../store/config";
 
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(() => Promise.resolve()),
+}));
+
 // ── Helpers ────────────────────────────────────────────────────────
 
 function makeSession(overrides: Partial<Session> = {}): Session {
@@ -131,6 +135,15 @@ function resetSessionsStore(sessions: Session[] = []) {
       connectionState: "unknown",
       port: 7878,
     },
+  });
+}
+
+/** 模拟点击 status-bar 展开 Overlay（Overlay 用 mouseDown/mouseUp 拖拽逻辑，纯 click 不触发 toggle） */
+async function expandOverlay() {
+  const bar = screen.getByTestId("status-bar");
+  await act(async () => {
+    fireEvent.mouseDown(bar);
+    fireEvent.mouseUp(document.documentElement);
   });
 }
 
@@ -318,10 +331,7 @@ describe("Overlay — SessionDetail and ContextMenu integration", () => {
     render(<Overlay />);
 
     // Expand the overlay by clicking the bar
-    const bar = screen.getByTestId("status-bar");
-    await act(async () => {
-      fireEvent.click(bar);
-    });
+    await expandOverlay();
 
     // Find and click the detail button
     const detailBtn = screen.getByTestId("row-detail-btn");
@@ -341,9 +351,7 @@ describe("Overlay — SessionDetail and ContextMenu integration", () => {
     render(<Overlay />);
 
     // Expand overlay
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("status-bar"));
-    });
+    await expandOverlay();
 
     // Open detail
     await act(async () => {
@@ -367,9 +375,7 @@ describe("Overlay — SessionDetail and ContextMenu integration", () => {
     render(<Overlay />);
 
     // Expand and open detail
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("status-bar"));
-    });
+    await expandOverlay();
     await act(async () => {
       fireEvent.click(screen.getByTestId("row-detail-btn"));
     });
@@ -391,9 +397,7 @@ describe("Overlay — SessionDetail and ContextMenu integration", () => {
     render(<Overlay />);
 
     // Expand overlay
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("status-bar"));
-    });
+    await expandOverlay();
 
     // Right-click on session row
     const row = document.querySelector('[data-session-id="s-1"]')!;
@@ -416,9 +420,7 @@ describe("Overlay — SessionDetail and ContextMenu integration", () => {
     render(<Overlay />);
 
     // Expand overlay
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("status-bar"));
-    });
+    await expandOverlay();
 
     // Right-click to open context menu
     const row = document.querySelector('[data-session-id="s-1"]')!;
@@ -449,9 +451,7 @@ describe("Overlay — SessionDetail and ContextMenu integration", () => {
     render(<Overlay />);
 
     // Expand overlay
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("status-bar"));
-    });
+    await expandOverlay();
 
     // Right-click to open context menu
     const row = document.querySelector('[data-session-id="s-1"]')!;
