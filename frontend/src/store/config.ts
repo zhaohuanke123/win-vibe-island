@@ -37,6 +37,13 @@ export interface PipeServerConfig {
   bufferSize: number;
 }
 
+export interface PanelMaxHeights {
+  /** Session List 视图最大高度 */
+  sessionList: number;
+  /** Session Detail 视图最大高度 */
+  sessionDetail: number;
+}
+
 export interface OverlayConfigDefaults {
   defaultX: number;
   defaultY: number;
@@ -51,6 +58,8 @@ export interface OverlayConfigDefaults {
   compactBorderRadius: number;
   expandedBorderRadius: number;
   snapPosition: "top" | "bottom";
+  /** 各面板视图的最大固定高度，内容超过时固定不再增长 */
+  panelMaxHeights: PanelMaxHeights;
 }
 
 export interface ProcessWatcherConfig {
@@ -134,7 +143,17 @@ export const OVERLAY_LAYOUT_MINIMUMS = {
   expandedMaxHeight: 720,
   approvalFocusWidth: 600,
   approvalFocusHeight: 720,
+  panelMaxHeights: { sessionList: 200, sessionDetail: 200 },
 } as const;
+
+/** 将 panelMaxHeights 的每个值 clamp 到 [expandedMinHeight, expandedMaxHeight] 范围 */
+function clampPanelMaxHeight(
+  value: number,
+  min: number,
+  max: number,
+): number {
+  return Math.min(Math.max(value, min), max);
+}
 
 export function normalizeOverlayLayoutConfig(overlay: OverlayConfigDefaults) {
   const expandedWidth = Math.max(overlay.expandedWidth, OVERLAY_LAYOUT_MINIMUMS.expandedWidth);
@@ -147,6 +166,8 @@ export function normalizeOverlayLayoutConfig(overlay: OverlayConfigDefaults) {
     OVERLAY_LAYOUT_MINIMUMS.expandedMaxHeight,
     expandedMinHeight,
   );
+
+  const rawPanelMax = overlay.panelMaxHeights ?? DEFAULT_CONFIG.overlay.panelMaxHeights;
 
   return {
     ...overlay,
@@ -161,11 +182,15 @@ export function normalizeOverlayLayoutConfig(overlay: OverlayConfigDefaults) {
       overlay.approvalFocusHeight,
       OVERLAY_LAYOUT_MINIMUMS.approvalFocusHeight,
     ),
+    panelMaxHeights: {
+      sessionList: clampPanelMaxHeight(rawPanelMax.sessionList, expandedMinHeight, expandedMaxHeight),
+      sessionDetail: clampPanelMaxHeight(rawPanelMax.sessionDetail, expandedMinHeight, expandedMaxHeight),
+    },
   };
 }
 
 const DEFAULT_CONFIG: AppConfig = {
-  version: 3,
+  version: 4,
   hookServer: {
     port: 7878,
     approvalTimeoutSecs: 120,
@@ -192,6 +217,7 @@ const DEFAULT_CONFIG: AppConfig = {
     compactBorderRadius: 16,
     expandedBorderRadius: 22,
     snapPosition: "top",
+    panelMaxHeights: { sessionList: 480, sessionDetail: 600 },
   },
   processWatcher: {
     pollIntervalMs: 5000,
@@ -271,7 +297,14 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
         ...config,
         hookServer: { ...DEFAULT_CONFIG.hookServer, ...config.hookServer },
         pipeServer: { ...DEFAULT_CONFIG.pipeServer, ...config.pipeServer },
-        overlay: { ...DEFAULT_CONFIG.overlay, ...config.overlay },
+        overlay: {
+          ...DEFAULT_CONFIG.overlay,
+          ...config.overlay,
+          panelMaxHeights: {
+            ...DEFAULT_CONFIG.overlay.panelMaxHeights,
+            ...config.overlay?.panelMaxHeights,
+          },
+        },
         processWatcher: { ...DEFAULT_CONFIG.processWatcher, ...config.processWatcher },
         audio: { ...DEFAULT_CONFIG.audio, ...config.audio },
         ui: {

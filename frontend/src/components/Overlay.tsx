@@ -132,7 +132,6 @@ export function Overlay() {
   const density = config.ui.density;
   const BAR_HEIGHT = config.ui.dimensions.barHeight;
   const EXPANDED_MIN = overlayLayout.expandedMinHeight;
-  const EXPANDED_MAX = overlayLayout.expandedMaxHeight;
   const APPROVAL_FOCUS_WIDTH = overlayLayout.approvalFocusWidth;
   const APPROVAL_FOCUS_HEIGHT = overlayLayout.approvalFocusHeight;
   const EXPANDED_BORDER_RADIUS = overlayLayout.expandedBorderRadius;
@@ -148,6 +147,10 @@ export function Overlay() {
   const [collapsedApprovalFocusKey, setCollapsedApprovalFocusKey] = useState<string | null>(null);
   const [viewingSessionId, setViewingSessionId] = useState<string | null>(null);
   const [snapPosition, setSnapPosition] = useState<"top" | "bottom" | null>(null);
+  // 根据当前视图选择对应的最大高度，内容超过此值时固定不再增长
+  const EXPANDED_MAX = viewingSessionId
+    ? Math.min(overlayLayout.panelMaxHeights.sessionDetail, overlayLayout.expandedMaxHeight)
+    : Math.min(overlayLayout.panelMaxHeights.sessionList, overlayLayout.expandedMaxHeight);
   const [contextMenu, setContextMenu] = useState<{
     session: Session;
     position: { x: number; y: number };
@@ -380,6 +383,7 @@ export function Overlay() {
     BAR_HEIGHT,
     EXPANDED_MIN,
     EXPANDED_MAX,
+    viewingSessionId,
   ]);
 
   const handleApprovalHandled = () => {

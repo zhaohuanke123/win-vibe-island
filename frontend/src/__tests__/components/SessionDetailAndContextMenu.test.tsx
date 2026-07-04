@@ -71,6 +71,7 @@ const DEFAULT_TEST_CONFIG: AppConfig = {
     compactBorderRadius: 16,
     expandedBorderRadius: 22,
     snapPosition: "top",
+    panelMaxHeights: { sessionList: 480, sessionDetail: 600 },
   },
   processWatcher: {
     pollIntervalMs: 5000,

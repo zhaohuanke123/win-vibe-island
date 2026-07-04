@@ -18,7 +18,7 @@
 | 动画时长 | `types.rs` → `AnimationConfig` | `config.ts` → `DEFAULT_CONFIG.ui.animation` | running/waitingForApproval/waitingForAnswer duration |
 | UI 尺寸 | `types.rs` → `UiDimensions` | `config.ts` → `DEFAULT_CONFIG.ui.dimensions` | barHeight/padding/gap/statusDotSize |
 | UI 杂项 | `types.rs` → `UiConfig` | `config.ts` → `DEFAULT_CONFIG.ui` | stateIndicator/density |
-| Overlay 尺寸 | `types.rs` → `OverlayConfigDefaults` | `config.ts` → `DEFAULT_CONFIG.overlay` | compactWidth/expandedWidth/各种radius |
+| Overlay 尺寸 | `types.rs` → `OverlayConfigDefaults` | `config.ts` → `DEFAULT_CONFIG.overlay` | compactWidth/expandedWidth/各种radius/panelMaxHeights.sessionList·sessionDetail |
 
 验证：`cargo check && npm run build`
 7. **审批关联**：审批响应必须通过 `tool_use_id` 匹配 pending approval，不能只按 session 匹配。

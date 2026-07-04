@@ -190,8 +190,22 @@ fn migrate_config(version: u32, raw: serde_json::Value) -> Result<serde_json::Va
             Ok(migrated)
         }
         3 => {
-            // Current version - no migration needed
-            Ok(raw)
+            // v3 -> v4: 新增 panelMaxHeights 子对象
+            log::info!("Migrating config from version 3 to {}", CONFIG_VERSION);
+            let mut migrated = raw;
+            if let Some(obj) = migrated.as_object_mut() {
+                obj.insert("version".to_string(), serde_json::json!(CONFIG_VERSION));
+                // 为缺失 panelMaxHeights 的旧配置插入默认值
+                if let Some(overlay) = obj.get_mut("overlay").and_then(|v| v.as_object_mut()) {
+                    if !overlay.contains_key("panelMaxHeights") {
+                        overlay.insert("panelMaxHeights".to_string(), serde_json::json!({
+                            "sessionList": 480,
+                            "sessionDetail": 600,
+                        }));
+                    }
+                }
+            }
+            Ok(migrated)
         }
         v if v > CONFIG_VERSION => {
             Err(format!("Unsupported config version: {} (max supported: {})", v, CONFIG_VERSION))
@@ -222,6 +236,18 @@ fn normalize_config_value(mut raw: serde_json::Value) -> serde_json::Value {
 
             ensure_i64_at_least(overlay, "approvalFocusWidth", 600);
             ensure_i64_at_least(overlay, "approvalFocusHeight", 720);
+
+            // panelMaxHeights 归一化：每个视图最大高度必须 >= expandedMinHeight 且 <= expandedMaxHeight
+            let expanded_max = overlay
+                .get("expandedMaxHeight")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(720);
+            if let Some(panel_max) = overlay.get_mut("panelMaxHeights").and_then(|v| v.as_object_mut()) {
+                ensure_i64_at_least(panel_max, "sessionList", expanded_min);
+                ensure_i64_at_least(panel_max, "sessionDetail", expanded_min);
+                ensure_i64_at_most(panel_max, "sessionList", expanded_max);
+                ensure_i64_at_most(panel_max, "sessionDetail", expanded_max);
+            }
         }
     }
 
@@ -236,6 +262,17 @@ fn ensure_i64_at_least(
     let current = obj.get(key).and_then(|v| v.as_i64());
     if current.map_or(true, |value| value < min) {
         obj.insert(key.to_string(), serde_json::json!(min));
+    }
+}
+
+fn ensure_i64_at_most(
+    obj: &mut serde_json::Map<String, serde_json::Value>,
+    key: &str,
+    max: i64,
+) {
+    let current = obj.get(key).and_then(|v| v.as_i64());
+    if current.map_or(false, |value| value > max) {
+        obj.insert(key.to_string(), serde_json::json!(max));
     }
 }
 
@@ -278,6 +315,8 @@ mod tests {
         assert_eq!(config.overlay.expanded_min_height, 200);
         assert_eq!(config.overlay.approval_focus_width, 600);
         assert_eq!(config.overlay.approval_focus_height, 720);
+        assert_eq!(config.overlay.panel_max_heights.session_list, 480);
+        assert_eq!(config.overlay.panel_max_heights.session_detail, 600);
     }
 
     #[test]
@@ -307,7 +346,11 @@ mod tests {
                 "expandedMinHeight": 180,
                 "expandedMaxHeight": 300,
                 "approvalFocusWidth": 500,
-                "approvalFocusHeight": 600
+                "approvalFocusHeight": 600,
+                "panelMaxHeights": {
+                    "sessionList": 50,
+                    "sessionDetail": 999
+                }
             }
         });
 
@@ -318,5 +361,9 @@ mod tests {
         assert_eq!(normalized["overlay"]["expandedMaxHeight"], 720);
         assert_eq!(normalized["overlay"]["approvalFocusWidth"], 600);
         assert_eq!(normalized["overlay"]["approvalFocusHeight"], 720);
+        // sessionList < expandedMinHeight(200) → 被提升到 200
+        assert_eq!(normalized["overlay"]["panelMaxHeights"]["sessionList"], 200);
+        // sessionDetail > expandedMaxHeight(720) → 被限制到 720
+        assert_eq!(normalized["overlay"]["panelMaxHeights"]["sessionDetail"], 720);
     }
 }
