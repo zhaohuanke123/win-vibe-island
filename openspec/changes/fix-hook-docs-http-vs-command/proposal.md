@@ -19,7 +19,6 @@
 
 - 不改 `hook_config.rs` 或任何运行时代码
 - 不移除 HTTP hook server（保留为备用路径）
-- 不补 spec delta —— `openspec/specs/hook-integration/spec.md` 已刻意保持传输无关，本 change 是文档对齐
 
 ## Capabilities
 
@@ -27,7 +26,8 @@
 （无）
 
 ### Modified Capabilities
-（无 —— 本 change 是文档对齐，不改变 spec 级行为。）
+
+- **hook-integration**：新增 `Canonical Hook Transport` requirement（delta 见 `specs/hook-integration/spec.md`）。main spec 的 Purpose 已声明「传输层选择由本 change 对齐」，此处把 command-hook 主路径与 HTTP legacy 标注固化为不变量。
 
 ## Impact
 

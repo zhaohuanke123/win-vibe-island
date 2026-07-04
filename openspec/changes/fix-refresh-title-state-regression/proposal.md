@@ -25,7 +25,8 @@
 （无）
 
 ### Modified Capabilities
-（无 —— state-machine spec 已定义「Stop 后不得回退 running」不变量；本 change 是实现回归修复，spec 无需 delta。）
+
+- **state-machine**：新增 `Stop Phase Permanence` requirement（delta 见 `specs/state-machine/spec.md`）。原 spec 只定义 Stop 的合法转换，未约束延迟回调不得回退；本 change 补齐该不变量。
 
 ## Impact
 
