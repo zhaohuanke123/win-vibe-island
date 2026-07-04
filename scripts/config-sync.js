@@ -92,6 +92,20 @@ function checkFrontendConfig(tokens) {
   // Overlay 尺寸
   if (!jsonOutput) logSection("Overlay 尺寸");
   for (const [name, def] of Object.entries(tokens.dimensions.overlay)) {
+    if (name === "panelMaxHeights") {
+      // panelMaxHeights 是嵌套对象 {sessionList, sessionDetail},在 DEFAULT_CONFIG.overlay 块内逐子字段检查
+      const defaultStart = configTs.indexOf("const DEFAULT_CONFIG");
+      const searchBlock = defaultStart >= 0 ? configTs.substring(defaultStart) : configTs;
+      const pmhBlock = searchBlock.match(/panelMaxHeights:\s*\{([^}]*)\}/);
+      const blockContent = pmhBlock ? pmhBlock[1] : "";
+      for (const [subName, subDef] of Object.entries(def)) {
+        const subPattern = new RegExp(`${subName}:\\s*(\\d+)`);
+        const actual = extractNumber(blockContent, subPattern);
+        check("config/dimensions", `panelMaxHeights.${subName}`, subDef.value, actual, "frontend/src/store/config.ts", subDef.desc || "");
+        if (!jsonOutput) reportResult({ name: `panelMaxHeights.${subName}`, expected: String(subDef.value), actual: String(actual), file: "frontend/src/store/config.ts", line: "", pass: actual === subDef.value });
+      }
+      continue;
+    }
     const pattern = new RegExp(`${name}:\\s*(\\d+)`);
     const actual = extractNumber(configTs, pattern);
     check("config/dimensions", name, def.value, actual, def.file, def.line);
@@ -191,6 +205,16 @@ function checkRustFrontendSync(tokens) {
 
   // Overlay 尺寸
   for (const [name, def] of Object.entries(tokens.dimensions.overlay)) {
+    if (name === "panelMaxHeights") {
+      // Rust 用 panel_max_heights struct 字段(PanelMaxHeights::default 值由 Rust 测试覆盖)
+      const hasField = rustConfig.includes("panel_max_heights");
+      check("dual-sync/overlay", `Rust overlay panelMaxHeights`, true, hasField, PATHS.RUST_CONFIG, "—");
+      if (!jsonOutput) {
+        if (hasField) logOk(`Rust overlay panelMaxHeights: panel_max_heights 字段存在`);
+        else logWarn(`Rust overlay panelMaxHeights: 未确认 panel_max_heights 字段`);
+      }
+      continue;
+    }
     const inRust = rustConfig.includes(`${def.value}`);
     check("dual-sync/overlay", `Rust overlay ${name}`, true, inRust, PATHS.RUST_CONFIG, "—");
     if (!jsonOutput) {
