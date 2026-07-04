@@ -2,6 +2,9 @@ import type { Story } from "@ladle/react";
 import { NotifBody } from "./NotifBody";
 import type { Session } from "../store/sessions";
 
+// 固定时间戳避免组件 render 内调用 Date.now（React Compiler purity 规则）
+const MOCK_START_TIME = Date.now() - 10000;
+
 // ── Mock session factory ─────────────────────────────────────────────────────
 
 function makeSession(overrides?: Partial<Session>): Session {
@@ -65,7 +68,7 @@ export const Jump: Story = () => (
               { label: "luxon", description: "Full-featured, timezone support" },
             ],
           },
-          startTime: Date.now() - 10000,
+          startTime: MOCK_START_TIME,
           toolUseId: "tool-002",
         },
       })}
@@ -97,7 +100,7 @@ export const JumpWithPreview: Story = () => (
               },
             ],
           },
-          startTime: Date.now() - 10000,
+          startTime: MOCK_START_TIME,
           toolUseId: "tool-003",
         },
       })}

@@ -368,7 +368,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
 
   setNotificationsEnabled: (enabled) => {
     set({ notificationsEnabled: enabled });
-    try { localStorage.setItem("vibe-notifications", String(enabled)); } catch {}
+    try { localStorage.setItem("vibe-notifications", String(enabled)); } catch { /* localStorage may be disabled */ }
   },
 }));
 

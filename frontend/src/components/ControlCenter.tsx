@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { logger } from "../client/logger";
 import { useConfigStore, type NotificationSound, type StateIndicatorKind, type DensityMode } from "../store/config";
+import { useNotificationSound } from "../hooks/useNotificationSound";
 import "./ControlCenter.css";
 
 // ── Types ──
@@ -26,11 +27,6 @@ interface ClaudeUsage {
   fiveHourResetAt: string | null;
   sevenDayResetAt: string | null;
   available: boolean;
-}
-
-interface SoundOption {
-  value: NotificationSound;
-  label: string;
 }
 
 type TabId = "hooks" | "usage" | "terminals" | "settings" | "shortcuts";
@@ -322,31 +318,12 @@ function TerminalsTab() {
 }
 
 function SettingsTab() {
-  const [sounds, setSounds] = useState<SoundOption[]>([]);
-  const [selectedSound, setSelectedSound] = useState<NotificationSound>("hero");
+  const { sounds, selectedSound, setSelectedSound } = useNotificationSound();
   const [isPlaying, setIsPlaying] = useState(false);
   const notificationsEnabled = useConfigStore((s) => s.notificationsEnabled);
   const setNotificationsEnabled = useConfigStore((s) => s.setNotificationsEnabled);
   const config = useConfigStore((s) => s.config);
   const updateConfig = useConfigStore((s) => s.updateConfig);
-
-  useEffect(() => {
-    invoke<[NotificationSound, string][]>("get_notification_sounds")
-      .then((soundList) => {
-        setSounds(
-          soundList.map(([value, label]) => ({
-            value: value.toLowerCase() as NotificationSound,
-            label,
-          }))
-        );
-      })
-      .catch((e) => logger.warn("NOTIFICATION_ERROR", "Failed to load sounds", { error: String(e) }));
-
-    const saved = localStorage.getItem("notificationSound");
-    if (saved) {
-      setSelectedSound(saved as NotificationSound);
-    }
-  }, []);
 
   const handleSoundChange = async (sound: NotificationSound) => {
     setSelectedSound(sound);

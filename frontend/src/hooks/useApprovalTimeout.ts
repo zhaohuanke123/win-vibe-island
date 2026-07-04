@@ -24,14 +24,12 @@ export function useApprovalTimeout(request: ApprovalRequest | null): TimeoutStat
   useEffect(() => {
     if (!request) {
       clearedRef.current = false;
-      setState({ remainingSeconds: 0, isUrgent: false, isExpired: false, progressPercent: 100 });
       return;
     }
 
     clearedRef.current = false;
-    setState(computeState(request, effectiveTimeout));
 
-    const interval = setInterval(() => {
+    const tick = () => {
       const next = computeState(request, effectiveTimeout);
       setState(next);
 
@@ -39,12 +37,16 @@ export function useApprovalTimeout(request: ApprovalRequest | null): TimeoutStat
         clearedRef.current = true;
         removeApprovalByToolUseId(request.toolUseId);
       }
-    }, 1000);
+    };
+    const raf = requestAnimationFrame(tick);
+    const interval = setInterval(tick, 1000);
 
-    return () => clearInterval(interval);
+    return () => { cancelAnimationFrame(raf); clearInterval(interval); };
   }, [request, effectiveTimeout, removeApprovalByToolUseId]);
 
-  return state;
+  return request
+    ? state
+    : { remainingSeconds: 0, isUrgent: false, isExpired: false, progressPercent: 100 };
 }
 
 function computeState(request: ApprovalRequest | null, timeoutSecs: number): TimeoutState {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSessionsStore } from "../store/sessions";
 import { useTimelineStore, getTimeRangeMs, getTimeRangeOptions } from "../store/timeline";
 import { ToolExecutionDetail } from "./ToolExecutionDetail";
@@ -56,6 +56,15 @@ export function ActivityTimeline({ "data-testid": testId }: { "data-testid"?: st
   const [exportFormat, setExportFormat] = useState<"json" | "md">("json");
   const [exportReady, setExportReady] = useState(false);
 
+  // 秒级时钟：useMemo 的 cutoff 依赖它过滤时间范围，避免 render 内调用 Date.now
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const raf = requestAnimationFrame(tick);
+    const id = setInterval(tick, 1000);
+    return () => { cancelAnimationFrame(raf); clearInterval(id); };
+  }, []);
+
   const entries = useMemo<TimelineEntry[]>(() => {
     const all: TimelineEntry[] = [];
     for (const session of sessions) {
@@ -72,12 +81,12 @@ export function ActivityTimeline({ "data-testid": testId }: { "data-testid"?: st
     all.sort((a, b) => b.execution.timestamp - a.execution.timestamp);
 
     const rangeMs = getTimeRangeMs(timeRange);
-    if (rangeMs > 0) {
-      const cutoff = Date.now() - rangeMs;
+    if (rangeMs > 0 && now > 0) {
+      const cutoff = now - rangeMs;
       return all.filter((e) => e.execution.timestamp >= cutoff);
     }
     return all;
-  }, [sessions, timeRange]);
+  }, [sessions, timeRange, now]);
 
   const handleExport = () => {
     const data = exportFormat === "json" ? exportAsJson(entries) : exportAsMarkdown(entries);

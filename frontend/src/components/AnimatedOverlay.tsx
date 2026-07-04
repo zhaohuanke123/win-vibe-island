@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion, type Transition } from "framer-motion";
 import { OVERLAY_DIMENSIONS, SIZE_SYNC_THROTTLE_MS, SPRING_CONFIG } from "../config/animation";
@@ -60,7 +60,62 @@ export function AnimatedOverlay({
   onPillNotchClick,
   snapPosition,
 }: AnimatedOverlayProps) {
-  // Pill mode: delegate rendering to Pill component
+  const expandedDim = {
+    ...OVERLAY_DIMENSIONS.expanded,
+    height: expandedHeight ?? OVERLAY_DIMENSIONS.expanded.height,
+  };
+  const dimensions = isExpanded ? expandedDim : OVERLAY_DIMENSIONS.compact;
+
+  const lastSyncRef = useRef(0);
+  const hasInitializedRef = useRef(false);
+  const finalSyncTimerRef = useRef<number | null>(null);
+  const latestDimensionsRef = useRef(dimensions);
+
+  const [wasExpanded, setWasExpanded] = useState(false);
+  useEffect(() => {
+    if (pillMode) return;
+    const id = requestAnimationFrame(() => setWasExpanded(isExpanded));
+    return () => cancelAnimationFrame(id);
+  }, [isExpanded, pillMode]);
+
+  useEffect(() => {
+    if (pillMode) return;
+    latestDimensionsRef.current = dimensions;
+  }, [dimensions, pillMode]);
+
+  const syncWindowSize = useCallback((width: number, height: number, borderRadius: number) => {
+    if (!window.__TAURI_INTERNALS__) return;
+
+    invoke("update_overlay_size", {
+      width: Math.round(width),
+      height: Math.round(height),
+      webviewScaleFactor: getWebviewScaleFactor(),
+      borderRadius: Math.round(borderRadius),
+      anchorCenter: true,
+      snapPosition: snapPosition ?? null,
+    }).catch(reportResizeError);
+  }, [snapPosition]);
+
+  useEffect(() => {
+    if (pillMode) return;
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+    syncWindowSize(
+      OVERLAY_DIMENSIONS.compact.width,
+      OVERLAY_DIMENSIONS.compact.height,
+      OVERLAY_DIMENSIONS.compact.borderRadius,
+    );
+  }, [syncWindowSize, pillMode]);
+
+  useEffect(() => {
+    return () => {
+      if (finalSyncTimerRef.current !== null) {
+        window.clearTimeout(finalSyncTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Pill mode: delegate rendering to Pill component（在所有 hooks 之后）
   if (pillMode) {
     return (
       <Pill
@@ -77,17 +132,6 @@ export function AnimatedOverlay({
     );
   }
 
-  const lastSyncRef = useRef(0);
-  const hasInitializedRef = useRef(false);
-  const prevExpandedRef = useRef(false);
-  const finalSyncTimerRef = useRef<number | null>(null);
-
-  const expandedDim = {
-    ...OVERLAY_DIMENSIONS.expanded,
-    height: expandedHeight ?? OVERLAY_DIMENSIONS.expanded.height,
-  };
-  const dimensions = isExpanded ? expandedDim : OVERLAY_DIMENSIONS.compact;
-
   // 吸附感知的 clipPath 和 borderRadius：三层裁剪必须一致
   const r = dimensions.borderRadius;
   const snapBorderRadius = snapPosition === "top"
@@ -101,51 +145,11 @@ export function AnimatedOverlay({
       ? `inset(0px round ${r}px ${r}px 0px 0px)`
       : `inset(0px round ${r}px)`;
 
-  const latestDimensionsRef = useRef(dimensions);
-
-  const wasExpanded = prevExpandedRef.current;
   const transition: Transition = !isExpanded
     ? { type: "spring", ...SPRING_CONFIG.collapse }
     : !wasExpanded
       ? { type: "spring", ...SPRING_CONFIG.expand }
       : { duration: 0.15, ease: "easeOut" };
-
-  useEffect(() => { prevExpandedRef.current = isExpanded; }, [isExpanded]);
-
-  useEffect(() => {
-    latestDimensionsRef.current = dimensions;
-  }, [dimensions.width, dimensions.height, dimensions.borderRadius]);
-
-  const syncWindowSize = (width: number, height: number, borderRadius: number) => {
-    if (!window.__TAURI_INTERNALS__) return;
-
-    invoke("update_overlay_size", {
-      width: Math.round(width),
-      height: Math.round(height),
-      webviewScaleFactor: getWebviewScaleFactor(),
-      borderRadius: Math.round(borderRadius),
-      anchorCenter: true,
-      snapPosition: snapPosition ?? null,
-    }).catch(reportResizeError);
-  };
-
-  useEffect(() => {
-    if (hasInitializedRef.current) return;
-    hasInitializedRef.current = true;
-    syncWindowSize(
-      OVERLAY_DIMENSIONS.compact.width,
-      OVERLAY_DIMENSIONS.compact.height,
-      OVERLAY_DIMENSIONS.compact.borderRadius,
-    );
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (finalSyncTimerRef.current !== null) {
-        window.clearTimeout(finalSyncTimerRef.current);
-      }
-    };
-  }, []);
 
   const syncFinalWindowSize = () => {
     const finalDimensions = latestDimensionsRef.current;

@@ -85,7 +85,7 @@ export const SessionRow = memo(function SessionRow({
         setJumping(false);
       }
     }
-  }, [session, onJump]);
+  }, [session, onJump, onJumpFailed]);
 
   const handleChevronClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();

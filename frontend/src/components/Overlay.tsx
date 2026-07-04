@@ -4,7 +4,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AnimatedOverlay } from "./AnimatedOverlay";
 import { NotchRow } from "./NotchRow";
 import { ApprovalPanel } from "./ApprovalPanel";
-import { JumpToast, useJumpToast } from "./JumpToast";
+import { JumpToast } from "./JumpToast";
+import { useJumpToast } from "../hooks/useJumpToast";
 import { PanelHead } from "./PanelHead";
 import { GroupedRows } from "./GroupedRows";
 import { SessionDetail } from "./SessionDetail";
@@ -146,9 +147,14 @@ export function Overlay() {
   const [expanded, setExpanded] = useState(false);
   const [collapsedApprovalFocusKey, setCollapsedApprovalFocusKey] = useState<string | null>(null);
   const [viewingSessionId, setViewingSessionId] = useState<string | null>(null);
+  // 校验 viewingSessionId 对应 session 仍存在；失效时视为 null（替代原清理 effect，derived 更合规）
+  const effectiveViewingId =
+    viewingSessionId && sessions.some((s) => s.id === viewingSessionId)
+      ? viewingSessionId
+      : null;
   const [snapPosition, setSnapPosition] = useState<"top" | "bottom" | null>(null);
   // 根据当前视图选择对应的最大高度，内容超过此值时固定不再增长
-  const EXPANDED_MAX = viewingSessionId
+  const EXPANDED_MAX = effectiveViewingId
     ? Math.min(overlayLayout.panelMaxHeights.sessionDetail, overlayLayout.expandedMaxHeight)
     : Math.min(overlayLayout.panelMaxHeights.sessionList, overlayLayout.expandedMaxHeight);
   const [contextMenu, setContextMenu] = useState<{
@@ -174,16 +180,21 @@ export function Overlay() {
         return;
       }
       hadApprovalRequestRef.current = true;
-      setCollapsedApprovalFocusKey(null);
-      const frame = window.requestAnimationFrame(() => setExpanded(true));
+      const frame = window.requestAnimationFrame(() => {
+        setCollapsedApprovalFocusKey(null);
+        setExpanded(true);
+      });
       return () => window.cancelAnimationFrame(frame);
     }
     handledApprovalStateFocusKeyRef.current = null;
-    setCollapsedApprovalFocusKey(null);
-    if (hadApprovalRequestRef.current) {
-      hadApprovalRequestRef.current = false;
-      setExpanded(false);
-    }
+    const frame = window.requestAnimationFrame(() => {
+      setCollapsedApprovalFocusKey(null);
+      if (hadApprovalRequestRef.current) {
+        hadApprovalRequestRef.current = false;
+        setExpanded(false);
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [approvalFocusKey, currentApproval]);
 
   // 新审批到达时自动恢复审批面板
@@ -227,13 +238,6 @@ export function Overlay() {
     });
   }, []);
 
-  // Removed sessions clear detail view
-  useEffect(() => {
-    if (viewingSessionId && !sessions.find((s) => s.id === viewingSessionId)) {
-      setViewingSessionId(null);
-    }
-  }, [sessions, viewingSessionId]);
-
   const handleJump = useCallback(async (session: Session) => {
     setActiveSession(session.id);
     setError(null);
@@ -272,7 +276,7 @@ export function Overlay() {
 
   const handleDetail = useCallback((session: Session) => {
     setViewingSessionId(session.id);
-  }, []);
+  }, [setViewingSessionId]);
 
   const handleContextMenu = useCallback((session: Session, position: { x: number; y: number }) => {
     setContextMenu({ session, position });
@@ -418,19 +422,21 @@ export function Overlay() {
   const dragStartScreenRef = useRef<{ x: number; y: number } | null>(null);
   // 用 ref 保存最新的 toggle 函数，避免 useEffect 闭包过期
   const toggleRef = useRef<() => void>(() => {});
-  toggleRef.current = () => {
-    if (approvalFocusKey) {
-      if (isOverlayExpanded) {
-        setCollapsedApprovalFocusKey(approvalFocusKey);
-        setExpanded(false);
-      } else {
-        setCollapsedApprovalFocusKey(null);
-        setExpanded(true);
+  useEffect(() => {
+    toggleRef.current = () => {
+      if (approvalFocusKey) {
+        if (isOverlayExpanded) {
+          setCollapsedApprovalFocusKey(approvalFocusKey);
+          setExpanded(false);
+        } else {
+          setCollapsedApprovalFocusKey(null);
+          setExpanded(true);
+        }
+        return;
       }
-      return;
-    }
-    setExpanded((value) => !value);
-  };
+      setExpanded((value) => !value);
+    };
+  });
 
   const handleBarMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;

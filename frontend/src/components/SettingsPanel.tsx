@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { logger } from "../client/logger";
 import { useConfigStore } from "../store/config";
+import { useNotificationSound } from "../hooks/useNotificationSound";
 import "./SettingsPanel.css";
 
 type NotificationSound =
@@ -17,11 +18,6 @@ type NotificationSound =
   | "morse"
   | "purr"
   | "tink";
-
-interface SoundOption {
-  value: NotificationSound;
-  label: string;
-}
 
 interface ClaudeUsage {
   fiveHourPercent: number | null;
@@ -62,31 +58,12 @@ interface HookConfigStatus {
 }
 
 export function SettingsPanel() {
-  const [sounds, setSounds] = useState<SoundOption[]>([]);
-  const [selectedSound, setSelectedSound] = useState<NotificationSound>("hero");
+  const { sounds, selectedSound, setSelectedSound } = useNotificationSound();
   const [isLoading, setIsLoading] = useState(false);
   const [hookStatus, setHookStatus] = useState<HookConfigStatus | null>(null);
   const [usage, setUsage] = useState<ClaudeUsage | null>(null);
   const notificationsEnabled = useConfigStore((s) => s.notificationsEnabled);
   const setNotificationsEnabled = useConfigStore((s) => s.setNotificationsEnabled);
-
-  useEffect(() => {
-    invoke<[NotificationSound, string][]>("get_notification_sounds")
-      .then((soundList) => {
-        setSounds(
-          soundList.map(([value, label]) => ({
-            value: value.toLowerCase() as NotificationSound,
-            label,
-          }))
-        );
-      })
-      .catch((e) => logger.warn("NOTIFICATION_ERROR", "Failed to load sounds", { error: String(e) }));
-
-    const saved = localStorage.getItem("notificationSound");
-    if (saved) {
-      setSelectedSound(saved as NotificationSound);
-    }
-  }, []);
 
   useEffect(() => {
     invoke<HookConfigStatus>("check_hook_config")

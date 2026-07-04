@@ -79,6 +79,7 @@ async function restoreSessions() {
       });
     }
   } catch (e) {
+    logger.warn("STORE_OPERATION_ERROR", "Failed to restore sessions", { error: String(e) });
   }
 }
 

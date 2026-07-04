@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import type { Session } from "../store/sessions";
 import { useConfigStore } from "../store/config";
@@ -35,6 +36,17 @@ function toolInputPreview(input: Record<string, unknown>): string {
 export function SessionDetail({ session, onBack, "data-testid": testId }: SessionDetailProps) {
   const stateColors = useConfigStore((s) => s.config.ui.stateColors);
   const recentHistory = session.toolHistory.slice(-10).reverse();
+
+  // 当前工具运行耗时：秒级 tick，保留 formatDuration 显示格式
+  const toolStart = session.currentTool?.startTime;
+  const [toolElapsed, setToolElapsed] = useState("");
+  useEffect(() => {
+    if (!toolStart) return;
+    const tick = () => setToolElapsed(formatDuration(Date.now() - toolStart));
+    const raf = requestAnimationFrame(tick);
+    const id = setInterval(tick, 1000);
+    return () => { cancelAnimationFrame(raf); clearInterval(id); };
+  }, [toolStart]);
 
   return (
     <motion.div
@@ -130,7 +142,7 @@ export function SessionDetail({ session, onBack, "data-testid": testId }: Sessio
                 </span>
               )}
               <span className="session-detail__tool-time">
-                Running for {formatDuration(Date.now() - session.currentTool.startTime)}
+                Running for {toolElapsed}
               </span>
             </div>
           </div>

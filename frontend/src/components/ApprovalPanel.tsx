@@ -419,7 +419,7 @@ function PermissionPanel({ request, onHandled, measurement = false }: { request:
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [request, status, handleApprove, handleReject]);
+  }, [request, status, handleApprove, handleReject, measurement]);
 
   const getRiskLevelClass = () => {
     switch (request.riskLevel) {

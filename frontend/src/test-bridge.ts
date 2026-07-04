@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useSessionsStore } from "./store/sessions";
 import { useConfigStore } from "./store/config";
 import type { Session, ApprovalRequest, HookServerStatus, UIPhase, ApprovalType, DiffData, Question, ToolExecution } from "./store/sessions";
+import type { StateIndicatorKind } from "./store/config";
 
 export interface VibeTestBridge {
   invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
@@ -246,9 +247,9 @@ export function registerTestBridge() {
     setConfigField: (path, value) => {
       const current = useConfigStore.getState().config;
       // Deep-set by path
-      let obj: any = current;
+      let obj: Record<string, unknown> = current as unknown as Record<string, unknown>;
       for (let i = 0; i < path.length - 1; i++) {
-        obj = obj[path[i]];
+        obj = obj[path[i]] as Record<string, unknown>;
       }
       obj[path[path.length - 1]] = value;
       useConfigStore.setState({ config: { ...current } });
@@ -342,7 +343,7 @@ export function registerTestBridge() {
     },
     setStateIndicator: (kind) => {
       useConfigStore.setState({
-        config: { ...useConfigStore.getState().config, ui: { ...useConfigStore.getState().config.ui, stateIndicator: kind as any } },
+        config: { ...useConfigStore.getState().config, ui: { ...useConfigStore.getState().config.ui, stateIndicator: kind as StateIndicatorKind } },
       });
     },
   };

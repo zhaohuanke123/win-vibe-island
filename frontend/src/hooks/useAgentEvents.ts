@@ -7,6 +7,7 @@ import { useSessionsStore } from "../store/sessions";
 import type { UIPhase } from "../store/sessions";
 import { APPROVAL_TYPES } from "../store/sessions";
 import type { AgentEvent } from "../shared/session-reducer";
+import type { AgentType } from "../shared/agents";
 
 interface SessionStartEvent {
   session_id: string;
@@ -188,7 +189,7 @@ export function useAgentEvents() {
           updateSessionInfo(session_id, {
             label,
             state: "idle",
-            agent: normalizeAgent(agent_type || detected_agent) as any,
+            agent: normalizeAgent(agent_type || detected_agent) as AgentType,
             ...(jump_target?.terminalType ? { jumpTarget } : {}),
           });
         } else {
@@ -199,7 +200,7 @@ export function useAgentEvents() {
             cwd: cwd || "",
             state: "idle" as UIPhase,
             pid: pid ?? undefined,
-            agent: normalizeAgent(agent_type || detected_agent) as any,
+            agent: normalizeAgent(agent_type || detected_agent) as AgentType,
             jumpTarget,
             toolHistory: [],
             createdAt: Date.now(),
@@ -458,7 +459,7 @@ export function useAgentEvents() {
             cwd: "",
             state: "idle" as UIPhase,
             pid: process.pid,
-            agent: agentType as any,
+            agent: agentType as AgentType,
             toolHistory: [],
             createdAt: Date.now(),
             lastActivity: Date.now(),

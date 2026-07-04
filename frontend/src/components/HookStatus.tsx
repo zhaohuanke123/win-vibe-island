@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, memo } from "react";
+import { useEffect, useRef, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionsStore } from "../store/sessions";
 import "./HookStatus.css";
@@ -23,7 +23,7 @@ export const HookStatus = memo(function HookStatus({ "data-testid": testId }: Ho
   const addErrorLog = useSessionsStore((s) => s.addErrorLog);
   const heartbeatRef = useRef<number | null>(null);
   const reconnectRef = useRef<number | null>(null);
-  const [consecutiveFailures, setConsecutiveFailures] = useState(0);
+  const consecutiveFailuresRef = useRef(0);
 
   // Heartbeat check every 5 seconds
   useEffect(() => {
@@ -43,10 +43,10 @@ export const HookStatus = memo(function HookStatus({ "data-testid": testId }: Ho
             uptime: health.uptimeSecs ?? undefined,
             pendingApprovals: health.pendingApprovals,
           });
-          setConsecutiveFailures(0);
+          consecutiveFailuresRef.current = 0;
         } else {
-          const failures = consecutiveFailures + 1;
-          setConsecutiveFailures(failures);
+          const failures = consecutiveFailuresRef.current + 1;
+          consecutiveFailuresRef.current = failures;
           // Only mark as error after 3 consecutive failures
           if (failures >= 3) {
             setHookServerStatus({
@@ -57,8 +57,8 @@ export const HookStatus = memo(function HookStatus({ "data-testid": testId }: Ho
         }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
-        const failures = consecutiveFailures + 1;
-        setConsecutiveFailures(failures);
+        const failures = consecutiveFailuresRef.current + 1;
+        consecutiveFailuresRef.current = failures;
         // Only mark as disconnected after 3 consecutive failures
         if (failures >= 3) {
           setHookServerStatus({

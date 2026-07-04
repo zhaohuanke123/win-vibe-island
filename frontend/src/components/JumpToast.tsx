@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, memo } from "react";
+import { useEffect, useState, memo } from "react";
 
 const TOAST_DURATION_MS = 1500;
 
@@ -76,18 +76,3 @@ export const JumpToast = memo(function JumpToast({
     </div>
   );
 });
-
-/** Hook to manage jump toast state. Returns showToast and the current toast data. */
-export function useJumpToast() {
-  const [toast, setToast] = useState<{ terminalName: string; sessionLabel?: string; failed?: boolean } | null>(null);
-
-  const showToast = useCallback((terminalName: string, sessionLabel?: string, failed?: boolean) => {
-    setToast({ terminalName, sessionLabel, failed });
-  }, []);
-
-  const dismissToast = useCallback(() => {
-    setToast(null);
-  }, []);
-
-  return { toast, showToast, dismissToast };
-}

@@ -46,29 +46,25 @@ interface CommandAnalysisProps {
 }
 
 export function CommandAnalysis({ command, "data-testid": testId }: CommandAnalysisProps) {
-  const [analysis, setAnalysis] = useState<CommandAnalysisResult | null>(null);
+  const cached = command ? analysisCache.get(command) ?? null : null;
+  const [fetchedAnalysis, setFetchedAnalysis] = useState<CommandAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!command) return;
-
-    const cached = analysisCache.get(command);
-    if (cached) {
-      setAnalysis(cached);
-      setError(null);
-      return;
-    }
+    if (!command || cached) return;
 
     invoke<CommandAnalysisResult>("analyze_command", { command })
       .then((result) => {
         cacheSet(command, result);
-        setAnalysis(result);
+        setFetchedAnalysis(result);
         setError(null);
       })
       .catch((err) => {
         setError(String(err));
       });
-  }, [command]);
+  }, [command, cached]);
+
+  const analysis = cached ?? fetchedAnalysis;
 
   if (error) {
     return (

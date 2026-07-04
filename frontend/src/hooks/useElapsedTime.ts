@@ -19,21 +19,19 @@ export function useElapsedTime(startTime: number | undefined, ticking: boolean =
   const [elapsed, setElapsed] = useState("");
 
   useEffect(() => {
-    if (!startTime) {
-      setElapsed("");
-      return;
-    }
+    if (!startTime) return;
 
+    const start = startTime;
     function tick() {
-      setElapsed(formatElapsed(Date.now() - startTime!));
+      setElapsed(formatElapsed(Date.now() - start));
     }
 
-    tick(); // immediate
+    tick();
     if (!ticking) return;
 
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [startTime, ticking]);
 
-  return elapsed;
+  return startTime ? elapsed : "";
 }

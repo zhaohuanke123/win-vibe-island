@@ -1,22 +1,7 @@
 import { memo } from "react";
 import type { UIPhase } from "../store/sessions";
+import { phaseGlyph, type GlyphMode } from "./BarsGlyph.utils";
 import "./BarsGlyph.css";
-
-export type GlyphMode = "idle" | "running" | "waiting" | "done";
-
-export function phaseGlyph(phase: UIPhase): GlyphMode {
-  switch (phase) {
-    case "running":
-      return "running";
-    case "waitingForApproval":
-    case "waitingForAnswer":
-      return "waiting";
-    case "completed":
-      return "done";
-    default:
-      return "idle";
-  }
-}
 
 interface BarsGlyphProps {
   mode?: GlyphMode;
