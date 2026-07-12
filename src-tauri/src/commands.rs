@@ -7,6 +7,7 @@ use crate::codex_hook_config;
 use crate::events::{self, SessionEnd, SessionStart, StateChange};
 use crate::hook_config;
 use crate::hook_server;
+use crate::config;
 use crate::overlay::{self, DpiScale, OverlayConfig};
 use crate::pipe_server;
 use crate::process_watcher;
@@ -427,12 +428,10 @@ pub fn set_window_interactive(window: WebviewWindow, interactive: bool) -> Resul
     }
 }
 
-/// Set the main window size and optionally re-center it horizontally at the top of the screen.
-/// Uses physical pixel sizing with DPI-aware scaling to ensure the WebView viewport
-/// matches the requested CSS pixel dimensions on high-DPI displays.
-/// Returns the actual logical (CSS) size achieved after resizing.
-#[tauri::command]
-pub fn set_window_size(
+/// Removed: B4-Lite 后死代码（fix-overlay-region-ownership 删除调用方）。
+/// 保留函数体避免大范围文本匹配，仅去掉 #[tauri::command] 注册使其不可被 IPC 调用。
+#[allow(dead_code)]
+fn _set_window_size_deprecated(
     window: WebviewWindow,
     width: u32,
     height: u32,
@@ -588,13 +587,9 @@ pub fn update_overlay_size(
 
     #[cfg(target_os = "windows")]
     {
-        let radius = border_radius.unwrap_or(if height <= 80 { height / 2 } else { 18 });
-        let snap = snap_position.and_then(|s| match s.as_str() {
-            "top" => Some(window_manager::SnapPosition::Top),
-            "bottom" => Some(window_manager::SnapPosition::Bottom),
-            _ => None,
-        });
-        apply_snap_aware_round_region(&window, snap, radius, physical_width, physical_height)?;
+        let _ = (border_radius, height, snap_position, physical_width, physical_height);
+        // B4-Lite 后 HWND region 由 set_overlay_region 独占管理（见 fix-overlay-region-ownership），
+        // update_overlay_size 不再调用 apply_snap_aware_round_region。
     }
 
     if let Some(x) = target_x {
@@ -609,6 +604,75 @@ pub fn update_overlay_size(
     }
 
     Ok(())
+}
+
+/// 设置 overlay HWND 的命中 region（decouple-overlay-geometry）。
+/// 接收逻辑像素 (x, y, w, h)，内部按 DPI 换算物理像素后 `CreateRectRgn` + `SetWindowRgn`。
+/// (0,0) = HWND 左上角。compact 态前端传入药丸子矩形让空白区域点击穿透；
+/// expanded/approval 态前端传 (0,0,box.w,box.h) 让整 box 可点。
+/// 用 `AtomicU64` 缓存避免重复调用，仅在状态切换时调用，不在动画每帧。
+#[tauri::command]
+pub fn set_overlay_region(
+    window: WebviewWindow,
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+    webview_scale_factor: Option<f64>,
+) -> Result<(), String> {
+    let dpi_scale = resize_scale_factor(&window, webview_scale_factor)?;
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        use windows::Win32::Foundation::{BOOL, HWND};
+        use windows::Win32::Graphics::Gdi::{CreateRectRgn, DeleteObject, SetWindowRgn};
+
+        static LAST_REGION_KEY: AtomicU64 = AtomicU64::new(0);
+
+        let phys_x = ((x as f64) * dpi_scale).round() as i32;
+        let phys_y = ((y as f64) * dpi_scale).round() as i32;
+        let phys_w = ((w as f64) * dpi_scale).round() as i32;
+        let phys_h = ((h as f64) * dpi_scale).round() as i32;
+
+        // 16-bit packing（物理坐标远小于 65536）
+        let key = ((phys_x as u64 & 0xFFFF) << 48)
+            | ((phys_y as u64 & 0xFFFF) << 32)
+            | ((phys_w as u64 & 0xFFFF) << 16)
+            | (phys_h as u64 & 0xFFFF);
+        if key == LAST_REGION_KEY.load(Ordering::Relaxed) {
+            return Ok(());
+        }
+
+        let hwnd_raw = window.hwnd().map_err(|e| e.to_string())?;
+        let hwnd = HWND(hwnd_raw.0 as *mut _);
+
+        unsafe {
+            // CreateRectRgn 右下边界是 exclusive，+1 确保完整覆盖
+            let region = CreateRectRgn(phys_x, phys_y, phys_x + phys_w, phys_y + phys_h);
+            if region.is_invalid() {
+                return Err("Failed to create overlay region".to_string());
+            }
+            let result = SetWindowRgn(hwnd, region, BOOL(1));
+            if result == 0 {
+                let _ = DeleteObject(region);
+                return Err("Failed to apply overlay region".to_string());
+            }
+        }
+
+        LAST_REGION_KEY.store(key, Ordering::Relaxed);
+        log::info!(
+            "[set_overlay_region] logical=({},{},{},{}) dpi={} physical=({},{},{},{})",
+            x, y, w, h, dpi_scale, phys_x, phys_y, phys_w, phys_h
+        );
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (x, y, w, h);
+        Ok(())
+    }
 }
 
 // Hook configuration commands
@@ -1001,10 +1065,10 @@ pub fn open_control_center(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Snap the overlay window to a screen edge.
-/// Uses the current window position to determine which monitor to snap to.
-#[tauri::command]
-pub fn snap_overlay(
+/// Removed: B4-Lite 后死代码（fix-overlay-region-ownership 删除调用方）。
+/// 保留函数体避免大范围文本匹配，仅去掉 #[tauri::command] 注册使其不可被 IPC 调用。
+#[allow(dead_code)]
+fn _snap_overlay_deprecated(
     app: AppHandle,
     position: String,
     prefer_monitor_x: Option<i32>,
@@ -1079,12 +1143,20 @@ pub fn smart_snap_overlay(app: AppHandle) -> Result<SnapResult, String> {
     let size = window.outer_size().map_err(|e| e.to_string())?;
     let scale = window.scale_factor().unwrap_or(1.0);
 
+    // outer_size() 返回物理像素；calculate_snap_position 内部会 * dpi_scale，
+    // 因此 caller MUST 传逻辑像素（outer / scale），否则双重缩放导致 HWND 偏离中心。
+    let (logical_width, logical_height) = window_manager::outer_size_to_logical(size.width as f64, size.height as f64, scale);
     let phys_width = (size.width as f64).round() as i32;
-    let phys_height = (size.height as f64 * scale).round() as i32;
+    let phys_height = (size.height as f64).round() as i32;
     let center_x = pos.x + phys_width / 2;
     let center_y = pos.y + phys_height / 2;
 
-    let detected = window_manager::is_near_edge(pos.y, phys_height, center_x, center_y);
+    // B4-Lite 下 HWND 是 bbox（远大于可见药丸），is_near_edge MUST 用药丸屏幕坐标
+    // pill 在 HWND 顶部（#root align-items: flex-start），高度 = barHeight
+    let bar_height_logical = config::get_config().ui.dimensions.bar_height as f64;
+    let pill_top_y = pos.y;
+    let pill_bottom_y = pos.y + (bar_height_logical * scale).round() as i32;
+    let detected = window_manager::is_near_edge(pill_top_y, pill_bottom_y, center_x, center_y);
     // 不在任何边缘附近 → 保持当前位置，不吸附
     let Some(snap_pos) = detected else {
         window_manager::set_current_snap_position(None);
@@ -1098,8 +1170,8 @@ pub fn smart_snap_overlay(app: AppHandle) -> Result<SnapResult, String> {
     };
 
     let result = window_manager::calculate_snap_position(
-        phys_width,
-        phys_height,
+        logical_width as i32,
+        logical_height as i32,
         snap_pos,
         Some(center_x),
         Some(center_y),
@@ -1113,16 +1185,8 @@ pub fn smart_snap_overlay(app: AppHandle) -> Result<SnapResult, String> {
         y: result.y,
     }));
 
-    // 吸附后重新应用不对称圆角区域
-    #[cfg(target_os = "windows")]
-    {
-        let dpi_scale = window.scale_factor().unwrap_or(1.0);
-        let phys_h = ((size.height as f64) * dpi_scale).round() as u32;
-        let phys_w = (size.width as f64).round() as u32;
-        let css_height = size.height as u32;
-        let radius = if css_height <= 80 { css_height / 2 } else { 18 };
-        let _ = apply_snap_aware_round_region(&window, Some(snap_pos), radius, phys_w, phys_h);
-    }
+    // B4-Lite 后吸附不再重设 region（见 fix-overlay-region-ownership）。
+    // region 由 set_overlay_region 独占管理，smart_snap_overlay 只负责 set_position。
 
     window_manager::set_current_snap_position(Some(snap_pos));
     Ok(result)

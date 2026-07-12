@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion, type Transition } from "framer-motion";
-import { OVERLAY_DIMENSIONS, SIZE_SYNC_THROTTLE_MS, SPRING_CONFIG } from "../config/animation";
+import { OVERLAY_DIMENSIONS, SPRING_CONFIG } from "../config/animation";
 import { Pill, type PillMode } from "./Pill";
 import { logger } from "../client/logger";
+import { deriveBoundingBox, normalizeOverlayLayoutConfig, useConfigStore } from "../store/config";
+import { logAnimDiag } from "./anim-diag";
 import type { UIPhase } from "../store/sessions";
 import type { AgentType } from "../shared/agents";
 import type { ReactNode } from "react";
@@ -21,29 +23,17 @@ interface AnimatedOverlayProps {
   pillNotchRightSlot?: ReactNode;
   onPillNotchClick?: () => void;
   snapPosition?: "top" | "bottom" | null;
-}
-
-type AnimatedSize = {
-  width?: number | string;
-  height?: number | string;
-  borderRadius?: number | string;
-};
-
-function toNumber(value: number | string | undefined): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const parsed = Number.parseFloat(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
+  // 动画完成后回调（在内部 region/size 同步之后触发），
+  // 供父组件解冻自适应测量等后处理使用
+  onComplete?: () => void;
 }
 
 function getWebviewScaleFactor() {
   return Number.isFinite(window.devicePixelRatio) ? window.devicePixelRatio : 1;
 }
 
-function reportResizeError(error: unknown) {
-  logger.warn("TAURI_IPC_ERROR", "failed to sync overlay size", { error: String(error) });
+function reportIpcError(error: unknown) {
+  logger.warn("TAURI_IPC_ERROR", "failed to sync overlay geometry", { error: String(error) });
 }
 
 export function AnimatedOverlay({
@@ -59,17 +49,22 @@ export function AnimatedOverlay({
   pillNotchRightSlot,
   onPillNotchClick,
   snapPosition,
+  onComplete,
 }: AnimatedOverlayProps) {
+  // B4-Lite：HWND 恒定为 bounding box（max of all states），motion.div 保留 width/height 动画
+  const config = useConfigStore((s) => s.config);
+  const overlayLayout = normalizeOverlayLayoutConfig(config.overlay);
+  const barHeight = config.ui.dimensions.barHeight;
+  const bbox = deriveBoundingBox(overlayLayout, barHeight);
+
   const expandedDim = {
     ...OVERLAY_DIMENSIONS.expanded,
     height: expandedHeight ?? OVERLAY_DIMENSIONS.expanded.height,
   };
   const dimensions = isExpanded ? expandedDim : OVERLAY_DIMENSIONS.compact;
 
-  const lastSyncRef = useRef(0);
   const hasInitializedRef = useRef(false);
-  const finalSyncTimerRef = useRef<number | null>(null);
-  const latestDimensionsRef = useRef(dimensions);
+  const motionDivRef = useRef<HTMLDivElement | null>(null);
 
   const [wasExpanded, setWasExpanded] = useState(false);
   useEffect(() => {
@@ -78,42 +73,33 @@ export function AnimatedOverlay({
     return () => cancelAnimationFrame(id);
   }, [isExpanded, pillMode]);
 
+  // 启动时把 HWND 撑到 bounding box + 设初始 region（compact 药丸矩形）
+  // 之后 HWND 尺寸恒定，正常使用中不再 resize（B4-Lite 核心）
   useEffect(() => {
     if (pillMode) return;
-    latestDimensionsRef.current = dimensions;
-  }, [dimensions, pillMode]);
-
-  const syncWindowSize = useCallback((width: number, height: number, borderRadius: number) => {
     if (!window.__TAURI_INTERNALS__) return;
-
-    invoke("update_overlay_size", {
-      width: Math.round(width),
-      height: Math.round(height),
-      webviewScaleFactor: getWebviewScaleFactor(),
-      borderRadius: Math.round(borderRadius),
-      anchorCenter: true,
-      snapPosition: snapPosition ?? null,
-    }).catch(reportResizeError);
-  }, [snapPosition]);
-
-  useEffect(() => {
-    if (pillMode) return;
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
-    syncWindowSize(
-      OVERLAY_DIMENSIONS.compact.width,
-      OVERLAY_DIMENSIONS.compact.height,
-      OVERLAY_DIMENSIONS.compact.borderRadius,
-    );
-  }, [syncWindowSize, pillMode]);
 
-  useEffect(() => {
-    return () => {
-      if (finalSyncTimerRef.current !== null) {
-        window.clearTimeout(finalSyncTimerRef.current);
-      }
-    };
-  }, []);
+    invoke("update_overlay_size", {
+      width: bbox.width,
+      height: bbox.height,
+      webviewScaleFactor: getWebviewScaleFactor(),
+      borderRadius: overlayLayout.expandedBorderRadius,
+      anchorCenter: true,
+      snapPosition: snapPosition ?? null,
+    }).catch(reportIpcError);
+
+    const initialW = OVERLAY_DIMENSIONS.compact.width;
+    const initialH = OVERLAY_DIMENSIONS.compact.height;
+    invoke("set_overlay_region", {
+      x: Math.max(0, (bbox.width - initialW) / 2),
+      y: 0,
+      w: initialW,
+      h: initialH,
+      webviewScaleFactor: getWebviewScaleFactor(),
+    }).catch(reportIpcError);
+  }, [pillMode, bbox.width, bbox.height, overlayLayout.expandedBorderRadius, snapPosition]);
 
   // Pill mode: delegate rendering to Pill component（在所有 hooks 之后）
   if (pillMode) {
@@ -151,23 +137,42 @@ export function AnimatedOverlay({
       ? { type: "spring", ...SPRING_CONFIG.expand }
       : { duration: 0.15, ease: "easeOut" };
 
-  const syncFinalWindowSize = () => {
-    const finalDimensions = latestDimensionsRef.current;
-    syncWindowSize(finalDimensions.width, finalDimensions.height, finalDimensions.borderRadius);
-
-    if (finalSyncTimerRef.current !== null) {
-      window.clearTimeout(finalSyncTimerRef.current);
-    }
-
-    finalSyncTimerRef.current = window.setTimeout(() => {
-      const latestDimensions = latestDimensionsRef.current;
-      syncWindowSize(latestDimensions.width, latestDimensions.height, latestDimensions.borderRadius);
-      finalSyncTimerRef.current = null;
-    }, SIZE_SYNC_THROTTLE_MS + 8);
+  // 动画完成：HWND 端点 no-op 同步（保留契约）+ region 跟随 motion.div 当前矩形
+  // region 计算：motion.div 在 bbox 内顶部居中（#root align-items: flex-start + justify-content: center）
+  const handleAnimationComplete = () => {
+    if (!window.__TAURI_INTERNALS__) return;
+    invoke("update_overlay_size", {
+      width: bbox.width,
+      height: bbox.height,
+      webviewScaleFactor: getWebviewScaleFactor(),
+      borderRadius: r,
+      anchorCenter: true,
+      snapPosition: snapPosition ?? null,
+    }).catch(reportIpcError);
+    invoke("set_overlay_region", {
+      x: Math.max(0, (bbox.width - dimensions.width) / 2),
+      y: 0,
+      w: dimensions.width,
+      h: dimensions.height,
+      webviewScaleFactor: getWebviewScaleFactor(),
+    }).catch(reportIpcError);
+    // Bug 1 诊断：记录 motion.div 实际 offset 尺寸 vs 目标，验证视觉与状态一致
+    const motionEl = motionDivRef.current;
+    logAnimDiag("anim complete", {
+      isExpanded,
+      targetW: dimensions.width,
+      targetH: dimensions.height,
+      actualW: motionEl?.offsetWidth ?? null,
+      actualH: motionEl?.offsetHeight ?? null,
+      bboxW: bbox.width,
+      bboxH: bbox.height,
+    });
+    onComplete?.();
   };
 
   return (
     <motion.div
+      ref={motionDivRef}
       className={className}
       data-testid={testId}
       style={{
@@ -186,19 +191,7 @@ export function AnimatedOverlay({
         ...transition,
         scale: { duration: 0.22, ease: "easeOut" },
       }}
-      onUpdate={(latest: AnimatedSize) => {
-        const width = toNumber(latest.width);
-        const height = toNumber(latest.height);
-        if (width === null || height === null) return;
-
-        const now = Date.now();
-        if (now - lastSyncRef.current < SIZE_SYNC_THROTTLE_MS) return;
-        lastSyncRef.current = now;
-        syncWindowSize(width, height, r);
-      }}
-      onAnimationComplete={() => {
-        syncFinalWindowSize();
-      }}
+      onAnimationComplete={handleAnimationComplete}
     >
       {children}
     </motion.div>

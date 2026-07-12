@@ -6,6 +6,7 @@ import { NotchRow } from "./NotchRow";
 import { ApprovalPanel } from "./ApprovalPanel";
 import { JumpToast } from "./JumpToast";
 import { useJumpToast } from "../hooks/useJumpToast";
+import { useAnimationGatedMeasure } from "../hooks/useAnimationGatedMeasure";
 import { PanelHead } from "./PanelHead";
 import { GroupedRows } from "./GroupedRows";
 import { SessionDetail } from "./SessionDetail";
@@ -167,6 +168,8 @@ export function Overlay() {
   const handledApprovalStateFocusKeyRef = useRef<string | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+  // measure 内层 rAF 句柄，用于跨动画生命周期清理
+  const measureRafRef = useRef(0);
   const [measuredHeight, setMeasuredHeight] = useState(EXPANDED_MIN as number);
 
   // v8 group sort state
@@ -337,37 +340,45 @@ export function Overlay() {
     };
   }, [isOverlayExpanded, isApprovalFocusMode, APPROVAL_FOCUS_WIDTH, APPROVAL_FOCUS_HEIGHT, EXPANDED_BORDER_RADIUS]);
 
+  // 自适应高度测量（non-approval expanded mode）：组件级 useCallback，
+  // 由 useAnimationGatedMeasure 在动画飞行中 gate 掉回写，避免反馈环抖动。
+  const measure = useCallback(() => {
+    if (!panelRef.current) return;
+    cancelAnimationFrame(measureRafRef.current);
+    measureRafRef.current = requestAnimationFrame(() => {
+      if (!panelRef.current) return;
+      const p = panelRef.current;
+      // 分层测量：chrome（固定部分）+ body（滚动内容区）
+      let chromeH = 0;
+      for (const child of Array.from(p.children)) {
+        const el = child as HTMLElement;
+        // 跳过滚动内容区，单独用 scrollHeight 测量
+        if (el === listRef.current) continue;
+        chromeH += el.offsetHeight || 0;
+      }
+      // 滚动内容区用 scrollHeight 读取完整内容高度（不受父级约束）
+      const bodyH = listRef.current?.scrollHeight ?? 0;
+      const contentH = chromeH + bodyH;
+      const next = clampOverlayHeight(BAR_HEIGHT + contentH, EXPANDED_MIN, EXPANDED_MAX);
+      setMeasuredHeight((h) => (Math.abs(h - next) < 1 ? h : next));
+    });
+  }, [BAR_HEIGHT, EXPANDED_MIN, EXPANDED_MAX]);
+
+  // 动画飞行中冻结测量回写；onAnimationComplete 透传给 AnimatedOverlay
+  const { gatedMeasure, onAnimationComplete } = useAnimationGatedMeasure(
+    measure,
+    isOverlayExpanded,
+  );
+
   // Adaptive height measurement for non-approval expanded mode
   useEffect(() => {
     if (!isOverlayExpanded || isApprovalFocusMode || !panelRef.current) return;
 
     const panel = panelRef.current;
-    let raf = 0;
 
-    const measure = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        if (!panelRef.current) return;
-        const p = panelRef.current;
-        // 分层测量：chrome（固定部分）+ body（滚动内容区）
-        let chromeH = 0;
-        for (const child of Array.from(p.children)) {
-          const el = child as HTMLElement;
-          // 跳过滚动内容区，单独用 scrollHeight 测量
-          if (el === listRef.current) continue;
-          chromeH += el.offsetHeight || 0;
-        }
-        // 滚动内容区用 scrollHeight 读取完整内容高度（不受父级约束）
-        const bodyH = listRef.current?.scrollHeight ?? 0;
-        const contentH = chromeH + bodyH;
-        const next = clampOverlayHeight(BAR_HEIGHT + contentH, EXPANDED_MIN, EXPANDED_MAX);
-        setMeasuredHeight((h) => (Math.abs(h - next) < 1 ? h : next));
-      });
-    };
-
-    // 延迟首帧测量，等 AnimatePresence 挂载完成
-    const initTimer = setTimeout(() => measure(), 50);
-    const observer = new ResizeObserver(() => measure());
+    // 延迟首帧测量，等 AnimatePresence 挂载完成（动画期间会被 gate 跳过）
+    const initTimer = setTimeout(() => gatedMeasure(), 50);
+    const observer = new ResizeObserver(() => gatedMeasure());
     observer.observe(panel);
     // 同时观察滚动内容区，内容变化时重新测量
     const bindList = () => { if (listRef.current) observer.observe(listRef.current); };
@@ -376,7 +387,7 @@ export function Overlay() {
     return () => {
       clearTimeout(initTimer);
       clearTimeout(bindTimer);
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(measureRafRef.current);
       observer.disconnect();
     };
   }, [
@@ -385,8 +396,7 @@ export function Overlay() {
     currentApproval,
     sessions.length,
     BAR_HEIGHT,
-    EXPANDED_MIN,
-    EXPANDED_MAX,
+    gatedMeasure,
     viewingSessionId,
   ]);
 
@@ -528,6 +538,7 @@ export function Overlay() {
         isExpanded={isOverlayExpanded}
         expandedHeight={isOverlayExpanded ? overlayExpandedHeight : undefined}
         snapPosition={snapPosition}
+        onComplete={onAnimationComplete}
       >
         <div className="overlay__shell pill" style={{ position: "relative" }}>
           {/* Jump Toast — non-blocking, pointer-events: none */}

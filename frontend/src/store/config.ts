@@ -189,7 +189,35 @@ export function normalizeOverlayLayoutConfig(overlay: OverlayConfigDefaults) {
   };
 }
 
-const DEFAULT_CONFIG: AppConfig = {
+/**
+ * 派生 overlay HWND 的固定 bounding box（decouple-overlay-geometry）。
+ * HWND 启动即设为该尺寸，正常使用中恒定，视觉变化用 CSS clip-path 表达。
+ * 取所有可达状态的最大值，确保任何状态下内容都装得下。
+ *
+ * @param normalizedOverlay `normalizeOverlayLayoutConfig(config.overlay)` 的返回值
+ * @param barHeight `config.ui.dimensions.barHeight`（compact 态高度）
+ */
+export function deriveBoundingBox(
+  normalizedOverlay: ReturnType<typeof normalizeOverlayLayoutConfig>,
+  barHeight: number,
+): { width: number; height: number } {
+  return {
+    width: Math.max(
+      normalizedOverlay.compactWidth,
+      normalizedOverlay.expandedWidth,
+      normalizedOverlay.approvalFocusWidth,
+    ),
+    height: Math.max(
+      barHeight,
+      normalizedOverlay.expandedMaxHeight,
+      normalizedOverlay.approvalFocusHeight,
+      normalizedOverlay.panelMaxHeights.sessionList,
+      normalizedOverlay.panelMaxHeights.sessionDetail,
+    ),
+  };
+}
+
+export const DEFAULT_CONFIG: AppConfig = {
   version: 4,
   hookServer: {
     port: 7878,

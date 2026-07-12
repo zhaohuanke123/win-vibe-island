@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Overlay } from "./components/Overlay";
 import { ControlCenter } from "./components/ControlCenter";
 import { GeometrySandbox } from "./components/GeometrySandbox";
+import { BboxSpike } from "./components/BboxSpike";
 import { useAgentEvents } from "./hooks/useAgentEvents";
 import { useSessionPersistence } from "./hooks/useSessionPersistence";
 import { initConfig } from "./store/config";
@@ -25,9 +26,12 @@ function ControlCenterApp() {
 }
 
 function App() {
+  const searchParams = new URLSearchParams(window.location.search);
+  const isBboxSpike =
+    import.meta.env.DEV && searchParams.get("sandbox") === "bbox-spike";
   const initialGeometrySandbox =
     import.meta.env.DEV &&
-    (new URLSearchParams(window.location.search).get("sandbox") === "geometry" ||
+    (searchParams.get("sandbox") === "geometry" ||
       import.meta.env.VITE_GEOMETRY_SANDBOX === "true");
   const [showGeometrySandbox, setShowGeometrySandbox] = useState(initialGeometrySandbox);
 
@@ -47,6 +51,10 @@ function App() {
 
   if (isControlCenter) {
     return <ControlCenterApp />;
+  }
+
+  if (isBboxSpike) {
+    return <BboxSpike />;
   }
 
   if (showGeometrySandbox) {
