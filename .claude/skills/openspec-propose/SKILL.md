@@ -82,6 +82,15 @@ When ready to implement, run /opsx:apply
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
+   d. **Before generating the tasks artifact, run the TDD detection gate**
+      - Read the spec delta's `#### Scenario:` blocks that were just generated
+      - Apply the detection heuristic in "TDD Mode Guidelines" below
+      - If TDD-friendly signals are present AND no disqualifiers: use AskUserQuestion (see §"TDD Mode Guidelines" for exact prompt)
+      - Record the decision as a one-line `**Test Approach:**` note at the end of proposal.md
+      - If user accepts TDD mode: generate tasks.md per the test-first template (§"TDD Mode Guidelines")
+      - Otherwise: default implementation-shaped tasks (current behavior)
+      - If proposal.md already has a `**Test Approach:**` line from a prior run, honor it and skip re-asking
+
 5. **Show final status**
    ```bash
    openspec status --change "<name>"
@@ -105,9 +114,74 @@ After completing all artifacts, summarize:
   - Do NOT copy `<context>`, `<rules>`, `<project_context>` blocks into the artifact
   - These guide what you write, but should never appear in the output
 
+**TDD Mode Guidelines**
+
+Conditional TDD: when a change touches stateful / timing / multi-step-derivation logic, generate tasks.md test-first so the red phase acts as a lie detector against tautological AI-written tests. Skip for pure refactor / UI / plumbing.
+
+**(a) Detection heuristic** — score = QUALIFY hits minus DISQUALIFY hits. Ask iff ≥1 QUALIFY AND zero DISQUALIFY.
+
+QUALIFY (any one suffices):
+- **State transitions** — ref/boolean lifecycle, "MUST be reset", `true→false` switch, `AgentState` / `TRANSITION_MATRIX`-class behavior
+- **Timing / async ordering** — "animation in flight", "after onAnimationComplete", event ordering
+- **Multi-step derivation** — 3+ verb chain in THEN (measures → clamps → emits)
+- **Parsing / serialization**
+- **Math / bounds** — clamp to `[MIN, MAX]`, equals a constant
+- **Risk-classification** — low/medium/high grade computation
+
+DISQUALIFY (any one suppresses, default to implementation-shaped):
+- Pure CSS / visual-only
+- Pure rename / move / delete refactor
+- Single-line config bump
+- Pure plumbing / wiring
+- Presentational components with no logic
+
+Edge case: mixed signals → DISQUALIFY wins. Optionally tell the user TDD may be applied per-scenario on request.
+
+**(b) AskUserQuestion prompt (exact)**
+
+- **Q**: "本 change 的 spec scenarios 看起来适合 TDD（${list detected signals}）。tasks.md 要写成 test-first——每个 scenario 成一个 '写失败测试 → 确认红 → 实现 → 确认绿' 循环，还是保持默认的 implementation 形态？"
+- **Options**:
+  1. Test-first（TDD 模式）—— 按 spec Scenario 分组，失败测试先行
+  2. Implementation-shaped（默认）
+  3. 我自己逐 scenario 决定
+- Default (user hits enter): option 2
+
+**(c) Test-first tasks.md template** (contrast with default implementation shape)
+
+One task group per spec Scenario; group title = scenario name. Each group has a fixed 4-checkbox micro-flow (apply reads checkboxes linearly — this forces test execution between writing and implementing):
+
+```markdown
+## Scenario: 动画飞行中 gatedMeasure 不调用 measure
+
+- [ ] 1.1 写失败测试：渲染 hook、isExpanded→true、多次触发 gatedMeasure，断言 measure 未被调用。运行 `npx vitest run <file>` 确认 RED（测试失败）
+- [ ] 1.2 实现 minimal 代码让测试转 GREEN（运行同一测试确认通过）
+- [ ] 1.3 检查测试是否同义反复（tautological）—— 临时翻转实现断言，确认测试会失败；翻回
+- [ ] 1.4 （可选）如有多余实现，删到最小可过测试
+
+## Scenario: <下一个 spec scenario>
+...
+```
+
+Refactoring tasks (TDD rule: "refactoring is not part of the loop"): place in a final `## Refactor (post-green, optional)` section, or defer to `/code-review`.
+
+**(d) Recording the decision** — append one line to the end of proposal.md (NOT design.md — proposal is in apply's contextFiles so apply can read it back):
+
+- Enabled: `**Test Approach:** TDD (auto-detected: stateful scenarios, timing ordering) — tasks.md is test-first.`
+- Not enabled: `**Test Approach:** implementation-shaped (no TDD signals / user declined).`
+
+**Inlined TDD rules** (these shape task generation — copied condensed from `.claude/skills/tdd/SKILL.md`):
+- **Red before green**: a test that passes before the implementation exists is a lie; the test MUST fail first. This is the load-bearing rule for AI.
+- **Tautological anti-pattern**: the assertion must NOT recompute the expected value the way the code does. Expected values come from the spec / a known-good literal / a worked example.
+- **Implementation-coupled anti-pattern**: tests verify behavior through public interfaces, not internals (no mocking private collaborators, no querying side channels).
+- **Horizontal slicing anti-pattern**: don't write all tests first then all impl. Work vertical — one scenario → red → green → next scenario.
+- **Refactoring is not part of the loop**: separates from red→green; lives in a post-green section or `/code-review`.
+
+Full TDD discipline: see `.claude/skills/tdd/SKILL.md`.
+
 **Guardrails**
 - Create ALL artifacts needed for implementation (as defined by schema's `apply.requires`)
 - Always read dependency artifacts before creating a new one
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, ask if user wants to continue it or create a new one
 - Verify each artifact file exists after writing before proceeding to next
+- TDD detection gate asks at most ONCE per change; if proposal.md already has a `**Test Approach:**` line, treat it as decided and skip re-asking
